@@ -28,7 +28,19 @@ use Socket qw/
 
 use Try::Tiny;
 
+
+has 'session_id' => (
+  ## Session ID for own session.
+  lazy => 1,
+  
+  is => 'ro',
+  
+  writer    => 'set_session_id',
+  predicate => 'has_session_id',
+);
+
 has 'controller' => (
+  ## Session ID for controller session
   lazy => 1,
 
   is   => 'ro',
@@ -68,6 +80,8 @@ has 'filter' => (
   is  => 'rwp',
 
   default => sub {
+    my ($self) = @_;
+
     POE::Filter::Stackable->new(
       Filters => [
         $self->filter_line,
@@ -77,6 +91,9 @@ has 'filter' => (
   },
 );
 
+
+## FIXME
+## these should all be objects:
 has 'listeners' => (
   lazy => 1,
 
@@ -106,7 +123,29 @@ has 'wheels' => (
 
 
 sub spawn {
-  ## FIXME spawn session
+  my ($class, %args) = @_;
+
+  $args{lc $_} = delete $args{$_} for keys %args;
+  
+  my $self = $class->new;
+
+  my $sess_id = POE::Session->create(
+    object_states => [
+      $self => {
+        '_start' => '_start',
+        '_stop'  => '_stop',
+        
+        ## FIXME
+      },
+    ],
+  )->ID;
+  
+  confess "Unable to spawn POE::Session and retrieve ID()"
+    unless $sess_id;
+
+  $self->set_session_id( $sess_id );
+  
+  $self
 }
 
 
@@ -128,33 +167,82 @@ sub ready {
   $self->set_controller( $_[SENDER]->ID );
 }
 
-sub p_accept_conn {
+sub _accept_conn {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($socket, $p_addr, $p_port, $listener_id) = @_[ARG0 .. ARG3];
+  my ($sock, $p_addr, $p_port, $listener_id) = @_[ARG0 .. ARG3];
 
+  ## Accepted connection to a listener.
 
+  my $sockaddr = inet_ntoa( 
+    ( unpack_sockaddr_in(getsockname $sock) )[1]
+  );
+
+  my $sockport = ( unpack_sockaddr_in(getsockname $sock) )[0];
+  
+  $p_addr = inet_ntoa( $p_addr );
+  
+  my $listener = $self->listeners->{$listener_id};
+  
+  if ($listener->{ssl}) {
+    try {
+      $sock = POE::Component::SSLify::Client_SSLify($sock)
+    } catch {
+      warn "Could not SSLify (server) socket: $_";
+      undef
+    } or return;
+  }
+  
+  my $wheel = POE::Wheel::ReadWrite->new(
+    Handle => $sock,
+    Filter => $self->filter,
+    InputEvent => '_ircsock_input',
+    ErrorEvent => '_ircsock_error',
+    FlushedEvent => '_ircsock_flushed',
+  );
+  
+  my $w_id = $wheel->ID;
+
+  $self->wheels->{$w_id} = {
+    wheel    => $wheel,
+    peeraddr => $p_addr,
+    peerport => $p_port,
+    sockaddr => $sockaddr,
+    sockport => $sockport,
+  };
+  
+
+  $kernel->post( $self->controller,
+    'ircsock_client_connected',
+    ## FIXME
+  );
 }
 
-sub p_accept_fail {
+sub _accept_fail {
 
 }
 
 
 sub create_listener {
   my $self = shift;
-  $self->yield('create_listener', @_)
+
+  $poe_kernel->post( $self->session_id,
+    'create_listener', 
+    @_
+  );
+
   1
 }
 
 sub _create_listener {
+  ## Create a listener on a particular port.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-
   my %args = @_[ARG0 .. $#_];
 
   $args{lc $_} = delete $args{$_} for keys %args;
 
   my $bindaddr  = delete $args{bindaddr} || '0.0.0.0';
   my $bindport  = delete $args{port}     || 0;
+
   my $idle_time = delete $args{idle}     || 180;
 
   my $ssl = delete $args{ssl} || 0;
@@ -162,8 +250,8 @@ sub _create_listener {
   my $wheel = POE::Wheel::SocketFactory->new(
     BindAddress => $bindaddr,
     BindPort    => $bindport,
-    SuccessEvent => 'p_accept_conn',
-    FailureEvent => 'p_accept_fail',
+    SuccessEvent => '_accept_conn',
+    FailureEvent => '_accept_fail',
     Reuse  => 1,
   );
 
@@ -186,14 +274,20 @@ sub _create_listener {
 
   ## Tell our controller session
   ##  Event: listener_added $addr, $port, $wheel_id
-  $kernel->post( $self->controller, 'listener_created',
+  $kernel->post( $self->controller, 
+    'ircsock_listener_created',
     $addr, $port, $id
   );
 }
 
 sub remove_listener {
   my $self = shift;
-  $self->yield( 'remove_listener', @_ );
+
+  $poe_kernel->post( $self->session_id,
+    'remove_listener', 
+    @_ 
+  );
+
   1
 }
 
@@ -208,11 +302,17 @@ sub _remove_listener {
 
 sub create_connector {
   my $self = shift;
-  $self->yield( 'create_connector', @_ );
+
+  $poe_kernel->post( $self->session_id,
+    'create_connector',
+    @_
+  );
+
   1
 }
 
 sub _create_connector {
+  ## Connector; try to spawn socket <-> remote peer
   my ($kernel, $self) = @_;
   my %args = @_[ARG0 .. $#_];
 
@@ -269,7 +369,7 @@ sub _ircsock_up {
     FlushedEvent => '_ircsock_flushed',
     Filter       => POE::Filter::Stackable->new(
       Filters => [ $self->filter ],
-    );
+    )
   );
 
   my $w_id = $wheel->ID;
@@ -290,7 +390,8 @@ sub _ircsock_up {
   
   $self->wheels->{$w_id} = $ref;
   
-  $kernel->post( $self->controller, 'client_connected',
+  $kernel->post( $self->controller, 
+    'ircsock_peer_connected',
     $w_id, $peeraddr, $peerport, $sockaddr, $sockport
   );
 }
@@ -302,7 +403,8 @@ sub _ircsock_failed {
   my $ct = delete $self->connectors->{$c_id};  
   delete $ct->{wheel};
 
-  $kernel->post( $self->controller, 'socketerr',
+  $kernel->post( $self->controller, 
+    'ircsock_socketerr',
     $ct, $op, $errno, $errstr
   );
 }
@@ -323,9 +425,10 @@ sub _ircsock_input {
   ##  command =>
   ##  params  =>
   ##  raw_line =>
-  my $event = $input->{command};
-
-  $kernel->post( $self->controller, 'irc_ev_'.$command, $input );
+  $kernel->post( $self->controller, 
+    'ircsock_ev_'.$input->{command},
+    $input 
+  );
 }
 
 sub _ircsock_error {
@@ -349,4 +452,7 @@ sub _ircsock_flushed {
 
 }
 
-1
+1;
+__END__
+
+## FIXME listener connect ip blacklist?

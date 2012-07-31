@@ -248,7 +248,14 @@ sub _accept_conn {
 }
 
 sub _accept_fail {
-
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($op, $errnum, $errstr, $listener_id) = @_[ARG0 .. ARG3];
+  
+  my $listener = delete $self->listeners->{$listener_id};
+  if ($listener) {
+    ## FIXME send listener failure notification
+    ## let listener go out of scope
+  }
 }
 
 
@@ -284,14 +291,12 @@ sub _create_listener {
   my $ssl = delete $args{ssl} || 0;
 
   my $wheel = POE::Wheel::SocketFactory->new(
-    SocketDomain => 
-      ( $inet_proto == 6 ? AF_INET6 : AF_INET ),
-
-    BindAddress => $bindaddr,
-    BindPort    => $bindport,
+    SocketDomain => $inet_proto == 6 ? AF_INET6 : AF_INET,
+    BindAddress  => $bindaddr,
+    BindPort     => $bindport,
     SuccessEvent => '_accept_conn',
     FailureEvent => '_accept_fail',
-    Reuse  => 1,
+    Reuse        => 1,
   );
 
   my $id = $wheel->ID;
@@ -365,9 +370,7 @@ sub _create_connector {
     unless defined $remote_addr and defined $remote_port;
 
   my $wheel = POE::Wheel::SocketFactory->new(
-    SocketDomain => 
-      ( $inet_proto == 6 ? AF_INET6 : AF_INET ),
-
+    SocketDomain   => $inet_proto == 6 ? AF_INET6 : AF_INET,
     SocketProtocol => 'tcp',
     RemoteAddress  => $remote_addr,
     RemotePort     => $remote_port,
@@ -383,6 +386,7 @@ sub _create_connector {
     addr  => $remote_addr,
     port  => $remote_port,
     (defined $args{bindaddr} ? (bindaddr => $args{bindaddr}) : () ),
+    ## FIXME attach extra args (possible hints-hash ?) to obj ?
   );
   
   ## FIXME ssl .. ?
@@ -484,14 +488,14 @@ sub _ircsock_input {
   ## FIXME idle adjust?
   ## FIXME anti-flood code or should that be higher up ... ?
 
-  ## Filter returns:
-  ##  prefix  =>
-  ##  command =>
-  ##  params  =>
-  ##  raw_line =>
+  ## Create obj from HASH from POE::Filter::IRCD
+  my $obj = IRC::Server::Pluggable::Backend::Event->new(
+    %$input
+  );
+
   $kernel->post( $self->controller, 
-    'ircsock_ev_'.$input->{command},
-    $input 
+    'ircsock_incoming',
+    $obj
   );
 }
 
@@ -499,22 +503,35 @@ sub _ircsock_error {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($errstr, $w_id) = @_[ARG2, ARG3];
   
+  my $this_conn;
+  return unless $this_conn = $self->wheels->{$w_id};
+  
   ## FIXME return if no such connection
-  ## FIXME otherwise call disconnected event
+  ## FIXME otherwise call disconnected method
 }
 
 sub _ircsock_flushed {
   my ($kernel, $self, $w_id) = @_[KERNEL, OBJECT, ARG0];
 
-  ## FIXME
-  ## return if no such connection
-  ## otherwise if this wheel is in a disconnecting state,
-  ##  issue a disconnected event
-  ## compression todo:
-  ##  if this wheel has had compression requested, 
-  ##   add zlib filter and send compressed_link event
+  my $this_conn;
+  return unless $this_conn = $self->wheels->{$w_id};
 
+  if ($this_conn->is_disconnecting) {
+    ## FIXME call disconnected method
+    return
+  }
+  
+  if ($this_conn->is_pending_compress) {
+    $this_conn->is_pending_compress(0);
+    $this_conn->wheel->get_input_filter->unshift(
+      POE::Filter::Zlib::Stream->new,
+    );
+    ## FIXME send event
+    return
+  }
 }
+
+## FIXME idle alarm ?
 
 1;
 __END__

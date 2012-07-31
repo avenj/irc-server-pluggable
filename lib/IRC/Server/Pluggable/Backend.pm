@@ -100,33 +100,24 @@ has 'filter' => (
 ## IRC::Server::Pluggable::Backend::Listener objs
 ## These are listeners for a particular port.
 has 'listeners' => (
-  lazy => 1,
-
   is  => 'rwp',
   isa => HashRef,
-
   default => sub { {} },
 );
 
 ## IRC::Server::Pluggable::Backend::Connector objs
 ## These are outgoing (peer) connectors.
 has 'connectors' => (
-  lazy => 1,
-
   is  => 'rwp',
   isa => HashRef,
-
   default => sub { {} },
 );
 
 ## IRC::Server::Pluggable::Backend::Wheel objs
 ## These are our connected wheels.
 has 'wheels' => (
-  lazy => 1,
-  
   is  => 'rwp',
-  isa => HashRef,
-  
+  isa => HashRef,  
   default => sub { {} },
 ); 
 
@@ -161,10 +152,11 @@ sub spawn {
 
 
 sub _start {
-
+  ## FIXME
 }
 
 sub _stop {
+  ## FIXME
   ## decrease refcount on recorded sender if we have one
 }
 

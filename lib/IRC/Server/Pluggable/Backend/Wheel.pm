@@ -8,21 +8,16 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
-has 'wheel' => (
-  required => 1,
-
-  isa => Wheel,
-  is  => 'ro',
-  
-  clearer => 'clear_wheel',
-  writer  => 'set_wheel',
+has 'is_disconnecting' => (
+  isa => Bool,
+  is  => 'rw',
+  default => sub { 0 },
 );
 
-has 'protocol' => (
-  required => 1,
-  
-  isa => InetProtocol,
-  is  => 'ro',
+has 'is_pending_compress' => (
+  isa => Bool,
+  is  => 'rw',
+  default => sub { 0 },
 );
 
 has 'peeraddr' => (
@@ -43,6 +38,13 @@ has 'peerport' => (
   writer => 'set_peerport',
 );
 
+has 'protocol' => (
+  required => 1,
+  
+  isa => InetProtocol,
+  is  => 'ro',
+);
+
 has 'sockaddr' => (
   required => 1,
   
@@ -59,6 +61,16 @@ has 'sockport' => (
   is  => 'ro',
   
   writer => 'set_sockport',
+);
+
+has 'wheel' => (
+  required => 1,
+
+  isa => Wheel,
+  is  => 'ro',
+  
+  clearer => 'clear_wheel',
+  writer  => 'set_wheel',
 );
 
 1;

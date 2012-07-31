@@ -1,8 +1,6 @@
 package IRC::Server::Pluggable::Backend;
 our $VERSION = '0.01';
 
-## FIXME ipv6
-
 use 5.12.1;
 use strictures 1;
 
@@ -369,8 +367,8 @@ sub _create_connector {
     SocketProtocol => 'tcp',
     RemoteAddress  => $remote_addr,
     RemotePort     => $remote_port,
-    SuccessEvent   => '_ircsock_up',
-    FailureEvent   => '_ircsock_failed',
+    SuccessEvent   => '_connector_up',
+    FailureEvent   => '_connector_failed',
     (defined $args{bindaddr} ? (BindAddress => $args{bindaddr}) : ()),
   );
 
@@ -387,7 +385,7 @@ sub _create_connector {
 }
 
 
-sub _ircsock_up {
+sub _connector_up {
   ## Created connector socket.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($sock, $peeraddr, $peerport, $c_id) = @_[ARG0 .. ARG3];
@@ -435,7 +433,7 @@ sub _ircsock_up {
     ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
     $sockaddr = inet_ntoa($sockaddr);
   } else {
-    croak "Unknown socket family type in _ircsock_up"
+    croak "Unknown socket family type in _connector_up"
   }
 
   my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
@@ -456,7 +454,7 @@ sub _ircsock_up {
   );
 }
 
-sub _ircsock_failed {
+sub _connector_failed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($op, $errno, $errstr, $c_id) = @_[ARG0 .. ARG3];
 
@@ -469,6 +467,7 @@ sub _ircsock_failed {
   );
 }
 
+## _ircsock_* handlers talk to endpoints via listeners/connectors
 sub _ircsock_input {
   ## Input handler.
   my ($kernel, $self) = @_[KERNEL, OBJECT];

@@ -18,6 +18,13 @@ has 'wheel' => (
   writer  => 'set_wheel',
 );
 
+has 'protocol' => (
+  required => 1,
+  
+  isa => InetProtocol,
+  is  => 'ro',
+);
+
 has 'peeraddr' => (
   required => 1,
   

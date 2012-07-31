@@ -270,10 +270,14 @@ sub _create_listener {
 
   $args{lc $_} = delete $args{$_} for keys %args;
   
-  my $inet_proto = delete $args{ipv6} ? 6 : 4 ;
-
   my $bindaddr  = delete $args{bindaddr} || '0.0.0.0';
   my $bindport  = delete $args{port}     || 0;
+
+  my $inet_proto = delete $args{ipv6} ? 6 : 4 ;
+
+  my $inet_proto = 4;
+  $inet_proto = 6
+    if delete $args{ipv6} or ip_is_ipv6($bindaddr);
 
   my $idle_time = delete $args{idle}     || 180;
 

@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::IRCSock::Wheel;
+package IRC::Server::Pluggable::Backend::Wheel;
 
 use 5.12.1;
 use strictures 1;

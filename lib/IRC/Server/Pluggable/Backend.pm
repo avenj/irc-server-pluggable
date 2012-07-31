@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::IRCSock;
+package IRC::Server::Pluggable::Backend;
 our $VERSION = '0.01';
 
 use 5.12.1;
@@ -9,8 +9,8 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
-use IRC::Server::Pluggable::IRCSock::Listener;
-#use IRC::Server::Pluggable::IRCSock::Connector;
+use IRC::Server::Pluggable::Backend::Listener;
+#use IRC::Server::Pluggable::Backend::Connector;
 
 use POE qw/
   Session
@@ -94,7 +94,8 @@ has 'filter' => (
   },
 );
 
-## IRC::Server::Pluggable::IRCSock::Listener objs
+## IRC::Server::Pluggable::Backend::Listener objs
+## These are listeners for a particular port.
 has 'listeners' => (
   lazy => 1,
 
@@ -104,7 +105,8 @@ has 'listeners' => (
   default => sub { {} },
 );
 
-## IRC::Server::Pluggable::IRCSock::Connector objs
+## IRC::Server::Pluggable::Backend::Connector objs
+## These are outgoing (peer) connectors.
 has 'connectors' => (
   lazy => 1,
 
@@ -114,6 +116,8 @@ has 'connectors' => (
   default => sub { {} },
 );
 
+## IRC::Server::Pluggable::Backend::Wheel objs
+## These are our connected wheels.
 has 'wheels' => (
   lazy => 1,
   
@@ -145,6 +149,8 @@ sub spawn {
   confess "Unable to spawn POE::Session and retrieve ID()"
     unless $sess_id;
 
+  ## FIXME set up SSLify_Options
+
   $self->set_session_id( $sess_id );
   
   $self
@@ -159,7 +165,7 @@ sub _stop {
   ## decrease refcount on recorded sender if we have one
 }
 
-sub ready {
+sub start {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   ## FIXME
   ##  receive event from sender session
@@ -204,18 +210,19 @@ sub _accept_conn {
   
   my $w_id = $wheel->ID;
 
-  $self->wheels->{$w_id} = {
+  my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
     wheel    => $wheel,
     peeraddr => $p_addr,
     peerport => $p_port,
     sockaddr => $sockaddr,
     sockport => $sockport,
-  };
-  
+  );
+
+  $self->wheels->{$w_id} = $obj;
 
   $kernel->post( $self->controller,
     'ircsock_client_connected',
-    ## FIXME
+    $obj
   );
 }
 
@@ -259,7 +266,7 @@ sub _create_listener {
 
   my $id = $wheel->ID;
 
-  $self->listeners->{$id} = IRC::Server::Pluggable::IRCSock::Listener->new(
+  $self->listeners->{$id} = IRC::Server::Pluggable::Backend::Listener->new(
     wheel => $wheel,
     addr  => $bindaddr,
     port  => $bindport,
@@ -334,7 +341,7 @@ sub _create_connector {
 
   my $id = $wheel->ID;
   
-  $self->connectors->{$id} = IRC::Server::Pluggable::IRCSock::Connector->new(
+  $self->connectors->{$id} = IRC::Server::Pluggable::Backend::Connector->new(
     wheel => $wheel,
     addr  => $remote_addr,
     port  => $remote_port,
@@ -352,6 +359,7 @@ sub _ircsock_up {
 
   $peeraddr = inet_ntoa($peeraddr);
 
+  ## No need to try to connect out any more; remove from connectors pool
   my $ct = delete $self->connectors->{$c_id};
 
   if ( $ct->ssl ) {
@@ -380,21 +388,20 @@ sub _ircsock_up {
   );
   my $sockport = ( unpack_sockaddr_in(getsockname $sock) )[0];
 
-  ## FIXME objs
-  my $ref = {
+  my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
     wheel => $wheel,
     peeraddr => $peeraddr,
     peerport => $peerport,
     sockaddr => $sockaddr,
     sockport => $sockport,
     ## FIXME idle / compression ?
-  };
+  );
   
-  $self->wheels->{$w_id} = $ref;
+  $self->wheels->{$w_id} = $obj;
   
   $kernel->post( $self->controller, 
     'ircsock_peer_connected',
-    $w_id, $peeraddr, $peerport, $sockaddr, $sockport
+    $obj
   );
 }
 
@@ -416,6 +423,7 @@ sub _ircsock_input {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($input, $w_id)  = @_[ARG0, ARG1];
 
+  ## Retrieve Backend::Wheel
   my $this_conn = $self->wheels->{$w_id};
 
   ## FIXME raw events?

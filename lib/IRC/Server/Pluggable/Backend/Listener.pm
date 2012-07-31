@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::IRCSock::Connector;
+package IRC::Server::Pluggable::Backend::Listener;
 
 use 5.12.1;
 use strictures 1;
@@ -13,12 +13,12 @@ has 'wheel' => (
   
   isa => Wheel,
   is  => 'ro',
-  
-  writer    => 'set_wheel',
-  clearer   => 'clear_wheel',
+
+  clearer => 'clear_wheel',
+  writer  => 'set_wheel',  
 );
 
-has 'addr' => (
+has 'addr'  => (
   required => 1,
   
   isa => Str,
@@ -27,29 +27,27 @@ has 'addr' => (
   writer    => 'set_addr',
 );
 
-has 'port' => (
+has 'port'  => (
   required => 1,
   
   isa => Int,
   is  => 'ro',
-
+  
   writer    => 'set_port',
 );
 
-has 'bindaddr' => (
-  isa => Str,
-  is  => 'ro',
-  
-  predicate => 'has_bindaddr',
-  writer    => 'set_bindaddr',
+has 'idle'  => (
+  ## FIXME
 );
 
-has 'ssl' => (
+has 'ssl'   => (
   isa => Bool,
   is  => 'ro',
   
   predicate => 'has_ssl',
   writer    => 'set_ssl',
+  
+  default => sub { 0 },
 );
 
 1;

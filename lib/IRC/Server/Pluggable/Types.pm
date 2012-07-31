@@ -1,14 +1,26 @@
 package IRC::Server::Pluggable::Types;
 
 use strictures 1;
-use base 'Exporter';
 
+use base 'Exporter';
 use MooX::Types::MooseLike::Base;
 
-our @EXPORT = $MooX::Types::MooseLike::Base::EXPORT_OK;
+our @EXPORT_OK;
 
-sub import {
-  __PACKAGE__->export_to_level(1, @_)
-}
+use Scalar::Util qw/blessed/;
+
+my $type_definitions = [
+  {
+    name => 'Wheel',
+    test => sub { blessed($_[0]) && $_[0]->isa('POE::Wheel') },
+    message => sub { "$_[0] is not a POE::Wheel" },
+  },
+];
+
+MooX::Types::MooseLike::register_types(
+  $type_definitions, __PACKAGE__
+);
+
+our @EXPORT = \@EXPORT_OK;
 
 1;

@@ -7,7 +7,10 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use MooX::Types::MooseLike::Base qw/:all/;
+use IRC::Server::Pluggable::Types;
+
+use IRC::Server::Pluggable::IRCSock::Listener;
+#use IRC::Server::Pluggable::IRCSock::Connector;
 
 use POE qw/
   Session
@@ -91,9 +94,7 @@ has 'filter' => (
   },
 );
 
-
-## FIXME
-## these should all be objects:
+## IRC::Server::Pluggable::IRCSock::Listener objs
 has 'listeners' => (
   lazy => 1,
 
@@ -103,6 +104,7 @@ has 'listeners' => (
   default => sub { {} },
 );
 
+## IRC::Server::Pluggable::IRCSock::Connector objs
 has 'connectors' => (
   lazy => 1,
 
@@ -183,7 +185,7 @@ sub _accept_conn {
   
   my $listener = $self->listeners->{$listener_id};
   
-  if ($listener->{ssl}) {
+  if ( $listener->ssl ) {
     try {
       $sock = POE::Component::SSLify::Client_SSLify($sock)
     } catch {
@@ -257,20 +259,17 @@ sub _create_listener {
 
   my $id = $wheel->ID;
 
-  $self->listeners->{$id} = {
+  $self->listeners->{$id} = IRC::Server::Pluggable::IRCSock::Listener->new(
     wheel => $wheel,
-
     addr  => $bindaddr,
     port  => $bindport,
-
     idle  => $idle_time,
-
     ssl   => $ssl,
-  };
+  );
 
   ## Real bound port/addr
   my ($port, $addr) = unpack_sockaddr_in( $wheel->getsockname ); 
-  $self->listeners->{$id}->{port} = $port if $port;
+  $self->listeners->{$id}->set_port($port) if $port;
 
   ## Tell our controller session
   ##  Event: listener_added $addr, $port, $wheel_id
@@ -335,12 +334,14 @@ sub _create_connector {
 
   my $id = $wheel->ID;
   
-  $self->connectors->{$id} = {
+  $self->connectors->{$id} = IRC::Server::Pluggable::IRCSock::Connector->new(
     wheel => $wheel,
     addr  => $remote_addr,
     port  => $remote_port,
     (defined $args{bindaddr} ? (bindaddr => $args{bindaddr}) : () ),
-  };
+  );
+  
+  ## FIXME ssl .. ?
 }
 
 
@@ -353,7 +354,7 @@ sub _ircsock_up {
 
   my $ct = delete $self->connectors->{$c_id};
 
-  if ($ct->{ssl}) {
+  if ( $ct->ssl ) {
     try {
       $sock = POE::Component::SSLify::Client_SSLify($sock)
     } catch {
@@ -379,6 +380,7 @@ sub _ircsock_up {
   );
   my $sockport = ( unpack_sockaddr_in(getsockname $sock) )[0];
 
+  ## FIXME objs
   my $ref = {
     wheel => $wheel,
     peeraddr => $peeraddr,
@@ -400,8 +402,8 @@ sub _ircsock_failed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($op, $errno, $errstr, $c_id) = @_[ARG0 .. ARG3];
 
-  my $ct = delete $self->connectors->{$c_id};  
-  delete $ct->{wheel};
+  my $ct = delete $self->connectors->{$c_id};
+  $ct->clear_wheel;
 
   $kernel->post( $self->controller, 
     'ircsock_socketerr',

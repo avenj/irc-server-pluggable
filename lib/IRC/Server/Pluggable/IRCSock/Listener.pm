@@ -14,8 +14,8 @@ has 'wheel' => (
   isa => Wheel,
   is  => 'ro',
 
-  predicate => 'has_wheel',
-  writer    => 'set_wheel',  
+  clearer => 'clear_wheel',
+  writer  => 'set_wheel',  
 );
 
 has 'addr'  => (
@@ -24,7 +24,6 @@ has 'addr'  => (
   isa => Str,
   is  => 'ro',
   
-  predicate => 'has_addr',
   writer    => 'set_addr',
 );
 
@@ -34,7 +33,6 @@ has 'port'  => (
   isa => Int,
   is  => 'ro',
   
-  predicate => 'has_port',
   writer    => 'set_port',
 );
 

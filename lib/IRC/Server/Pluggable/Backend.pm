@@ -1,16 +1,19 @@
 package IRC::Server::Pluggable::Backend;
 our $VERSION = '0.01';
 
+## Modelled on POE::Component::Server::IRC
+
 use 5.12.1;
 use strictures 1;
 
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Types;
-
+use IRC::Server::Pluggable::Backend::Connector;
 use IRC::Server::Pluggable::Backend::Listener;
-#use IRC::Server::Pluggable::Backend::Connector;
+use IRC::Server::Pluggable::Backend::Wheel;
+
+use IRC::Server::Pluggable::Types;
 
 use POE qw/
   Session
@@ -57,10 +60,8 @@ has 'filter_irc' => (
 
   is  => 'rwp',
 
-  default => sub {
-    POE::Filter::IRCD->new(
-      colonify => 1,
-    )
+  default => sub { 
+    POE::Filter::IRCD->new( colonify => 1 ) 
   },
 );
 
@@ -81,6 +82,8 @@ has 'filter' => (
   lazy => 1,
 
   is  => 'rwp',
+  
+  isa => Filter,
 
   default => sub {
     my ($self) = @_;

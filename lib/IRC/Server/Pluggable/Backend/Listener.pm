@@ -24,7 +24,7 @@ has 'addr'  => (
   isa => Str,
   is  => 'ro',
   
-  writer    => 'set_addr',
+  writer => 'set_addr',
 );
 
 has 'port'  => (
@@ -33,11 +33,21 @@ has 'port'  => (
   isa => Int,
   is  => 'ro',
   
-  writer    => 'set_port',
+  writer => 'set_port',
 );
 
 has 'idle'  => (
-  ## FIXME
+  lazy => 1,
+
+  isa => Num,
+  is  => 'rw',
+  
+  ## FIXME?
+
+  predicate => 'has_idle',
+  writer    => 'set_idle',
+  
+  default => sub { 0 },
 );
 
 has 'ssl'   => (

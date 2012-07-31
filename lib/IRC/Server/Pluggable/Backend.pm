@@ -144,7 +144,21 @@ sub spawn {
         '_start' => '_start',
         '_stop'  => '_stop',
         
-        ## FIXME
+        'start'  => 'start',
+                
+        'create_listener' => '_create_listener',
+        'remove_listener' => '_remove_listener',
+
+        '_accept_conn' => '_accept_conn',
+        '_accept_fail' => '_accept_fail',
+        
+        'create_connector'  => '_create_connector',
+        '_connector_up'     => '_connector_up',
+        '_connector_failed' => '_connector_failed',
+        
+        '_ircsock_input'    => '_ircsock_input',
+        '_ircsock_error'    => '_ircsock_error',
+        '_ircsock_flushed'  => '_ircsock_flushed',
       },
     ],
   )->ID;
@@ -161,12 +175,11 @@ sub spawn {
 
 
 sub _start {
-  ## FIXME
+
 }
 
 sub _stop {
-  ## FIXME
-  ## decrease refcount on recorded sender if we have one
+
 }
 
 sub start {

@@ -15,6 +15,10 @@ use IRC::Server::Pluggable::Backend::Wheel;
 
 use IRC::Server::Pluggable::Types;
 
+use Net::IP::Minimal qw/
+  ip_is_ipv6
+/;
+
 use POE qw/
   Session
 
@@ -28,11 +32,12 @@ use POE qw/
 /;
 
 use Socket qw/
-  ## v4
+  :addrinfo
+
+  AF_INET
   inet_ntoa
   unpack_sockaddr_in
 
-  ## v6
   AF_INET6
   inet_ntop
   unpack_sockaddr_in6
@@ -182,13 +187,29 @@ sub _accept_conn {
 
   ## Accepted connection to a listener.
 
-  my $sockaddr = inet_ntoa( 
-    ( unpack_sockaddr_in(getsockname $sock) )[1]
-  );
+  my $inet_proto;  
+  my $sock_packed = getsockname($sock);
+  my $sock_family = socketaddr_family($sock_packed);
 
-  my $sockport = ( unpack_sockaddr_in(getsockname $sock) )[0];
-  
-  $p_addr = inet_ntoa( $p_addr );
+  ## FIXME getnameinfo instead?
+  my($sockaddr, $sockport);
+  if ($sock_family == AF_INET6) {
+    $inet_proto = 6;
+    ($sockport, $sockaddr) = unpack_sockaddr_in6($sock_packed);
+    $sockaddr = inet_ntop($sockaddr);
+  } elsif ($sock_family == AF_INET) {
+    $inet_proto = 4;
+    ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
+    $sockaddr = inet_ntoa($sockaddr);
+  } else {
+    croak "Unknown socket family type in _accept_conn"
+  }
+
+  my $n_err;
+  ($n_err, $p_addr) = getnameinfo( 
+   $p_addr,
+   NI_NUMERICHOST | NIx_NOSERV
+ );
   
   my $listener = $self->listeners->{$listener_id};
   
@@ -212,6 +233,7 @@ sub _accept_conn {
   my $w_id = $wheel->ID;
 
   my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
+    protocol => $inet_proto,
     wheel    => $wheel,
     peeraddr => $p_addr,
     peerport => $p_port,
@@ -249,6 +271,8 @@ sub _create_listener {
   my %args = @_[ARG0 .. $#_];
 
   $args{lc $_} = delete $args{$_} for keys %args;
+  
+  my $inet_proto = delete $args{ipv6} ? 6 : 4 ;
 
   my $bindaddr  = delete $args{bindaddr} || '0.0.0.0';
   my $bindport  = delete $args{port}     || 0;
@@ -258,6 +282,9 @@ sub _create_listener {
   my $ssl = delete $args{ssl} || 0;
 
   my $wheel = POE::Wheel::SocketFactory->new(
+    SocketDomain => 
+      ( $inet_proto == 6 ? AF_INET6 : AF_INET ),
+
     BindAddress => $bindaddr,
     BindPort    => $bindport,
     SuccessEvent => '_accept_conn',
@@ -328,10 +355,17 @@ sub _create_connector {
   my $remote_addr = $args{remoteaddr};
   my $remote_port = $args{remoteport};
 
+  my $inet_proto = 4;
+  $inet_proto = 6
+    if delete $args{ipv6} or ip_is_ipv6($remote_addr);
+
   confess "_create_connector expects a RemoteAddr and RemotePort"
     unless defined $remote_addr and defined $remote_port;
 
   my $wheel = POE::Wheel::SocketFactory->new(
+    SocketDomain => 
+      ( $inet_proto == 6 ? AF_INET6 : AF_INET ),
+
     SocketProtocol => 'tcp',
     RemoteAddress  => $remote_addr,
     RemotePort     => $remote_port,
@@ -358,7 +392,10 @@ sub _ircsock_up {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($sock, $peeraddr, $peerport, $c_id) = @_[ARG0 .. ARG3];
 
-  $peeraddr = inet_ntoa($peeraddr);
+  my $n_err;
+  ($n_err, $peeraddr) = getnameinfo( $peeraddr,
+    NI_NUMERICHOST | NIx_NOSERV
+  );
 
   ## No need to try to connect out any more; remove from connectors pool
   my $ct = delete $self->connectors->{$c_id};
@@ -384,13 +421,26 @@ sub _ircsock_up {
 
   my $w_id = $wheel->ID;
 
-  my $sockaddr = inet_ntoa( 
-    ( unpack_sockaddr_in(getsockname $sock) )[1] 
-  );
-  my $sockport = ( unpack_sockaddr_in(getsockname $sock) )[0];
+  my $inet_proto;
+  my $sock_packed = getsockname($sock);
+  my $sock_family = socketaddr_family($sock_packed);
+
+  my($sockaddr, $sockport);
+  if ($sock_family == AF_INET6) {
+    $inet_proto = 6;
+    ($sockport, $sockaddr) = unpack_sockaddr_in6($sock_packed);
+    $sockaddr = inet_ntop($sockaddr);
+  } elsif ($sock_family == AF_INET) {
+    $inet_proto = 4;
+    ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
+    $sockaddr = inet_ntoa($sockaddr);
+  } else {
+    croak "Unknown socket family type in _ircsock_up"
+  }
 
   my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
-    wheel => $wheel,
+    protocol => $inet_proto,
+    wheel    => $wheel,
     peeraddr => $peeraddr,
     peerport => $peerport,
     sockaddr => $sockaddr,

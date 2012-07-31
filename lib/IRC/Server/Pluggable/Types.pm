@@ -29,14 +29,7 @@ MooX::Types::MooseLike::register_types(
 
 our @EXPORT = (
   @EXPORT_OK,
-  qw/
-   Any Defined Undef Bool
-   Str Num Int
-   Ref ArrayRef HashRef CodeRef 
-   RegexpRef GlobRef
-   FileHandle Object
-   AHRef
-  /,
+  @MooX::Types::MooseLike::Base::EXPORT_OK
 );
 
 1;

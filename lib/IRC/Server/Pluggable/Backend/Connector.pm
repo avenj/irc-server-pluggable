@@ -8,32 +8,13 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
-has 'wheel' => (
-  required => 1,
-  
-  isa => Wheel,
-  is  => 'ro',
-  
-  writer    => 'set_wheel',
-  clearer   => 'clear_wheel',
-);
-
 has 'addr' => (
   required => 1,
   
   isa => Str,
   is  => 'ro',
   
-  writer    => 'set_addr',
-);
-
-has 'port' => (
-  required => 1,
-  
-  isa => Int,
-  is  => 'ro',
-
-  writer    => 'set_port',
+  writer => 'set_addr',
 );
 
 has 'bindaddr' => (
@@ -44,12 +25,38 @@ has 'bindaddr' => (
   writer    => 'set_bindaddr',
 );
 
+has 'port' => (
+  required => 1,
+  
+  isa => Int,
+  is  => 'ro',
+
+  writer => 'set_port',
+);
+
+has 'protocol' => (
+  required => 1,
+
+  isa => InetProtocol,
+  is  => 'ro',
+);
+
 has 'ssl' => (
   isa => Bool,
   is  => 'ro',
   
   predicate => 'has_ssl',
   writer    => 'set_ssl',
+);
+
+has 'wheel' => (
+  required => 1,
+  
+  isa => Wheel,
+  is  => 'ro',
+  
+  clearer => 'clear_wheel',
+  writer  => 'set_wheel',
 );
 
 1;

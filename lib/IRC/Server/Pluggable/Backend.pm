@@ -1,7 +1,7 @@
 package IRC::Server::Pluggable::Backend;
 our $VERSION = '0.01';
 
-## Modelled on POE::Component::Server::IRC
+## FIXME ipv6
 
 use 5.12.1;
 use strictures 1;
@@ -28,8 +28,14 @@ use POE qw/
 /;
 
 use Socket qw/
+  ## v4
   inet_ntoa
   unpack_sockaddr_in
+
+  ## v6
+  AF_INET6
+  inet_ntop
+  unpack_sockaddr_in6
 /;
 
 use Try::Tiny;

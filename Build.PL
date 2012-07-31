@@ -35,6 +35,7 @@ my $build = $class->new(
 
     'Carp'     => 0,
     'Exporter' => 0,
+    'Socket'   => 2,
     
     'strictures' => 1,
     

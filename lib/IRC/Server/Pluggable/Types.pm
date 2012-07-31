@@ -21,6 +21,11 @@ my $type_definitions = [
     test => sub { blessed($_[0]) && $_[0]->isa('POE::Filter') },
     message => sub { "$_[0] is not a POE::Filter" },
   },
+  {
+    name => 'InetProtocol',
+    test => sub { $_[0] && $_[0] == 4 || $_[0] == 6 },
+    message => sub { "$_[0] is not inet protocol 4 or 6" },
+  },
 ];
 
 MooX::Types::MooseLike::register_types(

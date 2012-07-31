@@ -8,16 +8,6 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
-has 'wheel' => (
-  required => 1,
-  
-  isa => Wheel,
-  is  => 'ro',
-
-  clearer => 'clear_wheel',
-  writer  => 'set_wheel',  
-);
-
 has 'addr'  => (
   required => 1,
   
@@ -25,15 +15,6 @@ has 'addr'  => (
   is  => 'ro',
   
   writer => 'set_addr',
-);
-
-has 'port'  => (
-  required => 1,
-  
-  isa => Int,
-  is  => 'ro',
-  
-  writer => 'set_port',
 );
 
 has 'idle'  => (
@@ -50,6 +31,22 @@ has 'idle'  => (
   default => sub { 0 },
 );
 
+has 'port'  => (
+  required => 1,
+  
+  isa => Int,
+  is  => 'ro',
+  
+  writer => 'set_port',
+);
+
+has 'protocol' => (
+  required => 1,
+
+  isa => InetProtocol,
+  is  => 'ro',
+);
+
 has 'ssl'   => (
   isa => Bool,
   is  => 'ro',
@@ -58,6 +55,16 @@ has 'ssl'   => (
   writer    => 'set_ssl',
   
   default => sub { 0 },
+);
+
+has 'wheel' => (
+  required => 1,
+  
+  isa => Wheel,
+  is  => 'ro',
+
+  clearer => 'clear_wheel',
+  writer  => 'set_wheel',  
 );
 
 1;

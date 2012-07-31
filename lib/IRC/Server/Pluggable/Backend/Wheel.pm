@@ -14,7 +14,8 @@ has 'wheel' => (
   isa => Wheel,
   is  => 'ro',
   
-  writer => 'set_wheel',
+  clearer => 'clear_wheel',
+  writer  => 'set_wheel',
 );
 
 has 'peeraddr' => (

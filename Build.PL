@@ -41,6 +41,10 @@ my $build = $class->new(
     
     'POE'        => '1.3',
     'POE::Component::SSLify' => '1.006',
+    
+    'POE::Filter::IRCD' => 0,
+    'POE::Filter::Zlib' => 0,
+    
 #    'POE::Component::Syndicator' => '0.06',
     
     'Try::Tiny'  => 0,

@@ -26,6 +26,8 @@ use POE qw/
   Filter::Stackable
   Filter::IRCD
   Filter::Line
+
+  Filter::Zlib::Stream
 /;
 
 use Socket qw/
@@ -150,6 +152,8 @@ sub spawn {
         
         'register' => '_register_controller',
         'shutdown' => '_shutdown',
+        
+        'send' => '_send',
                 
         'create_listener' => '_create_listener',
         'remove_listener' => '_remove_listener',
@@ -655,20 +659,31 @@ sub _ircsock_flushed {
   }
   
   if ($this_conn->is_pending_compress) {
-    $this_conn->is_pending_compress(0);
-
-    $this_conn->wheel->get_input_filter->unshift(
-      POE::Filter::Zlib::Stream->new,
-    );
-
-    $kernel->post( $self->controller,
-      'ircsock_compressed',
-      $this_conn
-    );
-    
+    $self->set_compressed_link_now($w_id);
     return
   }
   
+}
+
+sub _send {
+  $_[OBJECT]->send(@_[ARG0 .. $#_ ]);
+}
+
+sub send {
+  ## ->send(HASH, ID [, ID .. ])
+  my ($self, $out, @ids) = @_;
+
+  ## FIXME take Event obj instead
+  unless ($out && ref $out eq 'HASH' && @ids) {
+    carp "send() takes an event and a list of connection IDs";
+    return
+  }
+  
+  for my $id (grep { $self->wheels->{$_} } @ids) {
+    $self->wheels->{$id}->wheel->put( $out );
+  }
+
+  1
 }
 
 ## FIXME idle alarm ?
@@ -698,21 +713,74 @@ sub _disconnected {
   my $this_conn = delete $self->wheels->{$w_id};
   
   ## FIXME idle timer cleanup ?
-  
-  $poe_kernel->post( $self->controller,
-    'ircsock_disconnect',
-    ## FIXME
-  );
-  
+    
   if ($^O =~ /(cygwin|MSWin32)/) {
     $this_conn->wheel->shutdown_input;
     $this_conn->wheel->shutdown_output;
   }
 
+  $this_conn->clear_wheel;
+
+  $poe_kernel->post( $self->controller,
+    'ircsock_disconnect',
+    $this_conn
+  );
+
   1
 }
 
-## FIXME method to set up a compressed link ?
+sub set_compressed_link {
+  my ($self, $w_id) = @_;
+  
+  confess "set_compressed_link() needs a wheel ID"
+    unless defined $w_id;
+
+  return unless $self->wheels->{$w_id};
+
+  $self->wheels->{$w_id}->is_pending_compress(1)
+}
+
+sub set_compressed_link_now {
+  my ($self, $w_id) = @_;
+  
+  confess "set_compressed_link() needs a wheel ID"
+    unless defined $w_id;
+
+  my $this_conn;  
+  return unless $this_conn = $self->wheels->{$w_id};
+  
+  $this_conn->wheel->get_input_filter->unshift(
+    POE::Filter::Zlib::Stream->new,
+  );
+
+  $this_conn->is_pending_compress(0);
+  $this_conn->set_compressed(1);
+
+  $poe_kernel->post( $self->controller,
+    'ircsock_compressed',
+    $this_conn
+  );
+
+  1
+}
+
+sub unset_compressed_link {
+  my ($self, $w_id) = @_;
+
+  confess "unset_compressed_link() needs a wheel ID"
+    unless defined $w_id;
+
+  my $this_conn;
+  return unless $this_conn = $self->wheels->{$w_id};
+
+  return unless $this_conn->compressed;
+
+  $this_conn->wheel->get_input_filter->shift;
+
+  $this_conn->set_compressed(0);
+  
+  1
+}
 
 ## FIXME listener connect ip blacklist?
 
@@ -771,8 +839,6 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
 
 =head3 spawn
 
-=head3 session_id
-
 =head3 create_connector
 
 =head3 create_listener
@@ -781,11 +847,19 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
 
 =head3 disconnect
 
+=head3 send
+
+=head3 session_id
+
+=head3 set_compressed_link
+
+=head3 set_compressed_link_now
+
+=head3 unset_compressed_link
+
 =head2 Received events
 
 =head3 register
-
-=head3 shutdown
 
 =head3 create_connector
 
@@ -793,7 +867,13 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
 
 =head3 remove_listener
 
+=head3 send
+
+=head3 shutdown
+
 =head2 Dispatched events
+
+FIXME
 
 =head1 AUTHOR
 

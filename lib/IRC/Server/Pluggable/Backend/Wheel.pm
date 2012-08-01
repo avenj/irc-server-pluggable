@@ -8,6 +8,17 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
+has 'alarm_id' => (
+  lazy => 1,
+
+  isa => Defined,
+  is  => 'rw',
+
+  predicate => 'has_alarm_id',
+
+  default => sub { 0 },
+);
+
 has 'compressed' => (
   lazy => 1,
 
@@ -17,6 +28,15 @@ has 'compressed' => (
   writer => 'set_compressed',
 
   default => sub { 0 },
+);
+
+has 'idle' => (
+  lazy => 1,
+  
+  is  => 'rwp',
+  isa => Bool,
+
+  default => sub { 180 },
 );
 
 has 'is_disconnecting' => (
@@ -53,6 +73,15 @@ has 'protocol' => (
   
   isa => InetProtocol,
   is  => 'ro',
+);
+
+has 'seen' => (
+  lazy => 1,
+  
+  isa => Num,
+  is  => 'rw',
+  
+  default => sub { 0 },
 );
 
 has 'sockaddr' => (
@@ -101,11 +130,20 @@ These objects contain details regarding connected socket
 L<POE::Wheel::ReadWrite> wheels managed by 
 L<IRC::Server::Pluggable::Backend>.
 
+=head2 alarm_id
+
+Connected socket wheels normally have a POE alarm ID attached for an idle 
+timer. Writable attribute.
+
 =head2 compressed
 
 Set to true if the Zlib filter has been added.
 
 Use B<set_compressed> to change.
+
+=head2 idle
+
+Idle time used for connection check alarms.
 
 =head2 is_disconnecting
 
@@ -127,6 +165,13 @@ The remote peer address.
 =head2 peerport
 
 The remote peer port.
+
+=head2 seen
+
+Timestamp; should be updated when traffic is seen from this Wheel:
+
+  ## In an input handler
+  $obj->seen( time )
 
 =head2 sockaddr
 

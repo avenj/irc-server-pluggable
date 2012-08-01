@@ -47,11 +47,12 @@ has 'session_id' => (
   ## Session ID for own session.
   lazy => 1,
   
-  isa  => Value,
   is => 'ro',
   
   writer    => 'set_session_id',
   predicate => 'has_session_id',
+  
+  default => sub { undef },
 );
 
 has 'controller' => (
@@ -291,8 +292,10 @@ sub _accept_conn {
   my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
     protocol => $inet_proto,
     wheel    => $wheel,
+
     peeraddr => $p_addr,
     peerport => $p_port,
+
     sockaddr => $sockaddr,
     sockport => $sockport,
   );
@@ -711,8 +714,90 @@ sub _disconnected {
 
 ## FIXME method to set up a compressed link ?
 
+## FIXME listener connect ip blacklist?
+
 
 1;
 __END__
 
-## FIXME listener connect ip blacklist?
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Backend - IRC socket handler backend
+
+=head1 SYNOPSIS
+
+  ## Spawn a Backend and register as the controlling session.
+  my $backend = IRC::Server::Pluggable::Backend->spawn(
+    ## See POE::Component::SSLify (SSLify_Options):
+    ssl_opts => [ ARRAY ],
+  );
+  
+  $poe_kernel->post( $backend->session_id, 'register' );
+  
+  $backend->create_listener(
+    bindaddr => ADDR,
+    port     => PORT,
+    ## Optional:
+    ipv6     => BOOLEAN,
+    ssl      => BOOLEAN,
+  );
+  
+  $backend->create_connector(
+    remoteaddr => ADDR,
+    remoteport => PORT,
+    ## Optional:
+    bindaddr => ADDR,
+    ipv6     => BOOLEAN,
+    ssl      => BOOLEAN,
+  );
+
+  ## Handle and dispatch incoming IRC events.
+  sub ircsock_incoming {
+    my ($kernel, $self) = @_[KERNEL, OBJECT];
+    
+    ## IRC::Server::Pluggable::Backend::Event obj:
+    my $input_obj = $_[ARG0];
+    
+    my $cmd = $input_obj->command;
+
+    ## ... dispatch, etc ...
+  }
+
+=head1 DESCRIPTION
+
+=head2 Methods
+
+=head3 spawn
+
+=head3 session_id
+
+=head3 create_connector
+
+=head3 create_listener
+
+=head3 remove_listener
+
+=head3 disconnect
+
+=head2 Received events
+
+=head3 register
+
+=head3 shutdown
+
+=head3 create_connector
+
+=head3 create_listener
+
+=head3 remove_listener
+
+=head2 Dispatched events
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut
+

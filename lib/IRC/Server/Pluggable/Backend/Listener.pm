@@ -68,3 +68,53 @@ has 'wheel' => (
 );
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Backend::Listener - Listener socket details
+
+=head1 SYNOPSIS
+
+  my $listener = IRC::Server::Pluggable::Backend::Listener->new(
+    addr  => $local_addr,
+    port  => $local_port,
+    wheel => $wheel, ## POE::Wheel::SocketFactory
+    protocol => 4,   ## 4 or 6
+    
+    ## Optional:
+    ssl => 1,
+  );
+
+=head1 DESCRIPTION
+
+These objects contain details regarding 
+L<IRC::Server::Pluggable::Backend> Listener sockets.
+
+=head2 addr
+
+The local address to bind to.
+
+=head2 port
+
+The local port to listen on.
+
+=head2 protocol
+
+The internet protocol version to use for this listener (4 or 6).
+
+=head2 ssl
+
+Boolean value indicating whether or not connections to this listener 
+should be SSLified.
+
+=head2 wheel
+
+The L<POE::Wheel::SocketFactory> instance for this listener.
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

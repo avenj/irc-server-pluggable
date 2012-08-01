@@ -77,3 +77,67 @@ has 'wheel' => (
 );
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Backend::Connector - Connector socket details
+
+=head1 SYNOPSIS
+
+  my $connector = IRC::Server::Pluggable::Backend::Connector->new(
+    addr  => $remoteaddr,
+    port  => $remoteport,
+    wheel => $wheel,      ## SocketFactory Wheel
+    protocol => 6,        ## 4 or 6
+    
+    ## Optional:
+    bindaddr => $localaddr,
+    ssl => 1,
+
+    ## Any extra args specified will be added to args() attrib
+  );
+
+=head1 DESCRIPTION
+
+These objects contain details regarding 
+L<IRC::Server::Pluggable::Backend> outgoing connector sockets.
+
+All of these attributes can be set via C<set_$attrib> :
+
+=head2 addr
+
+The remote address this Connector is intended for; also see L</port>
+
+=head2 bindaddr
+
+The local address this Connector should bind to.
+
+=head2 args
+
+Extra arguments specified in Connector construction, as a HASH.
+
+=head2 port
+
+The remote port this Connector is intended for; also see L</addr>
+
+=head2 protocol
+
+The Internet protocol version this Connector was spawned for; either 4 or 
+6.
+
+=head2 ssl
+
+Boolean value indicating whether or not this Connector should be 
+SSLified at connect time.
+
+=head2 wheel
+
+The L<POE::Wheel::SocketFactory> for this Connector.
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

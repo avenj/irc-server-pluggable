@@ -57,14 +57,28 @@ has 'ssl'   => (
   default => sub { 0 },
 );
 
+has 'wheel_id' => (
+  lazy => 1,
+  
+  isa => Defined,
+  is  => 'ro',
+  
+  writer => 'set_wheel_id',
+);
+
 has 'wheel' => (
   required => 1,
   
   isa => Wheel,
   is  => 'ro',
-
+  
   clearer => 'clear_wheel',
-  writer  => 'set_wheel',  
+  writer  => 'set_wheel',
+  
+  trigger => sub {
+    my ($self, $wheel) = @_;
+    $self->set_wheel_id( $wheel->ID )
+  },
 );
 
 1;
@@ -112,6 +126,10 @@ should be SSLified.
 =head2 wheel
 
 The L<POE::Wheel::SocketFactory> instance for this listener.
+
+=head2 wheel_id
+
+The (last known) wheel ID.
 
 =head1 AUTHOR
 

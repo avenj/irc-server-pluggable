@@ -381,7 +381,7 @@ sub _accept_fail {
     
     $kernel->post( $self->controller,
       'ircsock_listener_failure',
-      $listener
+      $listener, $op, $errnum, $errstr
     );
   }
 }

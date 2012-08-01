@@ -5,6 +5,8 @@ use strict; use warnings FATAL => 'all';
   package
     MockWheel;  
   our @ISA = qw/POE::Wheel/;
+  my $x;
+  sub ID { ++$x }
   sub new { bless [], shift }
 }
 

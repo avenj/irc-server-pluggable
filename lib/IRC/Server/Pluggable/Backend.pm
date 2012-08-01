@@ -160,6 +160,7 @@ sub spawn {
 
         '_accept_conn' => '_accept_conn',
         '_accept_fail' => '_accept_fail',
+        '_idle_alarm'  => '_idle_alarm',
         
         'create_connector'  => '_create_connector',
         '_connector_up'     => '_connector_up',
@@ -302,13 +303,38 @@ sub _accept_conn {
 
     sockaddr => $sockaddr,
     sockport => $sockport,
+    
+    idle => $listener->idle,
   );
 
   $self->wheels->{$w_id} = $obj;
 
+  $obj->alarm_id(
+    $kernel->delay_set(
+      '_idle_alarm',
+      $w_id
+    )
+  );
+
   $kernel->post( $self->controller,
     'ircsock_client_connected',
     $obj
+  );
+}
+
+sub _idle_alarm {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $w_id = @_[ARG0];
+  
+  my $this_conn = $self->wheels->{$w_id} || return;
+
+  ## FIXME send idle notification event to controller
+
+  $this_conn->alarm_id(
+    $kernel->delay_set(
+      '_idle_alarm',
+      $w_id
+    )
   );
 }
 
@@ -354,14 +380,14 @@ sub _create_listener {
 
   $args{lc $_} = delete $args{$_} for keys %args;
   
+  my $idle_time = delete $args{idle}     || 180;
+
   my $bindaddr  = delete $args{bindaddr} || '0.0.0.0';
   my $bindport  = delete $args{port}     || 0;
 
   my $inet_proto = 4;
   $inet_proto = 6
     if delete $args{ipv6} or ip_is_ipv6($bindaddr);
-
-  my $idle_time = delete $args{idle}     || 180;
 
   my $ssl = delete $args{ssl} || 0;
 
@@ -582,7 +608,7 @@ sub _connector_up {
     peerport => $peerport,
     sockaddr => $sockaddr,
     sockport => $sockport,
-    ## FIXME idle / compression ?
+    seen => time,
   );
   
   $self->wheels->{$w_id} = $obj;
@@ -615,8 +641,11 @@ sub _ircsock_input {
   ## Retrieve Backend::Wheel
   my $this_conn = $self->wheels->{$w_id};
 
+  ## Adjust last seen and idle alarm
+  $this_conn->seen( time );
+  $kernel->delay_adjust( $this_conn->alarm_id, $this_conn->idle );
+
   ## TODO raw events?
-  ## TODO idle adjust?
   ## TODO anti-flood code or should that be higher up ... ?
 
   ## Create obj from HASH from POE::Filter::IRCD
@@ -673,20 +702,30 @@ sub send {
   ## ->send(HASH, ID [, ID .. ])
   my ($self, $out, @ids) = @_;
 
-  ## FIXME take Event obj instead
-  unless ($out && ref $out eq 'HASH' && @ids) {
-    carp "send() takes an event and a list of connection IDs";
+  unless ( 
+    @ids 
+    && is_Object($out)
+    && $out->isa('IRC::Server::Pluggable::Backend::Event') ) {
+
+    carp 
+      "send() takes an IRC::Server::Pluggable::Backend::Event",
+      " and a list of connection IDs";
     return
   }
   
+  my $ref = {
+    command => $out->command,
+    params  => $out->params,
+    prefix  => $out->prefix,
+  };
+  
   for my $id (grep { $self->wheels->{$_} } @ids) {
-    $self->wheels->{$id}->wheel->put( $out );
+    $self->wheels->{$id}->wheel->put( $ref );
   }
 
   1
 }
 
-## FIXME idle alarm ?
 
 ## Methods.
 sub disconnect {
@@ -711,8 +750,9 @@ sub _disconnected {
   return unless $w_id and $self->wheels->{$w_id};
   
   my $this_conn = delete $self->wheels->{$w_id};
-  
-  ## FIXME idle timer cleanup ?
+
+  ## Idle timer cleanup
+  $poe_kernel->alarm_remove( $this_conn->alarm_id );
     
   if ($^O =~ /(cygwin|MSWin32)/) {
     $this_conn->wheel->shutdown_input;
@@ -834,6 +874,9 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
   }
 
 =head1 DESCRIPTION
+
+A L<POE> IRC backend socket handler based loosely on 
+L<POE::Component::Server::IRC>.
 
 =head2 Methods
 

@@ -11,6 +11,7 @@ use IRC::Server::Pluggable::Backend::Listener;
 use IRC::Server::Pluggable::Backend::Wheel;
 
 use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable::Utils;
 
 use Net::IP::Minimal qw/
   ip_is_ipv6
@@ -32,14 +33,8 @@ use POE qw/
 
 use Socket qw/
   :addrinfo
-
   AF_INET
-  inet_ntoa
-  unpack_sockaddr_in
-
   AF_INET6
-  inet_ntop
-  unpack_sockaddr_in6
 /;
 
 use Try::Tiny;
@@ -248,40 +243,6 @@ sub _register_controller {
   $kernel->refcount_increment( $self->controller, "IRCD Running" );
 }
 
-sub __get_unpacked_addr {
-  ## v4/v6-compat address unpack.
-  my ($self, $sock_packed) = @_;
-
-  ## TODO getnameinfo instead?
-  
-  my $sock_family = socketaddr_family($sock_packed);
-  
-  my ($inet_proto, $sockaddr, $sockport);
-  
-  FAMILY: {
-  
-    if ($sock_family == AF_INET6) {
-      ($sockport, $sockaddr) = unpack_sockaddr_in6($sock_packed);
-      $sockaddr   = inet_ntop($sockaddr);
-      $inet_proto = 6;
-    
-      last FAMILY
-    }
-  
-    if ($sock_family == AF_INET) {
-      ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
-      $sockaddr   = inet_ntoa($sockaddr);
-      $inet_proto = 4;      
-    
-      last FAMILY
-    }
-    
-    confess "Unknown socket family type"
-  }
-
-  ($inet_proto, $sockaddr, $sockport)
-}
-
 sub _accept_conn {
   ## Accepted connection to a listener.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
@@ -290,7 +251,7 @@ sub _accept_conn {
   ## Our sock addr/port.
   my $sock_packed = getsockname($sock);
   my ($inet_proto, $sockaddr, $sockport)
-    = $self->__get_unpacked_addr($sock_packed);
+    = get_unpacked_addr($sock_packed);
 
   ## Our peer's addr.
   my $n_err;
@@ -443,7 +404,7 @@ sub _create_listener {
   $self->listeners->{$id} = $listener;
 
   ## Real bound port/addr
-  my ($port, $addr) = unpack_sockaddr_in( $wheel->getsockname ); 
+  my ($proto, $addr, $port) = get_unpacked_addr( $wheel->getsockname );
   $listener->set_port($port) if $port;
 
   ## Tell our controller session
@@ -617,7 +578,7 @@ sub _connector_up {
 
   my $sock_packed = getsockname($sock);
   my ($inet_proto, $sockaddr, $sockport)
-    = $self->__get_unpacked_addr($sock_packed);
+    = get_unpacked_addr($sock_packed);
 
   my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
     protocol => $inet_proto,

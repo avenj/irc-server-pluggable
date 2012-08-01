@@ -432,23 +432,24 @@ sub _create_listener {
 
   my $id = $wheel->ID;
 
-  $self->listeners->{$id} = IRC::Server::Pluggable::Backend::Listener->new(
+  my $listener = IRC::Server::Pluggable::Backend::Listener->new(
     wheel => $wheel,
     addr  => $bindaddr,
     port  => $bindport,
     idle  => $idle_time,
     ssl   => $ssl,
   );
+  
+  $self->listeners->{$id} = $listener;
 
   ## Real bound port/addr
   my ($port, $addr) = unpack_sockaddr_in( $wheel->getsockname ); 
-  $self->listeners->{$id}->set_port($port) if $port;
+  $listener->set_port($port) if $port;
 
   ## Tell our controller session
-  ##  Event: listener_added $addr, $port, $wheel_id
   $kernel->post( $self->controller, 
     'ircsock_listener_created',
-    $addr, $port, $id
+    $listener
   );
 }
 
@@ -646,7 +647,7 @@ sub _connector_failed {
   $ct->clear_wheel;
 
   $kernel->post( $self->controller, 
-    'ircsock_socketerr',
+    'ircsock_connector_failure',
     $ct, $op, $errno, $errstr
   );
 }
@@ -672,9 +673,9 @@ sub _ircsock_input {
     %$input
   );
 
-  ## Send ircsock_incoming to controller/dispatcher
+  ## Send ircsock_input to controller/dispatcher
   $kernel->post( $self->controller, 
-    'ircsock_incoming',
+    'ircsock_input',
     $obj
   );
 }
@@ -890,7 +891,7 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
   );
 
   ## Handle and dispatch incoming IRC events.
-  sub ircsock_incoming {
+  sub ircsock_input {
     my ($kernel, $self) = @_[KERNEL, OBJECT];
     
     ## IRC::Server::Pluggable::Backend::Event obj:
@@ -905,6 +906,7 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
 
 A L<POE> IRC backend socket handler based loosely on 
 L<POE::Component::Server::IRC>.
+
 
 =head2 Methods
 
@@ -928,6 +930,7 @@ L<POE::Component::Server::IRC>.
 
 =head3 unset_compressed_link
 
+
 =head2 Received events
 
 =head3 register
@@ -942,13 +945,34 @@ L<POE::Component::Server::IRC>.
 
 =head3 shutdown
 
+
 =head2 Dispatched events
 
-FIXME
+=head3 ircsock_client_connected
+
+=head3 ircsock_compressed
+
+=head3 ircsock_connection_idle
+
+=head3 ircsock_disconnect
+
+=head3 ircsock_input
+
+=head3 ircsock_listener_created
+
+=head3 ircsock_listener_failure
+
+=head3 ircsock_listener_removed
+
+=head3 ircsock_peer_connected
+
+=head3 ircsock_connector_failure
 
 =head1 AUTHOR
 
 Jon Portnoy <avenj@cobaltirc.org>
+
+Modelled on L<POE::Component::Server::IRC::Backend>
 
 =cut
 

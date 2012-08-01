@@ -9,13 +9,27 @@ use Moo;
 use IRC::Server::Pluggable::Types;
 
 has 'prefix' => (
-  required => 1,
-  is => 'ro',
+  lazy => 1,
+
+  isa => Str,
+  is  => 'ro',
+
+  predicate => 'has_prefix',
+  writer    => 'set_prefix',
+
+  default => sub { '' },
 );
 
 has 'command' => (
-  required => 1,
-  is => 'ro',
+  lazy => 1,
+
+  isa => Str,
+  is  => 'ro',
+  
+  predicate => 'has_command',
+  writer    => 'set_command',
+  
+  default => sub { '' },
 );
 
 has 'params' => (
@@ -23,6 +37,8 @@ has 'params' => (
 
   isa => ArrayRef,
   is  => 'ro',
+  
+  writer => 'set_params',
 );
 
 has 'raw_line' => (
@@ -30,6 +46,9 @@ has 'raw_line' => (
 
   isa => Str,
   is  => 'ro',
+
+  predicate => 'has_raw_line',
+  writer    => 'set_raw_line',
   
   default => sub { '' },
 );

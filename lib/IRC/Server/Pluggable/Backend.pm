@@ -223,6 +223,7 @@ sub shutdown {
 sub _shutdown {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
+  $kernel->refcount_decrement( $self->session_id, "IRCD Running" );
   $kernel->refcount_decrement( $self->controller, "IRCD Running" );
 
   ## _disconnected should also clear our alarms.
@@ -240,6 +241,7 @@ sub _register_controller {
 
   $self->set_controller( $_[SENDER]->ID );
   
+  $kernel->refcount_increment( $self->session_id, "IRCD Running" );
   $kernel->refcount_increment( $self->controller, "IRCD Running" );
 
   $kernel->post( $self->controller, 'ircsock_registered', $self );
@@ -917,6 +919,8 @@ L<POE::Component::Server::IRC>.
 
 =head3 ircsock_connection_idle
 
+=head3 ircsock_connector_failure
+
 =head3 ircsock_disconnect
 
 =head3 ircsock_input
@@ -929,7 +933,8 @@ L<POE::Component::Server::IRC>.
 
 =head3 ircsock_peer_connected
 
-=head3 ircsock_connector_failure
+=head3 ircsock_registered
+
 
 =head1 AUTHOR
 

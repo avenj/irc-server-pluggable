@@ -1,4 +1,4 @@
-use Test::More tests => 4;
+use Test::More tests => 7;
 use strict; use warnings FATAL => 'all';
 
 use POE;
@@ -24,6 +24,8 @@ POE::Session->create(
       _shutdown
       
       ircsock_registered
+      
+      ircsock_listener_created
 
     / ],
   ],
@@ -37,6 +39,12 @@ sub _start {
   my ($k, $heap) = @_[KERNEL, HEAP];
   
   $k->post( $heap->{backend}->session_id, 'register' );
+  ok( $heap->{backend}->create_listener(
+        protocol => 4,
+        bindaddr => '127.0.0.1',  
+        port     => 0,
+      ) 
+  );
 }
 
 sub _shutdown {
@@ -53,6 +61,14 @@ sub ircsock_registered {
   pass("Received ircsock_registered");
   
   isa_ok( $backend, 'IRC::Server::Pluggable::Backend' );
+}
+
+sub ircsock_listener_created {
+  my ($k, $heap) = @_[KERNEL, HEAP];
+  my $listener = $_[ARG0];
+  
+  pass("Received ircsock_listener_created");
+  isa_ok( $listener, 'IRC::Server::Pluggable::Backend::Listener' );
   
   $k->yield('_shutdown'); ## DONE TESTING
 }

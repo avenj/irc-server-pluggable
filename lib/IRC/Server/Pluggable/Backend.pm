@@ -398,6 +398,7 @@ sub _create_listener {
   my $id = $wheel->ID;
 
   my $listener = IRC::Server::Pluggable::Backend::Listener->new(
+    protocol => $inet_proto,
     wheel => $wheel,
     addr  => $bindaddr,
     port  => $bindport,

@@ -1,4 +1,4 @@
-use Test::More tests => 7;
+use Test::More tests => 9;
 use strict; use warnings FATAL => 'all';
 
 use POE;
@@ -69,6 +69,12 @@ sub ircsock_listener_created {
   
   pass("Received ircsock_listener_created");
   isa_ok( $listener, 'IRC::Server::Pluggable::Backend::Listener' );
+
+  my $addr = $listener->addr;
+  ok( $addr, 'addr() from listener_created' );
+  my $port = $listener->port;
+  ok( $port, 'port() from listener_created' );
+  ## FIXME test a connect to our listener's port..?
   
   $k->yield('_shutdown'); ## DONE TESTING
 }

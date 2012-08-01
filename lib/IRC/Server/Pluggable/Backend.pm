@@ -254,7 +254,7 @@ sub _accept_conn {
 
   ## Our sock addr/port.
   my $sock_packed = getsockname($sock);
-  my ($inet_proto, $sockaddr, $sockport)
+  my ($protocol, $sockaddr, $sockport) 
     = get_unpacked_addr($sock_packed);
 
   ## Our peer's addr.
@@ -286,7 +286,7 @@ sub _accept_conn {
   my $w_id = $wheel->ID;
 
   my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
-    protocol => $inet_proto,
+    protocol => $protocol,
     wheel    => $wheel,
 
     peeraddr => $p_addr,
@@ -380,14 +380,14 @@ sub _create_listener {
   my $bindaddr  = delete $args{bindaddr} || '0.0.0.0';
   my $bindport  = delete $args{port}     || 0;
 
-  my $inet_proto = 4;
-  $inet_proto = 6
+  my $protocol = 4;
+  $protocol = 6
     if delete $args{ipv6} or ip_is_ipv6($bindaddr);
 
   my $ssl = delete $args{ssl} || 0;
 
   my $wheel = POE::Wheel::SocketFactory->new(
-    SocketDomain => $inet_proto == 6 ? AF_INET6 : AF_INET,
+    SocketDomain => $protocol == 6 ? AF_INET6 : AF_INET,
     BindAddress  => $bindaddr,
     BindPort     => $bindport,
     SuccessEvent => '_accept_conn',
@@ -398,7 +398,7 @@ sub _create_listener {
   my $id = $wheel->ID;
 
   my $listener = IRC::Server::Pluggable::Backend::Listener->new(
-    protocol => $inet_proto,
+    protocol => $protocol,
     wheel => $wheel,
     addr  => $bindaddr,
     port  => $bindport,
@@ -509,12 +509,12 @@ sub _create_connector {
   confess "_create_connector expects a RemoteAddr and RemotePort"
     unless defined $remote_addr and defined $remote_port;
 
-  my $inet_proto = 4;
-  $inet_proto = 6
+  my $protocol = 4;
+  $protocol = 6
     if delete $args{ipv6} or ip_is_ipv6($remote_addr);
 
   my $wheel = POE::Wheel::SocketFactory->new(
-    SocketDomain   => $inet_proto == 6 ? AF_INET6 : AF_INET,
+    SocketDomain   => $protocol == 6 ? AF_INET6 : AF_INET,
     SocketProtocol => 'tcp',
 
     RemoteAddress  => $remote_addr,
@@ -582,11 +582,11 @@ sub _connector_up {
   my $w_id = $wheel->ID;
 
   my $sock_packed = getsockname($sock);
-  my ($inet_proto, $sockaddr, $sockport)
+  my ($protocol, $sockaddr, $sockport)
     = get_unpacked_addr($sock_packed);
 
   my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
-    protocol => $inet_proto,
+    protocol => $protocol,
     wheel    => $wheel,
     peeraddr => $peeraddr,
     peerport => $peerport,

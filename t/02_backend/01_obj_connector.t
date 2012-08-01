@@ -1,4 +1,4 @@
-use Test::More tests => 7;
+use Test::More tests => 8;
 use strict; use warnings FATAL => 'all';
 
 {
@@ -6,9 +6,8 @@ use strict; use warnings FATAL => 'all';
     MockWheel;  
   require POE::Wheel;
   our @ISA = qw/POE::Wheel/;
-  my $x;
   sub new { bless [], shift }
-  sub ID { ++$x }
+  sub ID { 1 }
 }
 
 BEGIN {
@@ -29,3 +28,4 @@ is( $obj->port, 6667 );
 is( $obj->protocol, 4 );
 ok( $obj->ssl, 'ssl()' );
 isa_ok( $obj->wheel, 'POE::Wheel', 'wheel()' );
+is( $obj->wheel_id, 1 );

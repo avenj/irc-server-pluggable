@@ -1,4 +1,4 @@
-use Test::More tests => 9;
+use Test::More tests => 10;
 use strict; use warnings FATAL => 'all';
 
 {
@@ -6,8 +6,7 @@ use strict; use warnings FATAL => 'all';
     MockWheel;  
   require POE::Wheel;
   our @ISA = qw/POE::Wheel/;
-  my $x;
-  sub ID { ++$x }
+  sub ID { 1 }
   sub new { bless [], shift }
 }
 
@@ -30,6 +29,7 @@ is( $obj->peerport, 6667 );
 is( $obj->sockaddr, '127.0.0.1' );
 is( $obj->sockport, 1234 );
 isa_ok( $obj->wheel, 'POE::Wheel' );
+is( $obj->wheel_id, 1 );
 
 ok( !$obj->is_disconnecting, 'not is_disconnecting' );
 ok( $obj->is_disconnecting("Client quit"), "is_disconnecting()" );

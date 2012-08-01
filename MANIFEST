@@ -16,3 +16,4 @@ t/02_backend/01_obj_connector.t
 t/02_backend/02_obj_listener.t
 t/02_backend/03_obj_wheel.t
 t/02_backend/04_obj_event.t
+t/02_backend/05_session.t

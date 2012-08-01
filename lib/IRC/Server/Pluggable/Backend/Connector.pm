@@ -18,11 +18,26 @@ has 'addr' => (
 );
 
 has 'bindaddr' => (
+  lazy => 1,
+
   isa => Str,
   is  => 'ro',
   
   predicate => 'has_bindaddr',
   writer    => 'set_bindaddr',
+  
+  default => sub { '' },
+);
+
+has 'args' => (
+  lazy => 1,
+
+  isa => Defined,
+  is  => 'ro',
+  
+  writer => 'set_args',
+  
+  default => sub { {} },
 );
 
 has 'port' => (
@@ -47,6 +62,8 @@ has 'ssl' => (
   
   predicate => 'has_ssl',
   writer    => 'set_ssl',
+  
+  default => sub { 0 },
 );
 
 has 'wheel' => (

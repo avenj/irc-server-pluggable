@@ -309,7 +309,7 @@ sub _accept_conn {
   );
 
   $kernel->post( $self->controller,
-    'ircsock_client_connected',
+    'ircsock_listener_open',
     $obj
   );
 }
@@ -600,7 +600,7 @@ sub _connector_up {
   $self->wheels->{$w_id} = $obj;
   
   $kernel->post( $self->controller, 
-    'ircsock_peer_connected',
+    'ircsock_connector_open',
     $obj
   );
 }
@@ -642,6 +642,7 @@ sub _ircsock_input {
   ## Send ircsock_input to controller/dispatcher
   $kernel->post( $self->controller, 
     'ircsock_input',
+    $this_conn,
     $obj
   );
 }
@@ -852,8 +853,11 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
   sub ircsock_input {
     my ($kernel, $self) = @_[KERNEL, OBJECT];
     
+    ## IRC::Server::Pluggable::Backend::Wheel obj:
+    my $this_conn = $_[ARG0];
+    
     ## IRC::Server::Pluggable::Backend::Event obj:
-    my $input_obj = $_[ARG0];
+    my $input_obj = $_[ARG1];
     
     my $cmd = $input_obj->command;
 
@@ -864,7 +868,6 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
 
 A L<POE> IRC backend socket handler based loosely on 
 L<POE::Component::Server::IRC>.
-
 
 
 =head2 Methods
@@ -995,12 +998,6 @@ Disconnect all wheels and clean up.
 
 These events are dispatched to the controller session; see L</register>.
 
-=head3 ircsock_client_connected
-
-Dispatched when a listener accepts a connection.
-
-C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
-
 =head3 ircsock_compressed
 
 Dispatched when a connection wheel has had a compression filter added.
@@ -1009,7 +1006,10 @@ C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
 
 =head3 ircsock_connection_idle
 
-FIXME
+Dispatched when a connection wheel has had no input for longer than 
+specified idle time (see L</create_listener> regarding idle times).
+
+C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
 
 =head3 ircsock_connector_failure
 
@@ -1021,6 +1021,13 @@ L<IRC::Server::Pluggable::Backend::Connector> with wheel() cleared.
 C<@_[ARG1 .. ARG3]> contain the socket error details reported by 
 L<POE::Wheel::SocketFactory>; operation, errno, and errstr, respectively.
 
+=head3 ircsock_connector_open
+
+Dispatched when a Connector has established a connection to a peer.
+
+C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Wheel> for the 
+connection.
+
 =head3 ircsock_disconnect
 
 Dispatched when a connection wheel has been cleared.
@@ -1030,7 +1037,12 @@ with wheel() cleared.
 
 =head3 ircsock_input
 
-FIXME
+Dispatched when there is some IRC input from a connection wheel.
+
+C<$_[ARG0]> is the connection's 
+L<IRC::Server::Pluggable::Backend::Wheel>.
+
+C<$_[ARG1]> is a L<IRC::Server::Pluggable::Backend::Event>.
 
 =head3 ircsock_listener_created
 
@@ -1050,18 +1062,17 @@ C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Listener> object.
 C<@_[ARG1 .. ARG3]> contain the socket error details reported by 
 L<POE::Wheel::SocketFactory>; operation, errno, and errstr, respectively.
 
+=head3 ircsock_listener_open
+
+Dispatched when a listener accepts a connection.
+
+C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
+
 =head3 ircsock_listener_removed
 
 Dispatched when a Listener has been removed.
 
 C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Listener> object.
-
-=head3 ircsock_peer_connected
-
-Dispatched when a Connector has established a connection to a peer.
-
-C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Wheel> for the 
-connection.
 
 =head3 ircsock_registered
 

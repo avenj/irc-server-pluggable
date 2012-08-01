@@ -74,6 +74,7 @@ sub ircsock_listener_created {
   ok( $addr, 'addr() from listener_created' );
   my $port = $listener->port;
   ok( $port, 'port() from listener_created' );
+
   ## FIXME test a connect to our listener's port..?
   
   $k->yield('_shutdown'); ## DONE TESTING

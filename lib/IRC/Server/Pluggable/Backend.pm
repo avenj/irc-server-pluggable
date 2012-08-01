@@ -693,31 +693,23 @@ sub send {
   ## ->send(HASH, ID [, ID .. ])
   my ($self, $out, @ids) = @_;
 
-  if (ref $out eq 'HASH') {
-    $out = IRC::Server::Pluggable::Backend::Event->new(
-      %$out
-    );
+  if (is_Object($out) &&
+    $out->isa('IRC::Server::Pluggable::Backend::Event') ) {
+    
+    $out = {
+      prefix  => $out->prefix,
+      params  => $out->params,
+      command => $out->command,
+    };
   }
 
-  unless ( 
-    @ids 
-    && is_Object($out)
-    && $out->isa('IRC::Server::Pluggable::Backend::Event') ) {
-
-    carp 
-      "send() takes an IRC::Server::Pluggable::Backend::Event",
-      " and a list of connection IDs";
+  unless (@ids && ref $out eq 'HASH') {
+    carp "send() takes a HASH and a list of connection IDs";
     return
   }
   
-  my $ref = {
-    command => $out->command,
-    params  => $out->params,
-    prefix  => $out->prefix,
-  };
-  
   for my $id (grep { $self->wheels->{$_} } @ids) {
-    $self->wheels->{$id}->wheel->put( $ref );
+    $self->wheels->{$id}->wheel->put( $out );
   }
 
   1
@@ -874,68 +866,207 @@ A L<POE> IRC backend socket handler based loosely on
 L<POE::Component::Server::IRC>.
 
 
+
 =head2 Methods
 
 =head3 spawn
 
+FIXME
+
+=head3 controller
+
+Retrieve session ID for the backend's registered controller.
+
 =head3 create_connector
+
+  $backend->create_connector(
+    remoteaddr => $addr,
+    remoteport => $addr,
+    ## Optional:
+    bindaddr => $local_addr,
+    ipv6 => 1,
+    ssl  => 1,
+  );
+
+Attempts to create a L<IRC::Server::Pluggable::Backend::Connector> that 
+holds a L<POE::Wheel::SocketFactory> connector wheel; connectors will 
+attempt to establish an outgoing connection immediately.
 
 =head3 create_listener
 
+  $backend->create_listener(
+    bindaddr => $addr,
+    port     => $port,
+    ## Optional:
+    ipv6     => 1,
+    ssl      => 1,
+    idle     => $seconds,
+  );
+
+Attempts to create a L<IRC::Server::Pluggable::Backend::Listener> 
+that holds a L<POE::Wheel::SocketFactory> listener wheel.
+
 =head3 remove_listener
+
+FIXME
 
 =head3 disconnect
 
+  $backend->disconnect($wheel_id, $disconnect_string);
+
+Given a connection's wheel ID, mark the specified wheel for 
+disconnection.
+
 =head3 send
+
+  $backend->send(
+    {
+      prefix  =>
+      params  =>
+      command =>
+    },
+
+    $conn_id,
+  );
+
+Feeds L<POE::Filter::IRCD> and sends the resultant raw IRC line to the 
+specified connection wheel ID.
 
 =head3 session_id
 
+Returns the backend's session ID.
+
 =head3 set_compressed_link
+
+  $backend->set_compressed_link( $conn_id );
+
+Mark a specified connection wheel ID as pending compression; 
+L<POE::Filter::Zlib::Stream> will be added to the filter stack when the 
+next flush event arrives.
 
 =head3 set_compressed_link_now
 
+  $backend->set_compressed_link_now( $conn_id );
+
+Add a L<POE::Filter::Zlib::Stream> to the connection's filter stack 
+immediately, rather than upon next flush event.
+
 =head3 unset_compressed_link
+
+  $backend->unset_compressed_link( $conn_id );
+
+Remove L<POE::Filter::Zlib::Stream> from the connection's filter stack.
 
 
 =head2 Received events
 
 =head3 register
 
+  $poe_kernel->post( $backend->session_id,
+    'register'
+  );
+
+Register the sender session as the backend's controller session. The last 
+session to send 'register' is the session that receives notification 
+events from the backend component.
+
 =head3 create_connector
+
+Event interface to I<create_connector> -- see L</Methods>
 
 =head3 create_listener
 
+Event interface to I<create_listener> -- see L</Methods>
+
 =head3 remove_listener
+
+Event interface to I<remove_listener> -- see L</Methods>
 
 =head3 send
 
+Event interface to I</send> -- see L</Methods>
+
 =head3 shutdown
+
+Disconnect all wheels and clean up.
 
 
 =head2 Dispatched events
 
+These events are dispatched to the controller session; see L</register>.
+
 =head3 ircsock_client_connected
+
+Dispatched when a listener accepts a connection.
+
+C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
 
 =head3 ircsock_compressed
 
+Dispatched when a connection wheel has had a compression filter added.
+
+C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
+
 =head3 ircsock_connection_idle
+
+FIXME
 
 =head3 ircsock_connector_failure
 
+Dispatched when a Connector has failed due to some sort of socket error.
+
+C<$_[ARG0]> is the connection's 
+L<IRC::Server::Pluggable::Backend::Connector> with wheel() cleared.
+
+C<@_[ARG1 .. ARG3]> contain the socket error details reported by 
+L<POE::Wheel::SocketFactory>; operation, errno, and errstr, respectively.
+
 =head3 ircsock_disconnect
+
+Dispatched when a connection wheel has been cleared.
+
+C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel> 
+with wheel() cleared.
 
 =head3 ircsock_input
 
+FIXME
+
 =head3 ircsock_listener_created
+
+Dispatched when a L<IRC::Server::Pluggable::Backend::Listener> has been 
+created.
+
+C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Listener> instance; 
+the instance's port() is altered based on getsockname() details after 
+socket creation and before dispatching this event.
 
 =head3 ircsock_listener_failure
 
+Dispatched when a Listener has failed due to some sort of socket error.
+
+C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Listener> object.
+
+C<@_[ARG1 .. ARG3]> contain the socket error details reported by 
+L<POE::Wheel::SocketFactory>; operation, errno, and errstr, respectively.
+
 =head3 ircsock_listener_removed
+
+Dispatched when a Listener has been removed.
+
+C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Listener> object.
 
 =head3 ircsock_peer_connected
 
+Dispatched when a Connector has established a connection to a peer.
+
+C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Wheel> for the 
+connection.
+
 =head3 ircsock_registered
 
+Dispatched when a L</register> event has been successfully received, as a 
+means of acknowledging the controlling session.
 
 =head1 AUTHOR
 

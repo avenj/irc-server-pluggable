@@ -4,6 +4,7 @@ use strict; use warnings FATAL => 'all';
 {
   package
     MockWheel;  
+  require POE::Wheel;
   our @ISA = qw/POE::Wheel/;
   my $x;
   sub ID { ++$x }
@@ -15,6 +16,7 @@ BEGIN {
 }
 
 my $obj = new_ok( 'IRC::Server::Pluggable::Backend::Wheel' => [
+    protocol => 4,
     peeraddr => '127.0.0.1',
     peerport => 6667,
     sockaddr => '127.0.0.1',

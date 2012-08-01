@@ -4,6 +4,7 @@ use strict; use warnings FATAL => 'all';
 {
   package
     MockWheel;  
+  require POE::Wheel;
   our @ISA = qw/POE::Wheel/;
   my $x;
   sub new { bless [], shift }
@@ -27,4 +28,4 @@ is( $obj->addr, '127.0.0.1' );
 is( $obj->port, 6667 );
 is( $obj->protocol, 4 );
 ok( $obj->ssl, 'ssl()' );
-isa_ok( $obj->wheel, 'wheel()' );
+isa_ok( $obj->wheel, 'POE::Wheel', 'wheel()' );

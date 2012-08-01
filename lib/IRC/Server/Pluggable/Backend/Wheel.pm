@@ -9,7 +9,6 @@ use Moo;
 use IRC::Server::Pluggable::Types;
 
 has 'is_disconnecting' => (
-  isa => Bool,
   is  => 'rw',
   default => sub { 0 },
 );

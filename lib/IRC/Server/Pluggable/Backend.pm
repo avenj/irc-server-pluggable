@@ -66,7 +66,6 @@ has 'controller' => (
 
 has 'filter_irc' => (
   lazy => 1,
-
   is  => 'rwp',
 
   default => sub { 
@@ -76,7 +75,6 @@ has 'filter_irc' => (
 
 has 'filter_line' => (
   lazy => 1,
-
   is  => 'rwp',
 
   default => sub {
@@ -90,18 +88,14 @@ has 'filter_line' => (
 has 'filter' => (
   lazy => 1,
 
-  is  => 'rwp',
-  
   isa => Filter,
+  is  => 'rwp',
 
   default => sub {
     my ($self) = @_;
 
     POE::Filter::Stackable->new(
-      Filters => [
-        $self->filter_line,
-        $self->filter_irc
-      ],
+      Filters => [ $self->filter_line, $self->filter_irc ],
     );
   },
 );
@@ -112,6 +106,7 @@ has 'listeners' => (
   is  => 'rwp',
   isa => HashRef,
   default => sub { {} },
+  clearer => 1,
 );
 
 ## IRC::Server::Pluggable::Backend::Connector objs
@@ -120,6 +115,7 @@ has 'connectors' => (
   is  => 'rwp',
   isa => HashRef,
   default => sub { {} },
+  clearer => 1,
 );
 
 ## IRC::Server::Pluggable::Backend::Wheel objs
@@ -128,6 +124,7 @@ has 'wheels' => (
   is  => 'rwp',
   isa => HashRef,  
   default => sub { {} },
+  clearer => 1,
 ); 
 
 
@@ -144,7 +141,8 @@ sub spawn {
         '_start' => '_start',
         '_stop'  => '_stop',
         
-        'start'  => 'start',
+        'start'    => '_start_backend',
+        'shutdown' => '_shutdown',
                 
         'create_listener' => '_create_listener',
         'remove_listener' => '_remove_listener',
@@ -168,6 +166,8 @@ sub spawn {
 
   ## FIXME set up SSLify_Options
 
+  ## FIXME add listeners / connectors here if they're configured?
+
   $self->set_session_id( $sess_id );
   
   $self
@@ -182,7 +182,31 @@ sub _stop {
 
 }
 
-sub start {
+sub shutdown {
+  my $self = shift;
+
+  $poe_kernel->post( $self->session_id,
+    'shutdown', 
+    @_
+  );
+
+  1
+}
+
+sub _shutdown {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  $kernel->refcount_decrement( $self->controller, "IRCD Running" );
+
+  $self->_disconnected($_, "Server shutdown")
+    for keys %{ $self->wheels };
+
+  $self->clear_listeners;
+  $self->clear_connectors;
+  $self->clear_wheels;
+}
+
+sub _start_backend {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   ## FIXME
   ##  receive event from sender session
@@ -190,6 +214,8 @@ sub start {
   ##  increase refcount on sender
   ##  start listeners
   $self->set_controller( $_[SENDER]->ID );
+  
+  $kernel->refcount_increment( $self->controller, "IRCD Running" );
 }
 
 sub _accept_conn {
@@ -293,8 +319,6 @@ sub _create_listener {
   my $bindaddr  = delete $args{bindaddr} || '0.0.0.0';
   my $bindport  = delete $args{port}     || 0;
 
-  my $inet_proto = delete $args{ipv6} ? 6 : 4 ;
-
   my $inet_proto = 4;
   $inet_proto = 6
     if delete $args{ipv6} or ip_is_ipv6($bindaddr);
@@ -337,6 +361,12 @@ sub _create_listener {
 sub remove_listener {
   my $self = shift;
 
+  my %args = @_;
+  $args{lc $_} = delete $args{$_} for keys %args;
+
+  confess "remove_listener requires either port => or listener => params"
+    unless defined $args{port} or defined $args{listener};
+
   $poe_kernel->post( $self->session_id,
     'remove_listener', 
     @_ 
@@ -346,12 +376,32 @@ sub remove_listener {
 }
 
 sub _remove_listener {
+  ## Delete listeners by ID or by port.
+  ## FIXME delete by addr+port combo ?
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my %args = @_[ARG0 .. $#_];
 
   $args{lc $_} = delete $args{$_} for keys %args;
 
-  ## FIXME delete listeners by listener ID or by port
+  if (defined $args{port}) {
+    LISTENER: for my $id (keys %{ $self->listeners }) {
+      my $listener = $self->listeners->{$id};
+      if ($args{port} == $listener->port) {
+        delete $self->listeners->{$id};
+        ## FIXME notify controller session
+      }
+    } ## LISTENER
+
+    return
+  }
+
+  if (defined $args{listener}) {
+    if ($self->listeners->{ $args{listener} }) {
+      my $listener = delete $self->listeners->{ $args{listener} };
+      ## FIXME notify controller session
+    }
+  }
+  
 }
 
 sub create_connector {
@@ -506,6 +556,7 @@ sub _ircsock_input {
     %$input
   );
 
+  ## Send ircsock_incoming to controller/dispatcher
   $kernel->post( $self->controller, 
     'ircsock_incoming',
     $obj
@@ -515,12 +566,14 @@ sub _ircsock_input {
 sub _ircsock_error {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($errstr, $w_id) = @_[ARG2, ARG3];
-  
+
   my $this_conn;
   return unless $this_conn = $self->wheels->{$w_id};
-  
-  ## FIXME return if no such connection
-  ## FIXME otherwise call disconnected method
+
+  $self->_disconnected(
+    $w_id,
+    $errstr || $self->wheels->{$w_id}->is_disconnecting
+  );
 }
 
 sub _ircsock_flushed {
@@ -530,7 +583,10 @@ sub _ircsock_flushed {
   return unless $this_conn = $self->wheels->{$w_id};
 
   if ($this_conn->is_disconnecting) {
-    ## FIXME call disconnected method
+    $self->_disconnected(
+      $w_id,
+      $this_conn->is_disconnecting
+    );
     return
   }
   
@@ -545,6 +601,45 @@ sub _ircsock_flushed {
 }
 
 ## FIXME idle alarm ?
+
+## Methods.
+sub disconnect {
+  ## Mark a wheel for disconnection.
+  my ($self, $w_id, $str) = @_;
+  
+  confess "disconnect() needs a wheel ID"
+    unless defined $w_id;
+
+  return unless $self->wheels->{$w_id};
+  
+  $self->wheels->{$w_id}->is_disconnecting(
+    $str || "Client Quit"
+  );
+
+  1
+}
+
+sub _disconnected {
+  ## Wheel needs cleanup.
+  my ($self, $w_id, $str) = @_;
+  return unless $w_id and $self->wheels->{$w_id};
+  
+  my $this_conn = delete $self->wheels->{$w_id};
+  
+  ## FIXME idle timer cleanup ?
+  
+  ## FIXME notify controller session
+  
+  if ($^O =~ /(cygwin|MSWin32)/) {
+    $this_conn->wheel->shutdown_input;
+    $this_conn->wheel->shutdown_output;
+  }
+
+  1
+}
+
+## FIXME method to set up a compressed link ?
+
 
 1;
 __END__

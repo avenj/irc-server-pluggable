@@ -38,8 +38,13 @@ my $build = $class->new(
     'Socket'   => 2,
     
     'strictures' => 1,
+
+    'Moo' => 1,
+    'MooX::Types::MooseLike' => 0,
     
-    'POE'        => '1.3',
+    'Net::IP::Minimal' => 0,
+    
+    'POE' => '1.3',
     'POE::Component::SSLify' => '1.006',
     
     'POE::Filter::IRCD' => 0,

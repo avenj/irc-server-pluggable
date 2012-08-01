@@ -14,6 +14,8 @@ our @EXPORT = qw/
 use Socket qw/
   :addrinfo
 
+  sockaddr_family
+
   AF_INET
   inet_ntoa
   unpack_sockaddr_in
@@ -25,11 +27,13 @@ use Socket qw/
 
 sub get_unpacked_addr {
   ## v4/v6-compat address unpack.
-  my ($self, $sock_packed) = @_;
+  my ($sock_packed) = @_;
 
   ## TODO getnameinfo instead?
+  confess "No address passed to get_unpacked_addr"
+    unless $sock_packed;
 
-  my $sock_family = socketaddr_family($sock_packed);
+  my $sock_family = sockaddr_family($sock_packed);
 
   my ($inet_proto, $sockaddr, $sockport);
 
@@ -37,7 +41,7 @@ sub get_unpacked_addr {
 
     if ($sock_family == AF_INET6) {
       ($sockport, $sockaddr) = unpack_sockaddr_in6($sock_packed);
-      $sockaddr   = inet_ntop($sockaddr);
+      $sockaddr   = inet_ntop(AF_INET6, $sockaddr);
       $inet_proto = 6;
 
       last FAMILY

@@ -8,8 +8,10 @@ lib/IRC/Server/Pluggable/Backend/Wheel.pm
 lib/IRC/Server/Pluggable/Protocol.pm
 lib/IRC/Server/Pluggable/Protocol/TS6.pm
 lib/IRC/Server/Pluggable/Types.pm
+lib/IRC/Server/Pluggable/Utils.pm
 MANIFEST			This list of files
 t/01_base/01_types.t
+t/01_base/02_utils.t
 t/02_backend/01_obj_connector.t
 t/02_backend/02_obj_listener.t
 t/02_backend/03_obj_wheel.t

@@ -138,6 +138,9 @@ has 'wheels' => (
 
 
 sub spawn {
+  ## Create our object and session.
+  ## Returns $self
+  ## Sets session_id()
   my ($class, %args) = @_;
 
   $args{lc $_} = delete $args{$_} for keys %args;
@@ -227,6 +230,7 @@ sub _shutdown {
 
   $kernel->refcount_decrement( $self->controller, "IRCD Running" );
 
+  ## _disconnected should also clear our alarms.
   $self->_disconnected($_, "Server shutdown")
     for keys %{ $self->wheels };
 
@@ -236,6 +240,7 @@ sub _shutdown {
 }
 
 sub _register_controller {
+  ## 'register' event sets a controller session.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   $self->set_controller( $_[SENDER]->ID );
@@ -243,30 +248,51 @@ sub _register_controller {
   $kernel->refcount_increment( $self->controller, "IRCD Running" );
 }
 
+sub __get_unpacked_addr {
+  ## v4/v6-compat address unpack.
+  my ($self, $sock_packed) = @_;
+
+  ## TODO getnameinfo instead?
+  
+  my $sock_family = socketaddr_family($sock_packed);
+  
+  my ($inet_proto, $sockaddr, $sockport);
+  
+  FAMILY: {
+  
+    if ($sock_family == AF_INET6) {
+      ($sockport, $sockaddr) = unpack_sockaddr_in6($sock_packed);
+      $sockaddr   = inet_ntop($sockaddr);
+      $inet_proto = 6;
+    
+      last FAMILY
+    }
+  
+    if ($sock_family == AF_INET) {
+      ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
+      $sockaddr   = inet_ntoa($sockaddr);
+      $inet_proto = 4;      
+    
+      last FAMILY
+    }
+    
+    confess "Unknown socket family type"
+  }
+
+  ($inet_proto, $sockaddr, $sockport)
+}
+
 sub _accept_conn {
+  ## Accepted connection to a listener.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($sock, $p_addr, $p_port, $listener_id) = @_[ARG0 .. ARG3];
 
-  ## Accepted connection to a listener.
-
-  my $inet_proto;  
+  ## Our sock addr/port.
   my $sock_packed = getsockname($sock);
-  my $sock_family = socketaddr_family($sock_packed);
+  my ($inet_proto, $sockaddr, $sockport)
+    = $self->__get_unpacked_addr($sock_packed);
 
-  ## TODO getnameinfo instead?
-  my($sockaddr, $sockport);
-  if ($sock_family == AF_INET6) {
-    $inet_proto = 6;
-    ($sockport, $sockaddr) = unpack_sockaddr_in6($sock_packed);
-    $sockaddr = inet_ntop($sockaddr);
-  } elsif ($sock_family == AF_INET) {
-    $inet_proto = 4;
-    ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
-    $sockaddr = inet_ntoa($sockaddr);
-  } else {
-    croak "Unknown socket family type in _accept_conn"
-  }
-
+  ## Our peer's addr.
   my $n_err;
   ($n_err, $p_addr) = getnameinfo( 
    $p_addr,
@@ -304,6 +330,7 @@ sub _accept_conn {
     sockaddr => $sockaddr,
     sockport => $sockport,
     
+    seen => time,
     idle => $listener->idle,
   );
 
@@ -328,7 +355,10 @@ sub _idle_alarm {
   
   my $this_conn = $self->wheels->{$w_id} || return;
 
-  ## FIXME send idle notification event to controller
+  $kernel->post( $self->controller,
+    'ircsock_connection_idle',
+    $this_conn
+  );
 
   $this_conn->alarm_id(
     $kernel->delay_set(
@@ -584,22 +614,9 @@ sub _connector_up {
 
   my $w_id = $wheel->ID;
 
-  my $inet_proto;
   my $sock_packed = getsockname($sock);
-  my $sock_family = socketaddr_family($sock_packed);
-
-  my($sockaddr, $sockport);
-  if ($sock_family == AF_INET6) {
-    $inet_proto = 6;
-    ($sockport, $sockaddr) = unpack_sockaddr_in6($sock_packed);
-    $sockaddr = inet_ntop($sockaddr);
-  } elsif ($sock_family == AF_INET) {
-    $inet_proto = 4;
-    ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
-    $sockaddr = inet_ntoa($sockaddr);
-  } else {
-    croak "Unknown socket family type in _connector_up"
-  }
+  my ($inet_proto, $sockaddr, $sockport)
+    = $self->__get_unpacked_addr($sock_packed);
 
   my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
     protocol => $inet_proto,
@@ -609,6 +626,8 @@ sub _connector_up {
     sockaddr => $sockaddr,
     sockport => $sockport,
     seen => time,
+    ## FIXME some way to set an idle timeout for these?
+    ##  otherwise defaults to 180 ...
   );
   
   $self->wheels->{$w_id} = $obj;
@@ -661,6 +680,7 @@ sub _ircsock_input {
 }
 
 sub _ircsock_error {
+  ## Lost someone.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($errstr, $w_id) = @_[ARG2, ARG3];
 
@@ -669,11 +689,12 @@ sub _ircsock_error {
 
   $self->_disconnected(
     $w_id,
-    $errstr || $self->wheels->{$w_id}->is_disconnecting
+    $errstr || $this_conn->is_disconnecting
   );
 }
 
 sub _ircsock_flushed {
+  ## Socket's been flushed; we may have something to do.
   my ($kernel, $self, $w_id) = @_[KERNEL, OBJECT, ARG0];
 
   my $this_conn;
@@ -695,8 +716,11 @@ sub _ircsock_flushed {
 }
 
 sub _send {
+  ## POE bridge to send()
   $_[OBJECT]->send(@_[ARG0 .. $#_ ]);
 }
+
+## Methods.
 
 sub send {
   ## ->send(HASH, ID [, ID .. ])
@@ -732,8 +756,6 @@ sub send {
   1
 }
 
-
-## Methods.
 sub disconnect {
   ## Mark a wheel for disconnection.
   my ($self, $w_id, $str) = @_;

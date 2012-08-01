@@ -702,6 +702,12 @@ sub send {
   ## ->send(HASH, ID [, ID .. ])
   my ($self, $out, @ids) = @_;
 
+  if (ref $out eq 'HASH') {
+    $out = IRC::Server::Pluggable::Backend::Event->new(
+      %$out
+    );
+  }
+
   unless ( 
     @ids 
     && is_Object($out)

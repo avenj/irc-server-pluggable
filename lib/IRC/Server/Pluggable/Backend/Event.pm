@@ -82,6 +82,9 @@ These objects represent IRC events.
 These are created by L<IRC::Server::Pluggable::Backend> using  
 L<POE::Filter::IRCD> hashes.
 
+They are also used to feed the send() method provided by 
+L<IRC::Server::Pluggable::Backend>.
+
 =head2 command
 
 The parsed command received.

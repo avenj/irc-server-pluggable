@@ -48,6 +48,7 @@ has 'session_id' => (
   ## Session ID for own session.
   lazy => 1,
   
+  isa  => Value,
   is => 'ro',
   
   writer    => 'set_session_id',
@@ -58,6 +59,7 @@ has 'controller' => (
   ## Session ID for controller session
   lazy => 1,
 
+  isa  => Value,
   is   => 'ro',
 
   writer    => 'set_controller',
@@ -66,6 +68,8 @@ has 'controller' => (
 
 has 'filter_irc' => (
   lazy => 1,
+  
+  isa => Filter,
   is  => 'rwp',
 
   default => sub { 
@@ -75,6 +79,8 @@ has 'filter_irc' => (
 
 has 'filter_line' => (
   lazy => 1,
+
+  isa => Filter,
   is  => 'rwp',
 
   default => sub {
@@ -141,7 +147,7 @@ sub spawn {
         '_start' => '_start',
         '_stop'  => '_stop',
         
-        'start'    => '_start_backend',
+        'register' => '_register_controller',
         'shutdown' => '_shutdown',
                 
         'create_listener' => '_create_listener',
@@ -206,13 +212,9 @@ sub _shutdown {
   $self->clear_wheels;
 }
 
-sub _start_backend {
+sub _register_controller {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  ## FIXME
-  ##  receive event from sender session
-  ##  record sender id to dispatch to
-  ##  increase refcount on sender
-  ##  start listeners
+
   $self->set_controller( $_[SENDER]->ID );
   
   $kernel->refcount_increment( $self->controller, "IRCD Running" );
@@ -228,7 +230,7 @@ sub _accept_conn {
   my $sock_packed = getsockname($sock);
   my $sock_family = socketaddr_family($sock_packed);
 
-  ## FIXME getnameinfo instead?
+  ## TODO getnameinfo instead?
   my($sockaddr, $sockport);
   if ($sock_family == AF_INET6) {
     $inet_proto = 6;
@@ -377,7 +379,7 @@ sub remove_listener {
 
 sub _remove_listener {
   ## Delete listeners by ID or by port.
-  ## FIXME delete by addr+port combo ?
+  ## TODO delete by addr+port combo ?
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my %args = @_[ARG0 .. $#_];
 
@@ -388,6 +390,13 @@ sub _remove_listener {
       my $listener = $self->listeners->{$id};
       if ($args{port} == $listener->port) {
         delete $self->listeners->{$id};
+        
+        $listener->clear_wheel;
+        
+        $kernel->post( $self->controller,
+          'ircsock_listener_removed',
+          $listener
+        );
         ## FIXME notify controller session
       }
     } ## LISTENER
@@ -547,9 +556,9 @@ sub _ircsock_input {
   ## Retrieve Backend::Wheel
   my $this_conn = $self->wheels->{$w_id};
 
-  ## FIXME raw events?
-  ## FIXME idle adjust?
-  ## FIXME anti-flood code or should that be higher up ... ?
+  ## TODO raw events?
+  ## TODO idle adjust?
+  ## TODO anti-flood code or should that be higher up ... ?
 
   ## Create obj from HASH from POE::Filter::IRCD
   my $obj = IRC::Server::Pluggable::Backend::Event->new(
@@ -592,12 +601,19 @@ sub _ircsock_flushed {
   
   if ($this_conn->is_pending_compress) {
     $this_conn->is_pending_compress(0);
+
     $this_conn->wheel->get_input_filter->unshift(
       POE::Filter::Zlib::Stream->new,
     );
-    ## FIXME send event
+
+    $kernel->post( $self->controller,
+      'ircsock_compressed',
+      $this_conn
+    );
+    
     return
   }
+  
 }
 
 ## FIXME idle alarm ?
@@ -628,7 +644,10 @@ sub _disconnected {
   
   ## FIXME idle timer cleanup ?
   
-  ## FIXME notify controller session
+  $poe_kernel->post( $self->controller,
+    'ircsock_disconnect',
+    ## FIXME
+  );
   
   if ($^O =~ /(cygwin|MSWin32)/) {
     $this_conn->wheel->shutdown_input;

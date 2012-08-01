@@ -1,5 +1,4 @@
 package IRC::Server::Pluggable::Backend;
-our $VERSION = '0.01';
 
 use 5.12.1;
 use strictures 1;
@@ -57,6 +56,7 @@ has 'session_id' => (
 
 has 'controller' => (
   ## Session ID for controller session
+  ## Set by 'register' event
   lazy => 1,
 
   isa  => Value,
@@ -170,7 +170,24 @@ sub spawn {
   confess "Unable to spawn POE::Session and retrieve ID()"
     unless $sess_id;
 
-  ## FIXME set up SSLify_Options
+  ## ssl_opts => [ ]
+  if ($args{ssl_opts}) {
+    confess "ssl_opts should be an ARRAY"
+      unless ref $args{ssl_opts} eq 'ARRAY';
+    
+    my $ssl_err;
+    try {
+      POE::Component::SSLify::SSLify_Options(
+        @{ $args{ssl_opts} }
+      );
+
+      1
+    } catch {
+      $ssl_err = $_;
+
+      undef
+    } or confess "SSLify failure: $ssl_err";
+  }
 
   ## FIXME add listeners / connectors here if they're configured?
 
@@ -291,11 +308,18 @@ sub _accept_conn {
 sub _accept_fail {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($op, $errnum, $errstr, $listener_id) = @_[ARG0 .. ARG3];
+
+  ## TODO Hmm .. is clearing the listener the right thing to do?
+  ##   PoCo::Server::IRC::Backend does it this way ...
   
   my $listener = delete $self->listeners->{$listener_id};
   if ($listener) {
-    ## FIXME send listener failure notification
-    ## let listener go out of scope
+    $listener->clear_wheel;
+    
+    $kernel->post( $self->controller,
+      'ircsock_listener_failure',
+      $listener
+    );
   }
 }
 
@@ -313,6 +337,11 @@ sub create_listener {
 
 sub _create_listener {
   ## Create a listener on a particular port.
+  ##  bindaddr =>
+  ##  port =>
+  ## [optional]
+  ##  ipv6 =>
+  ##  ssl  =>
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my %args = @_[ARG0 .. $#_];
 
@@ -397,7 +426,6 @@ sub _remove_listener {
           'ircsock_listener_removed',
           $listener
         );
-        ## FIXME notify controller session
       }
     } ## LISTENER
 
@@ -405,10 +433,18 @@ sub _remove_listener {
   }
 
   if (defined $args{listener}) {
+
     if ($self->listeners->{ $args{listener} }) {
       my $listener = delete $self->listeners->{ $args{listener} };
-      ## FIXME notify controller session
+
+      $listener->clear_wheel;
+      
+      $kernel->post( $self->controller,
+        'ircsock_listener_removed',
+        $listener
+      );
     }
+
   }
   
 }
@@ -426,29 +462,39 @@ sub create_connector {
 
 sub _create_connector {
   ## Connector; try to spawn socket <-> remote peer
-  my ($kernel, $self) = @_;
+  ##  remoteaddr =>
+  ##  remoteport =>
+  ## [optional] 
+  ##  bindaddr =>
+  ##  ipv6 =>
+  ##  ssl  =>
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
   my %args = @_[ARG0 .. $#_];
 
   $args{lc $_} = delete $args{$_} for keys %args;
 
-  my $remote_addr = $args{remoteaddr};
-  my $remote_port = $args{remoteport};
+  my $remote_addr = delete $args{remoteaddr};
+  my $remote_port = delete $args{remoteport};
+
+  confess "_create_connector expects a RemoteAddr and RemotePort"
+    unless defined $remote_addr and defined $remote_port;
 
   my $inet_proto = 4;
   $inet_proto = 6
     if delete $args{ipv6} or ip_is_ipv6($remote_addr);
 
-  confess "_create_connector expects a RemoteAddr and RemotePort"
-    unless defined $remote_addr and defined $remote_port;
-
   my $wheel = POE::Wheel::SocketFactory->new(
     SocketDomain   => $inet_proto == 6 ? AF_INET6 : AF_INET,
     SocketProtocol => 'tcp',
+
     RemoteAddress  => $remote_addr,
     RemotePort     => $remote_port,
+
     SuccessEvent   => '_connector_up',
     FailureEvent   => '_connector_failed',
-    (defined $args{bindaddr} ? (BindAddress => $args{bindaddr}) : ()),
+
+    (defined $args{bindaddr} ? 
+      (BindAddress => delete $args{bindaddr}) : () ),
   );
 
   my $id = $wheel->ID;
@@ -457,11 +503,17 @@ sub _create_connector {
     wheel => $wheel,
     addr  => $remote_addr,
     port  => $remote_port,
-    (defined $args{bindaddr} ? (bindaddr => $args{bindaddr}) : () ),
-    ## FIXME attach extra args (possible hints-hash ?) to obj ?
+
+    (defined $args{ssl}      ? 
+      (ssl      => delete $args{ssl}) : () ),
+
+    (defined $args{bindaddr} ? 
+      (bindaddr => delete $args{bindaddr}) : () ),
+
+    ## Attach any extra args to Connector->args()
+    (keys %args ?
+      (args => \%args) : () ),
   );
-  
-  ## FIXME ssl .. ?
 }
 
 
@@ -629,7 +681,7 @@ sub disconnect {
   return unless $self->wheels->{$w_id};
   
   $self->wheels->{$w_id}->is_disconnecting(
-    $str || "Client Quit"
+    $str || "Client disconnect"
   );
 
   1

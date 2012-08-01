@@ -241,6 +241,8 @@ sub _register_controller {
   $self->set_controller( $_[SENDER]->ID );
   
   $kernel->refcount_increment( $self->controller, "IRCD Running" );
+
+  $kernel->post( $self->controller, 'ircsock_registered', $self );
 }
 
 sub _accept_conn {
@@ -312,7 +314,7 @@ sub _accept_conn {
 
 sub _idle_alarm {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my $w_id = @_[ARG0];
+  my $w_id = $_[ARG0];
   
   my $this_conn = $self->wheels->{$w_id} || return;
 

@@ -8,9 +8,13 @@ BEGIN {
 }
 
 my $backend = IRC::Server::Pluggable::Backend->spawn(
-  ## FIXME  
+  ## FIXME
+  ##  test with ssl_opts
 );
 isa_ok( $backend, 'IRC::Server::Pluggable::Backend' );
+
+## FIXME
+## test with listeners?
 
 POE::Session->create(
   package_states => [
@@ -49,6 +53,8 @@ sub ircsock_registered {
   pass("Received ircsock_registered");
   
   isa_ok( $backend, 'IRC::Server::Pluggable::Backend' );
+  
+  $k->yield('_shutdown'); ## DONE TESTING
 }
 
 ## FIXME

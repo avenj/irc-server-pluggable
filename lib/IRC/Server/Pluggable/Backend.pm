@@ -7,6 +7,7 @@ use Carp;
 use Moo;
 
 use IRC::Server::Pluggable::Backend::Connector;
+use IRC::Server::Pluggable::Backend::Event;
 use IRC::Server::Pluggable::Backend::Listener;
 use IRC::Server::Pluggable::Backend::Wheel;
 
@@ -20,6 +21,7 @@ use Net::IP::Minimal qw/
 use POE qw/
   Session
 
+  Wheel::ReadWrite
   Wheel::SocketFactory
 
   Component::SSLify
@@ -131,6 +133,11 @@ has 'wheels' => (
   clearer => 1,
 ); 
 
+## Constants.
+sub ListenerClass  () { 'IRC::Server::Pluggable::Backend::Listener' }
+sub ConnectorClass () { 'IRC::Server::Pluggable::Backend::Connector' }
+sub WheelClass     () { 'IRC::Server::Pluggable::Backend::Wheel' }
+
 
 sub spawn {
   ## Create our object and session.
@@ -175,6 +182,7 @@ sub spawn {
     unless $sess_id;
 
   ## ssl_opts => [ ]
+  ##  FIXME document that we need a pubkey + cert for server-side ssl
   if ($args{ssl_opts}) {
     confess "ssl_opts should be an ARRAY"
       unless ref $args{ssl_opts} eq 'ARRAY';
@@ -262,7 +270,7 @@ sub _accept_conn {
   ($n_err, $p_addr) = getnameinfo( 
    $p_addr,
    NI_NUMERICHOST | NIx_NOSERV
- );
+  );
   
   my $listener = $self->listeners->{$listener_id};
   
@@ -278,14 +286,19 @@ sub _accept_conn {
   my $wheel = POE::Wheel::ReadWrite->new(
     Handle => $sock,
     Filter => $self->filter,
-    InputEvent => '_ircsock_input',
-    ErrorEvent => '_ircsock_error',
+    InputEvent   => '_ircsock_input',
+    ErrorEvent   => '_ircsock_error',
     FlushedEvent => '_ircsock_flushed',
   );
   
+  unless ($wheel) {
+    carp "Wheel creation failure in _accept_conn";
+    return
+  }
+  
   my $w_id = $wheel->ID;
 
-  my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
+  my $this_conn = WheelClass->new(
     protocol => $protocol,
     wheel    => $wheel,
 
@@ -299,9 +312,9 @@ sub _accept_conn {
     idle => $listener->idle,
   );
 
-  $self->wheels->{$w_id} = $obj;
+  $self->wheels->{$w_id} = $this_conn;
 
-  $obj->alarm_id(
+  $this_conn->alarm_id(
     $kernel->delay_set(
       '_idle_alarm',
       $w_id
@@ -310,7 +323,7 @@ sub _accept_conn {
 
   $kernel->post( $self->controller,
     'ircsock_listener_open',
-    $obj
+    $this_conn
   );
 }
 
@@ -318,6 +331,11 @@ sub _idle_alarm {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $w_id = $_[ARG0];
   
+  unless ($w_id) {
+    carp "_idle_alarm received with no wheel ID";
+    return
+  }
+
   my $this_conn = $self->wheels->{$w_id} || return;
 
   $kernel->post( $self->controller,
@@ -397,7 +415,7 @@ sub _create_listener {
 
   my $id = $wheel->ID;
 
-  my $listener = IRC::Server::Pluggable::Backend::Listener->new(
+  my $listener = ListenerClass->new(
     protocol => $protocol,
     wheel => $wheel,
     addr  => $bindaddr,
@@ -529,7 +547,7 @@ sub _create_connector {
 
   my $id = $wheel->ID;
   
-  $self->connectors->{$id} = IRC::Server::Pluggable::Backend::Connector->new(
+  $self->connectors->{$id} = ConnectorClass->new(
     wheel => $wheel,
     addr  => $remote_addr,
     port  => $remote_port,
@@ -579,13 +597,18 @@ sub _connector_up {
     )
   );
 
+  unless ($wheel) {
+    carp "Wheel creation failure in _accept_conn";
+    return
+  }
+
   my $w_id = $wheel->ID;
 
   my $sock_packed = getsockname($sock);
   my ($protocol, $sockaddr, $sockport)
     = get_unpacked_addr($sock_packed);
 
-  my $obj = IRC::Server::Pluggable::Backend::Wheel->new(
+  my $this_conn = WheelClass->new(
     protocol => $protocol,
     wheel    => $wheel,
     peeraddr => $peeraddr,
@@ -597,11 +620,11 @@ sub _connector_up {
     ##  otherwise defaults to 180 ...
   );
   
-  $self->wheels->{$w_id} = $obj;
+  $self->wheels->{$w_id} = $this_conn;
   
   $kernel->post( $self->controller, 
     'ircsock_connector_open',
-    $obj
+    $this_conn
   );
 }
 

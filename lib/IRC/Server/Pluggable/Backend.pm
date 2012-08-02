@@ -375,7 +375,7 @@ sub create_listener {
     @_
   );
 
-  1
+  $self
 }
 
 sub _create_listener {
@@ -448,7 +448,7 @@ sub remove_listener {
     @_ 
   );
 
-  1
+  $self
 }
 
 sub _remove_listener {
@@ -502,7 +502,7 @@ sub create_connector {
     @_
   );
 
-  1
+  $self
 }
 
 sub _create_connector {
@@ -733,7 +733,7 @@ sub send {
     $self->wheels->{$id}->wheel->put( $out );
   }
 
-  1
+  $self
 }
 
 sub disconnect {
@@ -749,7 +749,7 @@ sub disconnect {
     $str || "Client disconnect"
   );
 
-  1
+  $self
 }
 
 sub _disconnected {
@@ -786,6 +786,8 @@ sub set_compressed_link {
   return unless $self->wheels->{$w_id};
 
   $self->wheels->{$w_id}->is_pending_compress(1)
+  
+  $self
 }
 
 sub set_compressed_link_now {
@@ -809,7 +811,7 @@ sub set_compressed_link_now {
     $this_conn
   );
 
-  1
+  $self
 }
 
 sub unset_compressed_link {
@@ -827,7 +829,7 @@ sub unset_compressed_link {
 
   $this_conn->set_compressed(0);
   
-  1
+  $self
 }
 
 ## FIXME listener connect ip blacklist?

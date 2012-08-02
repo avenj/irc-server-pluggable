@@ -33,12 +33,15 @@ has 'command' => (
 );
 
 has 'params' => (
-  required => 1,
+  lazy => 1,
 
   isa => ArrayRef,
   is  => 'ro',
+
+  predicate => 'has_params',  
+  writer    => 'set_params',
   
-  writer => 'set_params',
+  default => sub { [] },
 );
 
 has 'raw_line' => (
@@ -84,6 +87,10 @@ L<POE::Filter::IRCD> hashes.
 
 They are also used to feed the send() method provided by 
 L<IRC::Server::Pluggable::Backend>.
+
+These objects do not do much validation on their own. You can prefix 
+attributes with B<has_> to determine whether or not valid input is 
+available.
 
 =head2 command
 

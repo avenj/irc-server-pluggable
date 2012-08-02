@@ -5,7 +5,55 @@ use strict; use warnings;
 my $class = Module::Build->subclass(
   class => 'IRC::Server::Pluggable::Builder',
   code => q{
-  
+
+    sub ACTION_versionify {
+      my $self = shift;
+
+      my $base = $self->base_dir;
+      my $vers = $self->dist_version;
+
+      ++$|;
+
+      print "Versionifying ";
+      require File::Find;
+      File::Find->import('find');
+
+      my $x;
+      find(sub {
+          if ($_ =~ /\.pm(.in)?$/) {
+            my $path = $File::Find::name;
+            open my $fh, '<', $path
+              or die "open: $path $!";
+            my @thisf = readline($fh);
+            close $fh;
+
+            my $package_l = $thisf[0] || return;
+            my $pkg;
+            unless (($pkg) = $package_l =~ /^package\s+(\S+)$/) {
+              warn "\nSkipping, no package: $path\n";
+              return
+            }
+
+            ++$x;
+            print ". ";
+
+            my $v_line = "our \$VERSION = '$vers';\n";
+
+            if ($thisf[1] =~ /VERSION/) {
+              $thisf[1] = $v_line
+            }
+
+            open $fh, '>', $path
+              or die "open: $path $!";
+            print $fh @thisf;
+            close $fh;
+          }
+        },
+        $base."/lib"
+      );
+      print "\n$x modules\n";
+    }
+
   },
 );
 

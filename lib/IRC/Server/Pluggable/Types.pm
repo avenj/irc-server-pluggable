@@ -17,14 +17,25 @@ my $type_definitions = [
     message => sub { "$_[0] is not a POE::Wheel" },
   },
   {
+
     name => 'Filter',
     test => sub { blessed($_[0]) && $_[0]->isa('POE::Filter') },
     message => sub { "$_[0] is not a POE::Filter" },
   },
+
   {
     name => 'InetProtocol',
     test => sub { $_[0] && $_[0] == 4 || $_[0] == 6 },
     message => sub { "$_[0] is not inet protocol 4 or 6" },
+  },
+  
+  {
+    name => 'Backend',
+    test => sub { 
+      blessed($_[0]) 
+      && $_[0]->isa('IRC::Server::Pluggable::Backend')
+    },
+    message => sub { "$_[0] is not a IRC::Server::Pluggable::Backend" },
   },
 ];
 

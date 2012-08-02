@@ -99,7 +99,6 @@ has 'filter' => (
 
   default => sub {
     my ($self) = @_;
-
     POE::Filter::Stackable->new(
       Filters => [ $self->filter_line, $self->filter_irc ],
     );
@@ -133,7 +132,8 @@ has 'wheels' => (
   clearer => 1,
 ); 
 
-## Constants.
+
+## Constants. These class names are long and I am very lazy.
 sub ListenerClass  () { 'IRC::Server::Pluggable::Backend::Listener' }
 sub ConnectorClass () { 'IRC::Server::Pluggable::Backend::Connector' }
 sub WheelClass     () { 'IRC::Server::Pluggable::Backend::Wheel' }
@@ -894,7 +894,13 @@ L<POE::Component::Server::IRC>.
 
 =head3 spawn
 
-FIXME
+  my $backend = IRC::Server::Pluggable::Backend->spawn(
+    ## Optional, needed for SSL-ified server-side sockets
+    ssl_opts => [
+      'server.key',
+      'server.cert',
+    ],
+  );
 
 =head3 controller
 

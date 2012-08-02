@@ -317,6 +317,7 @@ sub _accept_conn {
   $this_conn->alarm_id(
     $kernel->delay_set(
       '_idle_alarm',
+      $this_conn->idle,
       $w_id
     )
   );
@@ -331,11 +332,6 @@ sub _idle_alarm {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $w_id = $_[ARG0];
   
-  unless ($w_id) {
-    carp "_idle_alarm received with no wheel ID";
-    return
-  }
-
   my $this_conn = $self->wheels->{$w_id} || return;
 
   $kernel->post( $self->controller,
@@ -346,6 +342,7 @@ sub _idle_alarm {
   $this_conn->alarm_id(
     $kernel->delay_set(
       '_idle_alarm',
+      $this_conn->idle,
       $w_id
     )
   );

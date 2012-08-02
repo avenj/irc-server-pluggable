@@ -34,7 +34,7 @@ has 'idle' => (
   lazy => 1,
   
   is  => 'rwp',
-  isa => Bool,
+  isa => Num,
 
   default => sub { 180 },
 );

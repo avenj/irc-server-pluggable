@@ -45,6 +45,8 @@ has 'protocol' => (
 
   isa => InetProtocol,
   is  => 'ro',
+  
+  writer => 'set_protocol',
 );
 
 has 'ssl'   => (

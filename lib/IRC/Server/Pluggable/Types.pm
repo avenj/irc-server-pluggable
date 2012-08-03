@@ -11,6 +11,7 @@ our @EXPORT_OK = ();
 use Scalar::Util qw/blessed/;
 
 my $type_definitions = [
+  ## POE bits
   {
     name => 'Wheel',
     test => sub { blessed($_[0]) && $_[0]->isa('POE::Wheel') },
@@ -23,19 +24,46 @@ my $type_definitions = [
     message => sub { "$_[0] is not a POE::Filter" },
   },
 
+  ## Our classes  
   {
-    name => 'InetProtocol',
-    test => sub { $_[0] && $_[0] == 4 || $_[0] == 6 },
-    message => sub { "$_[0] is not inet protocol 4 or 6" },
-  },
-  
-  {
-    name => 'Backend',
+    name => 'BackendClass',
     test => sub { 
       blessed($_[0]) 
       && $_[0]->isa('IRC::Server::Pluggable::Backend')
     },
     message => sub { "$_[0] is not a IRC::Server::Pluggable::Backend" },
+  },
+  {
+    name => 'ProtocolClass',
+    test => sub {
+      blessed($_[0])
+      && $_[0]->isa('IRC::Server::Pluggable::Protocol')
+    },
+    message => sub { "$_[0] is not a IRC::Server::Pluggable::Protocol" },
+  },
+
+  ## IRC bits  
+  {
+    name => 'CaseMap',
+    test => sub {
+      is_Str($_[0]) &&
+      (
+       $_[0] eq 'rfc1459' 
+       || $_[0] eq 'ascii' 
+       || $_[0] eq 'rfc1459-strict'
+      )
+    },
+    message => sub { 
+     "$_[0] is not a valid IRC casemap, "
+     ."should be one of: rfc1459, ascii, rfc1459-strict"
+    },
+  },
+
+  ## Misc
+  {
+    name => 'InetProtocol',
+    test => sub { $_[0] && $_[0] == 4 || $_[0] == 6 },
+    message => sub { "$_[0] is not inet protocol 4 or 6" },
   },
 ];
 

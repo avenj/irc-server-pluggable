@@ -1,4 +1,4 @@
-use Test::More tests => 13;
+use Test::More tests => 17;
 use strict; use warnings FATAL => 'all';
 
 use POE::Filter::Line;
@@ -20,9 +20,9 @@ ok( !is_InetProtocol(1), 'InetProtocol reject' );
 ok( is_InetProtocol(4), 'InetProtocol(4)' );
 ok( is_InetProtocol(6), 'InetProtocol(6)' );
 
-ok( ! is_Backend(1), 'Backend reject' );
+ok( ! is_BackendClass(1), 'Backend reject' );
 ok(
-  is_Backend(
+  is_BackendClass(
     new_ok(
       'IRC::Server::Pluggable::Backend' => [
       ],
@@ -30,3 +30,10 @@ ok(
   ),
   'Backend accept'
 );
+
+ok( ! is_CaseMap('abc'), 'CaseMap reject' );
+ok( is_CaseMap('rfc1459'), 'CaseMap rfc1459' );
+ok( is_CaseMap('rfc1459-strict'), 'CaseMap rfc1459-strict' );
+ok( is_CaseMap('ascii'), 'CaseMap ascii' );
+
+## FIXME ProtocolClass

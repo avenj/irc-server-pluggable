@@ -21,8 +21,7 @@ use IRC::Server::Pluggable::Types;
 extends 'POE::Component::Syndicator';
 
 
-### Some rudimentary IRCD stuff everybody probably has:
-
+### IRCD-relevant attribs
 has 'casemapping' => (
   lazy => 1,
 
@@ -127,6 +126,10 @@ has 'version_string' => (
 );
 
 
+### FIXME user / peer / channel tracker objs ?
+
+### FIXME something clever to plugin-process events
+###   before handling?
 sub daemon_cmd_ping {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $event = $_[ARG0];

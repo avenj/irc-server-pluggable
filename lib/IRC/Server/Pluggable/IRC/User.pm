@@ -9,13 +9,6 @@ use Carp;
 use Moo;
 
 
-has 'creation_time' => (
-  required => 1,
-  is  => 'ro',
-  isa => Num,
-  writer => 'set_creation_time',
-);
-
 has 'nick' => (
   required => 1,
   is  => 'ro',

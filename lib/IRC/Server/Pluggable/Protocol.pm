@@ -1,12 +1,6 @@
 package IRC::Server::Pluggable::Protocol;
 
-## provide base class for Protocol sessions
-## isa Syndicator ? FIXME syndicator role instead?
-##  Protocol sessions should:
-##    - accept commands dispatched by Dispatcher
-##    - dispatch to send()
-
-## provide basic set of attribs and overridable cmd handlers ?
+## Base class for Protocol sessions.
 
 use 5.12.1;
 use strictures 1;
@@ -128,12 +122,106 @@ has 'version_string' => (
 
 ### FIXME user / peer / channel tracker objs ?
 
-### FIXME something clever to plugin-process events
-###   before handling?
-sub daemon_cmd_ping {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my $event = $_[ARG0];
+### Session-related.
+has 'session_id' => (
+  lazy => 1,
   
+  is  => 'ro',
+  isa => Defined,
+  
+  writer    => 'set_session_id',
+  predicate => 'has_session_id',
+);
+
+has 'object_states' => (
+  required => 1,
+  
+  is  => 'ro',
+  isa => sub {
+    is_ArrayRef($_[0]) or is_HashRef($_[0])
+      or die "$_[0] is not an ArrayRef or HashRef"
+  },
+  
+  default => sub {
+    [
+      '_start',
+      '_stop',
+
+      'ircsock_listener_open',
+
+      'ircsock_connector_failure',
+      'ircsock_connector_open',
+      
+      'ircsock_connection_idle',
+      
+      'irc_cmd_ping',
+      
+    ],
+  },
+);
+
+
+sub spawn {
+  my ($class, %args) = @_;
+  
+  $args{lc $_} = delete $args{$_} for keys %args;
+  
+  my $self = ref($class) ? $class : $class->new(%args);
+
+  ## FIXME
+  ## spawn session
+  ## spawn syndicator
+
+  my $sess_id = POE::Session->create(
+    object_states => [
+      $self => $self->object_states,
+    ],
+  )->ID;
+  
+  $self->set_session_id( $sess_id );
+
+  $self
+}
+
+sub _start { }
+
+sub _stop { }
+
+### FIXME something clever to plugin-process events
+##        before handling?
+## 
+##  -> receive relayed ircsock_* event notification
+##     (except _input)
+##  -> receive dispatched irc_cmd_* events
+##    -> call plugin processor method
+##       args: obj ?
+##    -> syndicate synchronous event
+##       args: obj ?
+##    -> dispatch output back to Dispatcher
+
+## FIXME need an overridable way to format numeric replies
+
+sub _dispatch {
+  my ($self, $event, @args) = @_;
+  
+  my $eat = $self->send_user_event(
+    $event,
+    \@args
+  );
+  
+  return if $eat == PLUGIN_EAT_ALL;
+
+  ## FIXME
+}
+
+### Received via post() from Dispatcher:
+
+sub irc_unknown_cmd {
+  ## FIXME Dispatcher should call this if no other method found
+}
+
+sub irc_cmd_ping {
+  my ($self, $conn, @params) = @_;  
   
 }
 

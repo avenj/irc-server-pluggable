@@ -7,13 +7,15 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Backend::Connector;
-use IRC::Server::Pluggable::Backend::Event;
-use IRC::Server::Pluggable::Backend::Listener;
-use IRC::Server::Pluggable::Backend::Wheel;
-
-use IRC::Server::Pluggable::Types;
-use IRC::Server::Pluggable::Utils;
+use IRC::Server::Pluggable qw/
+  Backend::Connector
+  Backend::Event
+  Backend::Listener
+  Backend::Wheel
+  
+  Types
+  Utils
+/;
 
 use Net::IP::Minimal qw/
   ip_is_ipv6
@@ -786,7 +788,7 @@ sub set_compressed_link {
 
   return unless $self->wheels->{$w_id};
 
-  $self->wheels->{$w_id}->is_pending_compress(1)
+  $self->wheels->{$w_id}->is_pending_compress(1);
   
   $self
 }

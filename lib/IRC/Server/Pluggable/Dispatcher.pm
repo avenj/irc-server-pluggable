@@ -15,7 +15,9 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable qw/
+  Types
+/;
 
 use POE;
 
@@ -94,4 +96,17 @@ sub _shutdown {
 }
 
 
-1;
+q{
+ <nitric> the more you think about facebook actions in real life, the 
+  weirder facebook seems    
+ <nitric> irl, I DON'T want people writing on my wall at 1am    
+ <nitric> or poking me   
+ <Schroedingers_hat> HEY YOU HELP ME WITH MY GARDEN!    
+ <Schroedingers_hat> Who are you?    
+ <Schroedingers_hat> GIVE ME SOME CARROTS
+};
+
+
+=pod
+
+=cut

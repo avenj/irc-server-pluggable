@@ -134,8 +134,6 @@ has 'session_id' => (
 );
 
 has 'object_states' => (
-  required => 1,
-  
   is  => 'ro',
   isa => sub {
     is_ArrayRef($_[0]) or is_HashRef($_[0])
@@ -226,4 +224,12 @@ sub irc_cmd_ping {
 }
 
 
-1;
+q{
+<Gilded> I'm only level 24 myself so I try to avoid the hard quests 
+ like "Job" or "Sex"
+};
+
+
+=pod
+
+=cut

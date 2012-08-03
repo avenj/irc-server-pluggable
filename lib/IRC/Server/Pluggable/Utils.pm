@@ -61,7 +61,11 @@ sub get_unpacked_addr {
   ($inet_proto, $sockaddr, $sockport)
 }
 
-1;
+q{
+ <bob2> I got my first ipv6+tls spam yesterday
+ <bob2> a+ for effort
+};
+
 
 =pod
 

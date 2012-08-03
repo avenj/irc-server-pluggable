@@ -205,15 +205,15 @@ sub spawn {
   }
 
   ## FIXME add listeners / connectors here if they're configured?
-
-  $self->set_session_id( $sess_id );
   
   $self
 }
 
 
 sub _start {
-
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  $self->set_session_id( $_[SESSION]->ID );
+  $kernel->refcount_increment( $self->session_id, "IRCD Running" );
 }
 
 sub _stop {
@@ -252,7 +252,6 @@ sub _register_controller {
 
   $self->set_controller( $_[SENDER]->ID );
   
-  $kernel->refcount_increment( $self->session_id, "IRCD Running" );
   $kernel->refcount_increment( $self->controller, "IRCD Running" );
 
   $kernel->post( $self->controller, 'ircsock_registered', $self );
@@ -838,7 +837,10 @@ sub unset_compressed_link {
 ## FIXME listener connect ip blacklist?
 
 
-1;
+q{
+ <CaptObviousman> pretend for a moment that I'm stuck with mysql 
+ <rnowak> ok, fetching my laughing hat and monocle
+};
 __END__
 
 =pod

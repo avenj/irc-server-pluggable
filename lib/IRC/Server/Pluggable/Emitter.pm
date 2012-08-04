@@ -19,6 +19,7 @@ has 'alias' => (
   is   => 'ro',
   isa  => Str,
   predicate => 'has_alias',
+  writer    => 'set_alias',
   default   => sub { "$_[0]" },
 );
 
@@ -26,15 +27,18 @@ has 'debug' => (
   lazy => 1,
   is   => 'ro',
   isa  => Bool,
-  default => sub { 0 },
+  predicate => 'has_debug',
+  writer    => 'set_debug',
+  default   => sub { 0 },
 );
 
 has 'event_prefix' => (
   lazy => 1,
   is   => 'ro',
   isa  => Str,
-  writer  => 'set_event_prefix',
-  default => sub { "Emitter_ev_" },
+  predicate => 'has_event_prefix',
+  writer    => 'set_event_prefix',
+  default   => sub { "Emitter_ev_" },
 );
 
 has 'object_states' => (
@@ -50,8 +54,9 @@ has 'register_prefix' => (
   lazy => 1,
   is   => 'ro',
   isa  => Str,
-  writer  => 'set_register_prefix',
-  default => sub { "Emitter_" },
+  predicate => 'has_register_prefix',
+  writer    => 'set_register_prefix',
+  default   => sub { "Emitter_" },
 );
 
 has 'session_id' => (
@@ -94,15 +99,14 @@ sub import {
   }    
 }
 
-sub BUILD {
+sub _start_emitter {
   ##   my $self = $class->new(
   ##     alias           => Emitter session alias
   ##     debug           => Debug true/false
   ##     event_prefix    => Session event prefix (Emitter_ev_)
   ##     register_prefix => _register/_unregister prefix (Emitter_)
   ##     object_states   => Extra object_states for Session
-  ##   );
-  ##   --> Emitter session is spawned
+  ##   )->_start_emitter();
   my ($self) = @_;
 
   $self->_pluggable_init(
@@ -438,6 +442,29 @@ L<POE::Component::Syndicator>.
 This class inherits from L<Object::Pluggable>.
 
 FIXME
+
+=head2 Creating an Emitter
+
+=head2 Registering plugins
+
+=head2 Registering sessions
+
+=head2 Receiving events
+
+=head3 NOTIFY events
+
+=head3 PROCESS events
+
+=head2 Sending events
+
+=head3 emit
+
+=head3 emit_now
+
+=head3 process
+
+FIXME
+
 
 =head1 AUTHOR
 

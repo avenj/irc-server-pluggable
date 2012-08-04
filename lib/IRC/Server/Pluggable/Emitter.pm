@@ -12,6 +12,8 @@ use Object::Pluggable::Constants qw/:ALL/;
 extends 'Object::Pluggable';
 
 use IRC::Server::Pluggable qw/
+  Emitter::Session
+
   Types
 /;
 
@@ -50,6 +52,23 @@ has 'object_states' => (
   isa => ArrayRef,
   predicate => 'has_object_states',
   writer    => 'set_object_states',
+  trigger   => 1,
+);
+
+## ->{ $session_id } = { refc => $ref_count, id => $id };
+has '_reg_sessions' => (
+  lazy => 1,
+  is  => 'ro',
+  isa => HashRef,
+  default => sub { {} },
+);
+
+## ->{ $event }->{ $session_id } = 1
+has '_reg_events' => (
+  lazy => 1,
+  is  => 'ro',
+  isa => HashRef,
+  default => sub { {} },
 );
 
 
@@ -80,10 +99,14 @@ sub _spawn_emitter {
     prefix     => $self->event_prefix,
     reg_prefix => 'Emitter',    ## Emitter_register()
     types => {
+      ## PROCESS type events are handled synchronously.
+      ## Handlers begin with P_*
       'PROCESS => 'P',
+      ## NOTIFY type events are dispatched asynchronously.
+      ## Handlers begin with N_*
       'NOTIFY' => 'N',
     },
-    debug =>
+    debug => FIXME,
   );
   
   POE::Session->create(
@@ -96,18 +119,18 @@ sub _spawn_emitter {
 
         'shutdown' => '_emitter_shutdown',
 
+        '_default' => '_emitter_default',
+
       },
-      ## FIXME catch and handle sig_die like Syndicator
       $self => [ qw/
 
-        _dispatch_event
+        _dispatch_notify
 
         _emitter_sigdie
 
       / ],
       ( 
-        $self->has_object_states ? 
-        @{ $self->object_states } : () 
+        $self->has_object_states ? @{ $self->object_states } : ()
       ),
     ], 
   );
@@ -120,34 +143,51 @@ sub _spawn_emitter {
 around '_pluggable_event' => sub {
   my ($orig, $self) = splice @_, 0, 2;
 
-  ## Receives Emitter_ev_* events (_pugin_error, plugin_add etc)
+  ## Receives Emitter_ev_* events (plugin_error, plugin_add etc)
 
   $self->emit( @_ );
 };
 
 
-## Our methods:
-sub process {
-  my ($self, $event, @args) = @_;
-  ## Dispatch PROCESS events
-  ## process() events should _pluggable_process immediately
-  ##  and return the EAT value.
-  $self->_pluggable_process( 'PROCESS', $event, \@args );
+### Methods.
+
+sub _trigger_object_states {
+  my ($self, $states) = @_;
+  
+  confess "object_states() should be an ARRAY or HASH"
+    unless ref $states eq 'HASH' or ref $states eq 'ARRAY' ;
+
+  my $die_no_startstop =
+   "Should not have _start or _stop handlers defined; "
+   ."use _emitter_started & _emitter_stopped" ;
+
+  for (my $i=1; $i <= (scalar(@$states) - 1 ); $i+=2 ) {
+    my $events = $states->[$i];
+    if      (ref $events eq 'HASH') {
+      confess $die_no_startstop 
+        if defined $events->{'_start'}
+        or defined $events->{'_stop'}
+    } elsif (ref $events eq 'ARRAY') {
+      confess $die_no_startstop
+        if grep { $_ eq '_start' || $_ eq '_stop' } @$events;
+    }
+  }
+
+  $states
 }
 
-sub emit {
-  my ($self, $event, @args) = @_;
-  ## Notification events
-  $self->yield( '_dispatch_event', $event, @args );
-  1
+sub _register_sender_session {
+  ## Register a Session for notifications.
+  my ($self, $target_id, @events) = @_;
+  
+  for my $event (@events) {
+    ## FIXME
+  }  
 }
 
-sub emit_now {
-  my ($self, $event, @args) = @_;
-  ## Synchronous notification events
-  $self->call( '_dispatch_event', $event, @args );
-}
+## FIXME delay() ?
 
+## yield/call provide post()/call() frontends.
 sub yield {
   my ($self, @args) = @_;
   $poe_kernel->post( $self->session_id, @args )
@@ -158,9 +198,35 @@ sub call {
   $poe_kernel->call( $self->session_id, @args )
 }
 
+## process/emit/emit_now bridge the plugin pipeline.
+sub process {
+  my ($self, $event, @args) = @_;
+  ## Dispatch PROCESS events.
+  ## process() events should _pluggable_process immediately
+  ##  and return the EAT value.
+
+  ## Dispatched to P_$event :
+  $self->_pluggable_process( 'PROCESS', $event, \@args );
+
+  ## FIXME should we notify sessions ... ?
+}
+
+sub emit {
+  ## Async NOTIFY event dispatch.
+  my ($self, $event, @args) = @_;
+  $self->yield( '_dispatch_notify', $event, @args );
+  1
+}
+
+sub emit_now {
+  ## Synchronous NOTIFY event dispatch.
+  my ($self, $event, @args) = @_;
+  $self->call( '_dispatch_notify', $event, @args );
+}
+
 ## Our Session's handlers:
 
-sub _dispatch_event {
+sub _dispatch_notify {
   ## Dispatch a NOTIFY event
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   
@@ -169,8 +235,16 @@ sub _dispatch_event {
   my $prefix = $self->event_prefix;
 
   $event =~ s/^\Q$prefix//;
-    
+
+  ## Synchronously dispatched to our session as ->event_prefix . $event
+  ##  These are considered notifications.
+  ##  Session does NOT receive args as refs.
+  $self->call( $prefix . $event, @args);
+
+  ## Dispatched to N_$event after Sessions have been notified:
   $self->_pluggable_process( 'NOTIFY', $event, \@args );  
+  
+  ## FIXME notify registered sessions
 }
 
 sub _emitter_start {
@@ -185,13 +259,35 @@ sub _emitter_start {
   $kernel->alias_set( $self->alias );
 
   if ($sender =! $kernel) {
-    ## Have a parent session. Detach from it.
+    ## Have a parent session.
+
+    ## refcount for this session.
     $kernel->refcount_increment( $sender->ID, 'Emitter running' );
-    $kernel->detach_myself;  
-    ## FIXME register parent session for events ?
+    $self->_reg_sessions->{ $sender->ID }->{id} = $sender->ID;
+    $self->_reg_sessions->{ $sender->ID }->{refc}++;
+
+    ## register parent session for all notification events.
+    $self->_reg_events->{ 'all' }->{ $sender->ID } = 1;
+
+    ## Detach child session.
+    $kernel->detach_myself;      
   }
 
-  $kernel->call( $self->session_id, 'emitter_started' );
+  $self->call( 'emitter_started' );
+}
+
+sub _emitter_default {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($event, $args) = @_[ARG0, ARG1];
+
+  ## Session received an unknown event.
+  ## Dispatch it to any appropriate P_$event handlers.
+
+  unless 
+    ($event =~ /^_/ || $event =~ /^emitter_(?:started|stopped)$/) {
+
+    $self->process( $event, @$args );
+  }
 }
 
 sub _emitter_sigdie {
@@ -212,21 +308,97 @@ sub _emitter_sigdie {
 sub _emitter_stop {
   ## _stop handler
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  
-  $kernel->call( $self->session_id,
-    'emitter_stopped',
-  );
+
+  $self->call( 'emitter_stopped' );
 }
 
 sub _emitter_shutdown {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   $kernel->alarm_remove_all;
-  
+
   $self->_pluggable_destroy;
 
-  ## FIXME send shutdown event ?  
+  $self->_emitter_drop_sessions;
+
+  ## FIXME send shutdown event before dropping sessions ?
+  ##  Syndicator sets a flag and calls a send_event ...
+  ##  We could probably just set a bool and call _emitter_drop_sessions
+  ##  from _dispatch_notify
 }
+
+
+## Handlers for listener sessions.
+sub _emitter_register {
+  my ($kernel, $self, $sender) = @_[KERNEL, OBJECT, SENDER];
+  my @events = @_[ARG0 .. $#_];
+  
+  @events = 'all' unless @events;
+
+  my $s_id = $sender->ID;
+
+  $self->_reg_sessions->{$s_id}->{id} = $s_id;
+  for my $event (@events) {
+    $self->_reg_events->{$event}->{$s_id} = 1;
+    
+    $kernel->refcount_increment( $s_id, 'Emitter running' )
+      if not $self->_reg_sessions->{$s_id}->{refc}
+      and $s_id ne $self->session_id ;
+  
+    $self->_reg_sessions->{$s_id}->{refc}++
+  }
+
+  $kernel->post( $s_id, $self->event_prefix . "registered", $self )
+}
+
+sub _emitter_unregister {
+  my ($kernel, $self, $sender) = @_[KERNEL, OBJECT, SENDER];
+  my @events = @_[ARG0 .. $#_];
+
+  @events = 'all' unless @events;
+
+  my $s_id = $sender->ID;
+
+  EV: for my $event (@events) {
+    unless (delete $self->_reg_events->{$event}->{$s_id}) {
+      ## Possible we should just not give a damn?
+      warn "Cannot unregister $event for $s_id -- not registered";
+      next EV
+    }
+
+    delete $self->_reg_events->{$event}
+      ## No sessions left for this event.
+      unless keys %{ $self->_reg_events->{$event} };
+
+    --$self->_reg_sessions->{$s_id}->{refc};
+
+    if ($self->_reg_sessions->{$s_id} < 1) {
+      ## No events left for this session.
+      delete $self->_reg_sessions->{$s_id};
+      
+      $kernel->refcount_decrement( $s_id, 'Emitter running' )
+        unless $_[SESSION] == $sender;
+    }
+
+  } ## EV
+}
+
+sub _emitter_drop_sessions {
+  my ($self) = @_;
+  
+  for my $id (keys %{ $self->_reg_sessions }) {
+    my $count = $self->_reg_sessions->{$id};
+
+    $poe_kernel->refcount_decrement(
+      $id, 'Emitter running'
+    ) until !$count;
+    
+    delete $self->_reg_sessions->{$id}
+  }
+
+  1
+}
+
 
 
 

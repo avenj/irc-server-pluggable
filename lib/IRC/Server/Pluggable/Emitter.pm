@@ -101,7 +101,9 @@ sub import {
   }    
 }
 
+
 sub _start_emitter {
+  ## Call to spawn Session.
   ##   my $self = $class->new(
   ##     alias           => Emitter session alias
   ##     debug           => Debug true/false
@@ -131,6 +133,7 @@ sub _start_emitter {
   
   POE::Session->create(
     object_states => [
+
       $self => {
       
         '_start'   => '_emitter_start',
@@ -139,21 +142,23 @@ sub _start_emitter {
         'register'  => '_emitter_register',
         'unregister' => '_emitter_unregister',
 
-        'shutdown' => '_emitter_shutdown',
-
         '_default' => '_emitter_default',
 
       },
+
       $self => [ qw/
+        _emitter_shutdown
 
         _dispatch_notify
 
         _emitter_sigdie
 
       / ],
+
       ( 
         $self->has_object_states ? @{ $self->object_states } : ()
       ),
+
     ], 
   );
 
@@ -165,7 +170,7 @@ sub _start_emitter {
 around '_pluggable_event' => sub {
   my ($orig, $self) = splice @_, 0, 2;
 
-  ## Receives Emitter_ev_* events (plugin_error, plugin_add etc)
+  ## Receives plugin_error, plugin_add etc
 
   $self->emit( @_ );
 };
@@ -211,19 +216,6 @@ sub call {
   $poe_kernel->call( $self->session_id, @args )
 }
 
-## process/emit/emit_now bridge the plugin pipeline.
-sub process {
-  my ($self, $event, @args) = @_;
-  ## Dispatch PROCESS events.
-  ## process() events should _pluggable_process immediately
-  ##  and return the EAT value.
-
-  ## Dispatched to P_$event :
-  $self->_pluggable_process( 'PROCESS', $event, \@args );
-
-  ## FIXME should we notify sessions at all ... ? Worth a ponder.
-}
-
 sub emit {
   ## Async NOTIFY event dispatch.
   my ($self, $event, @args) = @_;
@@ -237,6 +229,44 @@ sub emit_now {
   $self->call( '_dispatch_notify', $event, @args );
 }
 
+## process/emit/emit_now bridge the plugin pipeline.
+sub process {
+  my ($self, $event, @args) = @_;
+  ## Dispatch PROCESS events.
+  ## process() events should _pluggable_process immediately
+  ##  and return the EAT value.
+
+  ## Dispatched to P_$event :
+  $self->_pluggable_process( 'PROCESS', $event, \@args );
+
+  ## FIXME should we notify sessions at all ... ? Worth a ponder.
+}
+
+
+sub __incr_ses_refc {
+  my ($self, $sess_id) = @_;
+  ++$self->_emitter_reg_sessions->{$sess_id}->{refc}
+}
+
+sub __decr_ses_refc {
+  my ($self, $sess_id) = @_;
+  --$self->_emitter_reg_sessions->{$sess_id}->{refc};
+  $self->_emitter_reg_sessions->{$sess_id}->{refc} = 0
+    unless $self->_emitter_reg_sessions->{$sess_id}->{refc} > 0      
+}
+
+sub __get_ses_refc {
+  my ($self, $sess_id) = @_;
+  $self->_emitter_reg_sessions->{$sess_id}->{refc}
+    if exists $self->_emitter_reg_sessions->{$sess_id}
+}
+
+sub __reg_ses_id {
+  my ($self, $sess_id) = @_;
+  $self->_emitter_reg_sessions->{$sess_id}->{id} = $sess_id
+}
+
+
 ## Our Session's handlers:
 
 sub _dispatch_notify {
@@ -246,6 +276,7 @@ sub _dispatch_notify {
 
   my $prefix = $self->event_prefix;
 
+  ## May have event_prefix (such as $prefix.'plugin_error')
   $event =~ s/^\Q$prefix//;
 
   my %sessions;
@@ -290,13 +321,13 @@ sub _emitter_start {
 
   my $s_id = $sender->ID;
 
-  if ($sender =! $kernel) {
+  unless ($sender == $kernel) {
     ## Have a parent session.
 
     ## refcount for this session.
     $kernel->refcount_increment( $s_id, 'Emitter running' );
-    $self->__reg_ses_id( $s_id );
     $self->__incr_ses_refc( $s_id );
+    $self->__reg_ses_id( $s_id );
 
     ## register parent session for all notification events.
     $self->_emitter_reg_events->{ 'all' }->{ $s_id } = 1;
@@ -306,29 +337,6 @@ sub _emitter_start {
   }
 
   $self->call( 'emitter_started' );
-}
-
-sub __incr_ses_refc {
-  my ($self, $sess_id) = @_;
-  ++$self->_emitter_reg_sessions->{$sess_id}->{refc}
-}
-
-sub __decr_ses_refc {
-  my ($self, $sess_id) = @_;
-  --$self->_emitter_reg_sessions->{$sess_id}->{refc};
-  $self->_emitter_reg_sessions->{$sess_id}->{refc} = 0
-    unless $self->_emitter_reg_sessions->{$sess_id}->{refc} > 0      
-}
-
-sub __get_ses_refc {
-  my ($self, $sess_id) = @_;
-  $self->_emitter_reg_sessions->{$sess_id}->{refc}
-    if exists $self->_emitter_reg_sessions->{$sess_id}
-}
-
-sub __reg_ses_id {
-  my ($self, $sess_id) = @_;
-  $self->_emitter_reg_sessions->{$sess_id}->{id} = $sess_id
 }
 
 sub _emitter_default {
@@ -367,6 +375,8 @@ sub _emitter_stop {
 
 sub _emitter_shutdown {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  ## Send this session an _emitter_shutdown to clean up.
 
   $kernel->alarm_remove_all;
 

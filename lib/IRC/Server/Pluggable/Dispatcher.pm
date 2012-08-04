@@ -14,12 +14,13 @@ use strictures 1;
 
 use Carp;
 use Moo;
-
-use IRC::Server::Pluggable qw/
-  Types
-/;
-
 use POE;
+
+use IRC::Server::Pluggable::Types;
+
+
+extends 'IRC::Server::Pluggable::Emitter';
+
 
 has 'backend' => (
   required => 1,
@@ -28,51 +29,30 @@ has 'backend' => (
   is  => 'rwp',
 );
 
-has 'protocol_session' => (
-  is => 'rwp',
-  
-  ## FIXME
-);
 
-has 'session_id' => (
-  is => 'ro',
-  writer => 'set_session_id',  
-);
+sub BUILD {
+  my ($self) = @_;
 
-sub spawn {
-  my $class = shift;
+  $self->set_event_prefix( "backend_ev_" )
+    unless $self->has_event_prefix;
 
-  my %args = @_;
-  $args{lc $_} = delete $args{$_} for keys $args;
-
-  ## FIXME spawn a Backend and Protocol unless one's been provided
-  ## 
-  my $self = ref($class) ? $class : $class->new(
-    %$args
+  $self->set_object_states(
+    [
+      $self => {
+      
+        'shutdown' => '_shutdown',
+        
+        'ircsock_input' =>
+             
+        ## FIXME
+      },
+      
+      ( $self->has_object_states ? @{$self->object_states} : () ),
+    ],
   );
 
-  my $sess_id = POE::Session->create(
-    object_states => [
-      $self => {
-        '_start' => '_start',
-        '_stop'  => '_stop',
-        
-        'shutdown' => '_shutdown',
-      },
-    ],
-  )->ID;
-
-  $self->set_session_id( $sess_id );
-
-  $self
-}
-
-sub _start {
-
-}
-
-sub _stop {
-
+  
+  $self->_start_emitter;
 }
 
 sub shutdown {
@@ -93,12 +73,19 @@ sub _shutdown {
     'shutdown',
     @_[ARG0 .. $#_]
   );
+  
+  $self->_yield( '_emitter_shutdown' );
 }
+
+## FIXME
+##  $self->process() incoming IRC events
+##  Protocol session can register with Dispatcher
+##  Processed events can be emitted to registered Protocol session
 
 
 q{
  <nitric> the more you think about facebook actions in real life, the 
-  weirder facebook seems    
+  weirder facebook seems
  <nitric> irl, I DON'T want people writing on my wall at 1am    
  <nitric> or poking me   
  <Schroedingers_hat> HEY YOU HELP ME WITH MY GARDEN!    

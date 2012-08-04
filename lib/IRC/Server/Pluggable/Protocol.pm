@@ -7,7 +7,6 @@ use strictures 1;
 
 use Carp;
 use Moo;
-
 use POE;
 
 use IRC::Server::Pluggable::Types;

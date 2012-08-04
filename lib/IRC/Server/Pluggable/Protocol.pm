@@ -12,7 +12,8 @@ use POE;
 
 use IRC::Server::Pluggable::Types;
 
-extends 'POE::Component::Syndicator';
+
+extends 'IRC::Server::Pluggable::Emitter';
 
 
 ### IRCD-relevant attribs
@@ -119,71 +120,25 @@ has 'version_string' => (
   default => sub { ref $self },
 );
 
+sub BUILD {
+  my ($self) = @_;
 
-### FIXME user / peer / channel tracker objs ?
-
-### Session-related.
-has 'session_id' => (
-  lazy => 1,
-  
-  is  => 'ro',
-  isa => Defined,
-  
-  writer    => 'set_session_id',
-  predicate => 'has_session_id',
-);
-
-has 'object_states' => (
-  is  => 'ro',
-  isa => sub {
-    is_ArrayRef($_[0]) or is_HashRef($_[0])
-      or die "$_[0] is not an ArrayRef or HashRef"
-  },
-  
-  default => sub {
+  ### FIXME set up object_states etc and $self->_start_emitter()
+  $self->set_object_states(
     [
-      '_start',
-      '_stop',
-
-      'ircsock_listener_open',
-
-      'ircsock_connector_failure',
-      'ircsock_connector_open',
+      $self => {
+        ## FIXME
+      },
       
-      'ircsock_connection_idle',
-      
-      'irc_cmd_ping',
-      
+      (
+        $self->has_object_states ? @{ $self->object_states } : ()
+      );
     ],
-  },
-);
+  );
 
-
-sub spawn {
-  my ($class, %args) = @_;
-  
-  $args{lc $_} = delete $args{$_} for keys %args;
-  
-  my $self = ref($class) ? $class : $class->new(%args);
-
-  ## FIXME
-  ## spawn session
-  ## spawn syndicator
-
-  my $sess_id = POE::Session->create(
-    object_states => [
-      $self => $self->object_states,
-    ],
-  )->ID;
-  
-  $self->set_session_id( $sess_id );
-
-  $self
+  $self->_start_emitter;
 }
-
-sub _start { }
-
-sub _stop { }
+### FIXME user / peer / channel tracker objs ?
 
 ### FIXME something clever to plugin-process events
 ##        before handling?
@@ -199,29 +154,8 @@ sub _stop { }
 
 ## FIXME need an overridable way to format numeric replies
 
-sub _dispatch {
-  my ($self, $event, @args) = @_;
-  
-  my $eat = $self->send_user_event(
-    $event,
-    \@args
-  );
-  
-  return if $eat == PLUGIN_EAT_ALL;
+## FIXME need to handle unknown command input
 
-  ## FIXME
-}
-
-### Received via post() from Dispatcher:
-
-sub irc_unknown_cmd {
-  ## FIXME Dispatcher should call this if no other method found
-}
-
-sub irc_cmd_ping {
-  my ($self, $conn, @params) = @_;  
-  
-}
 
 
 q{

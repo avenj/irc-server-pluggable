@@ -15,12 +15,17 @@ use IRC::Server::Pluggable qw/
   Types
 /;
 
+## FIXME support Session registration also
+##  Sessions can only receive notifications
+
 has 'alias' => (
-  ## Optionally instantiate with a kernel alias:
   lazy => 1,
   is   => 'ro',
   isa  => Str,
+
   predicate => 'has_alias',
+  
+  default => sub { "$_[0]" },
 );
 
 has 'event_prefix' => (
@@ -83,6 +88,7 @@ sub _spawn_emitter {
   
   POE::Session->create(
     object_states => [
+      ## FIXME _default handler
       $self => {
       
         '_start'   => '_emitter_start',
@@ -91,15 +97,22 @@ sub _spawn_emitter {
         'shutdown' => '_emitter_shutdown',
 
       },
+      ## FIXME catch and handle sig_die like Syndicator
       $self => [ qw/
 
         _dispatch_event
 
+        _emitter_sigdie
+
       / ],
+      ( 
+        $self->has_object_states ? 
+        @{ $self->object_states } : () 
+      ),
     ], 
   );
-  
-  
+
+  1
 }
 
 
@@ -162,34 +175,68 @@ sub _dispatch_event {
 
 sub _emitter_start {
   ## _start handler
-  my ($kernel, $self, $session) = @_[KERNEL, OBJECT, SESSION];
-  
+  my ($kernel, $self)    = @_[KERNEL, OBJECT];
+  my ($session, $sender) = @_[SESSION, SENDER];
+
   $self->set_session_id( $session->ID );
 
-  if ( $self->has_alias ) {
-    ## Set alias
-  } else {
-    ## Incr refcount
+  $kernel->sig('DIE', '_emitter_sigdie' );
+
+  $kernel->alias_set( $self->alias );
+
+  if ($sender =! $kernel) {
+    ## Have a parent session. Detach from it.
+    $kernel->refcount_increment( $sender->ID, 'Emitter running' );
+    $kernel->detach_myself;  
+    ## FIXME register parent session for events ?
   }
+
+  $kernel->call( $self->session_id, 'emitter_started' );
+}
+
+sub _emitter_sigdie {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $exh = $_[ARG1];
+
+  my $event   = $exh->{event};
+  my $dest_id = $exh->{dest_session}->ID;
+  my $errstr  = $exh->{error_str};
+  
+  warn 
+    "SIG_DIE: Event '$event'  session '$dest_id'\n",
+    "  exception: $errstr\n";
+
+  $kernel->sig_handled;
 }
 
 sub _emitter_stop {
   ## _stop handler
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  
+  $kernel->call( $self->session_id,
+    'emitter_stopped',
+  );
 }
 
 sub _emitter_shutdown {
-  ## FIXME call _pluggable_destroy
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  $kernel->alarm_remove_all;
   
+  $self->_pluggable_destroy;
+
+  ## FIXME send shutdown event ?  
 }
 
 
-q{
+
+q[
  <tberman> who wnats to sing a song with me?
  <tberman> its the i hate php song
  * rac adds a stanza to tberman's song about braindead variable scoping
    that just made forums search return a bunch of false positives when 
    you search for posts by poster and return by topics  
-};
+];
 
 
 =pod

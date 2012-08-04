@@ -29,4 +29,11 @@ has 'array_bans' => (
   default => sub { [] },
 );
 
-1;
+
+
+q{
+ <LeoNerd> Hehe.. this does not bode well. I google searched for "MSWin32 
+  socket non blocking connect", to read about how to do it. Got 1 404, 1 
+  ancient article about 1990s UNIX, one about python, then the 4th 
+  result is me, talking about how I don't know how to do it.
+};

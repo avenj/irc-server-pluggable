@@ -25,4 +25,10 @@ has 'route' => (
 );
 
 
-1;
+q{
+ <rac> "This option should never be turned on by any -O option since it 
+  can result in incorrect output for programs which depend on an exact 
+  implementation of IEEE or ISO rules/specifications for math functions. 
+ <rac> i've said it before, and i'll say it again ... i see no use in a 
+  computer giving me the wrong answer very rapidly, i can do that myself
+};

@@ -52,4 +52,10 @@ has 'modes' => (
 );
 
 
-1;
+q{
+  <Schroedingers_hat> i suppose I could analyse the gif and do a fourier 
+   decomposition, then feed that into a linear model and see what 
+   happens...
+  <Schroedingers_hat> ^ The best part is that sentence was 
+   about breasts.
+};

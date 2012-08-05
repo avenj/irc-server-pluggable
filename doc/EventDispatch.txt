@@ -1,0 +1,13 @@
+IRC -> IRC RAW INPUT ->
+  -> BACKEND (Backend.pm) ->
+      Sends ircsock_input( $conn_obj, $event_obj )
+    -> DISPATCH (Dispatcher.pm) ->
+      
+      -> PROTOCOL (Protocol.pm) ->
+        
+        <- OUTPUT EVENT <-
+      <- DISPATCH <-
+
+    <- BACKEND <-
+
+IRC <-

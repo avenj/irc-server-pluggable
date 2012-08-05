@@ -126,34 +126,27 @@ sub BUILD {
   $self->set_object_states(
     [
       $self => {
-        ## FIXME
+        'emitter_started' => '_protocol_start',
       },
       
       (
         $self->has_object_states ? @{ $self->object_states } : ()
-      );
+      ),
     ],
   );
 
   $self->_start_emitter;
 }
-### FIXME user / peer / channel tracker objs ?
 
-### FIXME something clever to plugin-process events
-##        before handling?
-## 
-##  -> receive relayed ircsock_* event notification
-##     (except _input)
-##  -> receive dispatched irc_cmd_* events
-##    -> call plugin processor method
-##       args: obj ?
-##    -> syndicate synchronous event
-##       args: obj ?
-##    -> dispatch output back to Dispatcher
+sub _protocol_start {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  ## FIXME register with a Dispatcher session?
+
+}
 
 ## FIXME need an overridable way to format numeric replies
 
-## FIXME need to handle unknown command input
+## FIXME need to handle unknown command input (_default handler?)
 
 
 

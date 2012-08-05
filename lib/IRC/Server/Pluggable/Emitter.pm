@@ -7,11 +7,12 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable qw/
+  Constants
+  Types
+/;
 
 use POE;
-
-use Object::Pluggable::Constants qw/:ALL/;
 
 extends 'Object::Pluggable';
 
@@ -62,6 +63,7 @@ has 'register_prefix' => (
 );
 
 has 'session_id' => (
+  init_arg => undef,
   lazy => 1,
   is   => 'ro',
   isa  => Defined,  
@@ -85,21 +87,6 @@ has '_emitter_reg_events' => (
   isa  => HashRef,
   default => sub { {} },
 );
-
-
-sub import {
-  my $self = shift;
-  
-  my $pkg = caller();
-  
-  {
-    no strict 'refs';
-    for (qw/ EAT_NONE EAT_CLIENT EAT_PLUGIN EAT_ALL /) {
-      my $realval = ( 'Object::Pluggable::Constants::PLUGIN_'.$_ )->();
-      *{ $pkg .'::' .$_ } = sub () { $realval };
-    }
-  }    
-}
 
 
 sub _start_emitter {
@@ -296,7 +283,7 @@ sub _dispatch_notify {
   ## Dispatched to N_$event after Sessions have been notified:
   my $eat = $self->_pluggable_process( 'NOTIFY', $event, \@args );
   
-  unless ($eat == PLUGIN_EAT_ALL) {
+  unless ($eat == EAT_ALL) {
     ## Notify registered sessions.
     $kernel->call( $_, $prefix.$event, @args )
       for keys %sessions;
@@ -479,10 +466,40 @@ IRC::Server::Pluggable::Emitter - Event emitter base class
 
 =head1 SYNOPSIS
 
+  ## In a subclass:
   package My::EventEmitter;
   
   use Moo;
   extends 'IRC::Server::Pluggable::Emitter';
+
+  sub spawn {
+    my ($self, %args) = @_;
+    $args{lc $_} = delete $args{$_} for keys %args;
+
+        
+    $self->set_object_states(
+      [
+        $self => [
+          ## ... Add some extra handlers ...
+        ],
+        
+        ## Include any object_states we were instantiated with:
+        (
+          $self->has_object_states ?
+            @{ $self->object_states } : ()
+        ),
+        
+        ## Maybe include from named arguments:
+        (
+          ref $args{object_states} eq 'ARRAY' ?
+            @{ $args{object_states } : ()
+        ),
+      ],
+    );
+
+    ## Start our Emitter session:
+    $self->_start_emitter;
+  }
 
   FIXME
 
@@ -496,19 +513,75 @@ for plugin manipulation methods can be found there.
 
   FIXME
 
+
 =head2 Creating an Emitter
 
+L</SYNOPSIS> contains an Emitter that uses B<set_$attrib> methods to 
+configure itself when C<spawn()> is called; these attribs can, of course, 
+be set when your Emitter is instantiated instead.
+
+=head3 Attributes
+
+=head4 alias
+
+B<alias> specifies the POE::Kernel alias used for our session.
+
+Set via B<set_alias>
+
+=head4 debug
+
+FIXME
+
+=head4 event_prefix
+
+B<event_prefix> is prepended to notification events before they are 
+dispatched to registered sessions.
+
+Defaults to I<Emitter_ev_>
+
+Set via B<set_event_prefix>
+
+=head4 register_prefix
+
+B<register_prefix> is prepended to 'register' and 'unregister' events.
+
+Defaults to I<Emitter_>
+
+Set via B<set_register_prefix>
+
+=head4 object_states
+
+B<object_states> is an array reference suitable for passing to 
+L<POE::Session>; the subclasses own handlers should be added to 
+B<object_states> prior to calling L</_start_emitter>.
+
+Set via B<set_object_states>
+
+=head4 session_id
+
+B<session_id> is our Emitter L<POE::Session> ID.
+
+
+=head3 _start_emitter
+
+B<_start_emitter()> should be called on our object to spawn the actual 
+Emitter session.
 
 
 =head2 Registering plugins
 
+FIXME
+
 =head2 Registering sessions
+
+FIXME
 
 =head2 Receiving events
 
 =head3 NOTIFY events
 
 =head3 PROCESS events
+
 
 =head2 Sending events
 

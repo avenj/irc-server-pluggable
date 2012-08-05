@@ -22,14 +22,43 @@ use IRC::Server::Pluggable qw/
 extends 'IRC::Server::Pluggable::Emitter';
 
 
-has 'backend' => (
+has 'backend_opts' => (
   required => 1,
+  isa => HashRef,
+  is  => 'ro',
+  writer => 'set_backend_opts',
+);
+
+has '_backend_class' => (
+  lazy => 1,
+  is   => 'ro',
+  isa  => Str,
+  writer  => '_set_backend_class',
+  default => sub { "IRC::Server::Pluggable::Backend" },
+);
+
+
+has 'backend' => (
+  lazy => 1,
 
   isa => BackendClass,
   is  => 'ro',
 
   predicate => 'has_backend',
   writer    => 'set_backend',
+
+  default => sub {
+    my ($self) = @_;
+    
+    my $b_class = $self->_backend_class;
+
+    { local $@;
+      eval "require $b_class";
+      confess "Could not load $b_class : $@" if $@;
+    }
+    
+    $b_class->spawn( %{ $self->backend_opts } )
+  },
 );
 
 
@@ -49,18 +78,23 @@ sub BUILD {
       },
       
       $self => [
-        'ircsock_registered',        
+        'ircsock_registered',
+
         'ircsock_connection_idle',
+
         'ircsock_input',
+
         'ircsock_connector_open',
         'ircsock_connector_failure',
+
         'ircsock_disconnect',
+
         'ircsock_compressed',
+
         'ircsock_listener_created',
         'ircsock_listener_failure',
         'ircsock_listener_open',
         'ircsock_listener_removed',
-        ## FIXME
       ],
       
       ( $self->has_object_states ? @{$self->object_states} : () ),

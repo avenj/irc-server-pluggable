@@ -1,4 +1,4 @@
-use Test::More tests => 3;
+use Test::More tests => 4;
 use strict; use warnings FATAL => 'all';
 
 use POE;
@@ -25,6 +25,7 @@ use POE;
       [
         $self => [
           'emitter_started',
+          'emitter_stopped',
           'shutdown',
         ],
       ],
@@ -35,6 +36,10 @@ use POE;
 
   sub emitter_started {
     pass("Emitter started");
+  }
+  
+  sub emitter_stopped {
+    pass("Emitter stopped");
   }
 
   sub shutdown {

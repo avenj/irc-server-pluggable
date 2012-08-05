@@ -39,7 +39,20 @@ has 'idle' => (
   default => sub { 180 },
 );
 
+has 'is_client' => (
+  is  => 'rw',
+  isa => 'Bool',
+  default => sub { 0 },
+);
+
+has 'is_peer' => (
+  is => 'rw',
+  isa => 'Bool',
+  default => sub { 0 },
+);
+
 has 'is_disconnecting' => (
+  ## Bool or string.
   is  => 'rw',
   default => sub { 0 },
 );
@@ -165,6 +178,14 @@ Boolean false if the Wheel is not in a disconnecting state; if it is
 true, it is the disconnect message:
 
   $obj->is_disconnecting("Client quit")
+
+=head2 is_client
+
+Boolean true if the connection wheel has been marked as a client.
+
+=head2 is_peer
+
+Boolean true if the connection wheel has been marked as a peer.
 
 =head2 is_pending_compress
 

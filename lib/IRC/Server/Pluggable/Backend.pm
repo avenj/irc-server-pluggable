@@ -47,9 +47,10 @@ use Try::Tiny;
 
 has 'session_id' => (
   ## Session ID for own session.
+  init_arg => undef,
   lazy => 1,
-  
-  is => 'ro',
+
+  is  => 'ro',
   
   writer    => 'set_session_id',
   predicate => 'has_session_id',
@@ -1111,6 +1112,8 @@ C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Listener> object.
 
 Dispatched when a L</register> event has been successfully received, as a 
 means of acknowledging the controlling session.
+
+C<$_[ARG0]> is the Backend's C<$self> object.
 
 =head1 AUTHOR
 

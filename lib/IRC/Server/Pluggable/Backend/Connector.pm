@@ -92,7 +92,12 @@ has 'wheel' => (
   },
 );
 
-1;
+q{
+ <HoopyCat> NEVER
+ <HoopyCat> PUT SALT IN
+ <HoopyCat> YOUR EYE
+ * HoopyCat wanders off to hack a highway message sign
+};
 
 =pod
 

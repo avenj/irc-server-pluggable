@@ -26,7 +26,10 @@ has 'backend' => (
   required => 1,
 
   isa => BackendClass,
-  is  => 'rwp',
+  is  => 'ro',
+
+  predicate => 'has_backend',
+  writer    => 'set_backend',
 );
 
 
@@ -46,8 +49,17 @@ sub BUILD {
       },
       
       $self => [
+        'ircsock_registered',        
         'ircsock_connection_idle',
         'ircsock_input',
+        'ircsock_connector_open',
+        'ircsock_connector_failure',
+        'ircsock_disconnect',
+        'ircsock_compressed',
+        'ircsock_listener_created',
+        'ircsock_listener_failure',
+        'ircsock_listener_open',
+        'ircsock_listener_removed',
         ## FIXME
       ],
       
@@ -81,6 +93,15 @@ sub _shutdown {
   $self->_yield( '_emitter_shutdown' );
 }
 
+
+sub ircsock_registered {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  
+  my $backend = $_[ARG0];
+
+  $self->set_backend( $backend )
+}
+
 sub ircsock_connection_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   
@@ -96,13 +117,13 @@ sub ircsock_input {
     $conn->is_client ? 'client' : 
                        'unknown';
 
-  my $cmd = lc($ev->{command});
+  my $cmd = lc($ev->command);
 
   my $event_name;
   given ($from_type) {
-    $event_name = 'peer_'.$ev->{command} when "peer"  ;
-    $event_name = 'user_'.$ev->{command} when "client";
-    ## FIXME need an 'unknown' dispatcher
+    $event_name = 'peer_'.$ev->{command}      when "peer"   ;
+    $event_name = 'user_'.$ev->{command}      when "client" ;
+    $self->_dispatch_from_unknown($conn, $ev) when "unknown";
   }
 
   ## process() via our plugin pipeline:
@@ -112,6 +133,74 @@ sub ircsock_input {
   $self->emit( $event_name, $conn, $ev );
 }
 
+sub _dispatch_from_unknown {
+  my ($self, $conn, $ev) = @_;
+
+  ## FIXME
+}
+
+sub ircsock_connector_open {
+  ## Opened connection to remote.
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $conn = $_[ARG0];
+
+  ## FIXME
+}
+
+sub ircsock_connector_failure {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  ## This Connector has had its wheel cleared.
+  my $connector = $_[ARG0];
+  my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
+
+  ## FIXME
+}
+
+sub ircsock_compressed {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $conn = $_[ARG0];
+  ## ircsock is (probably) burstable.
+
+  $self->emit( 'sock_compressed', $conn );
+}
+
+sub ircsock_disconnect {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  ## This $conn has had its wheel cleared.
+  my $conn = $_[ARG0];
+
+  ## FIXME
+}
+
+sub ircsock_listener_created {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $listener = $_[ARG0];
+  ## FIXME
+}
+
+sub ircsock_listener_failure {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $listener = $_[ARG0];
+
+  my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
+
+  ## FIXME
+}
+
+sub ircsock_listener_open {
+  ## Accepted connection.
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $conn = $_[ARG0];
+
+  ## FIXME
+}
+
+sub ircsock_listener_removed {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $listener = $_[ARG0];
+  ## FIXME
+}
 
 ## FIXME method to relay output?
 

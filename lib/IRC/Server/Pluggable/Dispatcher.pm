@@ -1,13 +1,10 @@
 package IRC::Server::Pluggable::Dispatcher;
 
 ## FIXME
-## Dispatcher should:
-##  - take a Backend and a Protocol session?
-##    - maybe accept these via events instead?
-##    - or take spawn opts here and create them accordingly?
-##  - register with Backend
 ##  - bridge backend and protocol sessions
-##    - parse Event objs and dispatch to Protocol cmd handlers
+##    - parse Event objs and dispatch to Protocol
+
+## 
 
 use 5.12.1;
 use strictures 1;
@@ -16,7 +13,10 @@ use Carp;
 use Moo;
 use POE;
 
-use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable qw/
+  Emitter
+  Types
+/;
 
 
 extends 'IRC::Server::Pluggable::Emitter';
@@ -42,10 +42,14 @@ sub BUILD {
       
         'shutdown' => '_shutdown',
         
-        'ircsock_input' =>
-             
         ## FIXME
       },
+      
+      $self => [
+        'ircsock_connection_idle',
+        'ircsock_input',
+        ## FIXME
+      ],
       
       ( $self->has_object_states ? @{$self->object_states} : () ),
     ],
@@ -77,10 +81,39 @@ sub _shutdown {
   $self->_yield( '_emitter_shutdown' );
 }
 
-## FIXME
-##  $self->process() incoming IRC events
-##  Protocol session can register with Dispatcher
-##  Processed events can be emitted to registered Protocol session
+sub ircsock_connection_idle {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  
+  $self->emit( 'connection_idle', @_[ARG0 .. $#_] );
+}
+
+sub ircsock_input {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  my $from_type = 
+    $conn->is_peer   ? 'peer'   : 
+    $conn->is_client ? 'client' : 
+                       'unknown';
+
+  my $cmd = lc($ev->{command});
+
+  my $event_name;
+  given ($from_type) {
+    $event_name = 'peer_'.$ev->{command} when "peer"  ;
+    $event_name = 'user_'.$ev->{command} when "client";
+    ## FIXME need an 'unknown' dispatcher
+  }
+
+  ## process() via our plugin pipeline:
+  return 
+    if $self->process( $event_name, $conn, $ev ) == EAT_NONE;
+  ## .. then emit() to registered sessions:
+  $self->emit( $event_name, $conn, $ev );
+}
+
+
+## FIXME method to relay output?
 
 
 q{

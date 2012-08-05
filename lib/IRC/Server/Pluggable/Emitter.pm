@@ -70,16 +70,16 @@ has 'session_id' => (
 );
 
 
-## ->{ $session_id } = { refc => $ref_count, id => $id };
 has '_emitter_reg_sessions' => (
+  ## ->{ $session_id } = { refc => $ref_count, id => $id };
   lazy => 1,
   is   => 'ro',
   isa  => HashRef,
   default => sub { {} },
 );
 
-## ->{ $event }->{ $session_id } = 1
 has '_emitter_reg_events' => (
+  ## ->{ $event }->{ $session_id } = 1
   lazy => 1,
   is   => 'ro',
   isa  => HashRef,
@@ -139,7 +139,7 @@ sub _start_emitter {
         '_start'   => '_emitter_start',
         '_stop'    => '_emitter_stop',
         
-        'register'  => '_emitter_register',
+        'register'   => '_emitter_register',
         'unregister' => '_emitter_unregister',
 
         '_default' => '_emitter_default',
@@ -229,7 +229,6 @@ sub emit_now {
   $self->call( '_dispatch_notify', $event, @args );
 }
 
-## process/emit/emit_now bridge the plugin pipeline.
 sub process {
   my ($self, $event, @args) = @_;
   ## Dispatch PROCESS events.
@@ -489,8 +488,8 @@ IRC::Server::Pluggable::Emitter - Event emitter base class
 
 =head1 DESCRIPTION
 
-This is an observer pattern implementation based on 
-L<POE::Component::Syndicator>.
+This is a base class for a POE-oriented observer pattern implementation 
+based on L<POE::Component::Syndicator>.
 
 This class inherits from L<Object::Pluggable>; the documentation 
 for plugin manipulation methods can be found there.
@@ -498,6 +497,8 @@ for plugin manipulation methods can be found there.
   FIXME
 
 =head2 Creating an Emitter
+
+
 
 =head2 Registering plugins
 

@@ -41,13 +41,13 @@ has 'idle' => (
 
 has 'is_client' => (
   is  => 'rw',
-  isa => 'Bool',
+  isa => Bool,
   default => sub { 0 },
 );
 
 has 'is_peer' => (
   is => 'rw',
-  isa => 'Bool',
+  isa => Bool,
   default => sub { 0 },
 );
 

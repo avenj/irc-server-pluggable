@@ -4,7 +4,7 @@ use strict; use warnings FATAL => 'all';
 use Object::Pluggable::Constants qw/:ALL/;
 
 BEGIN {
- use_ok( 'IRC::Server::Pluggable::Emitter' );
+ use_ok( 'IRC::Server::Pluggable::Constants' );
 }
 
 is( EAT_NONE, PLUGIN_EAT_NONE, 'EAT_NONE' );

@@ -1,4 +1,4 @@
-use Test::More tests => 4;
+use Test::More tests => 6;
 use strict; use warnings FATAL => 'all';
 
 use POE;
@@ -47,7 +47,7 @@ use POE;
     
     pass("shutdown called");
     
-    $self->call( '_emitter_shutdown' );
+    $self->call( 'shutdown_emitter' );
   }
   
 }
@@ -57,6 +57,10 @@ POE::Session->create(
     main => [ qw/
  
       _start
+      
+      Emitter_ev_registered
+
+      Emitter_ev_test_emit
 
     / ],
   ],
@@ -69,5 +73,17 @@ sub _start {
   my $sess_id;
   ok( $sess_id = $emitter->session_id, 'session_id()' );
   $poe_kernel->post( $sess_id, 'register' );
-  $poe_kernel->post( $sess_id, 'shutdown' );  
+}
+
+sub Emitter_ev_registered {
+  ## Test 'registered' ev
+  isa_ok( $_[ARG0], 'IRC::Server::Pluggable::Emitter' );
+  ## Test emit()
+  $_[ARG0]->emit( 'test_emit', 1 );
+}
+
+sub Emitter_ev_test_emit {
+  ## emit() received
+  is( $_[ARG0], 1, 'Emitter_ev_test()' );
+  $poe_kernel->post( $_[SENDER], 'shutdown' );  
 }

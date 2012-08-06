@@ -14,6 +14,7 @@ use Moo;
 use POE;
 
 use IRC::Server::Pluggable qw/
+  Constants
   Emitter
   Types
 /;
@@ -70,11 +71,9 @@ sub BUILD {
 
   $self->set_object_states(
     [
-      $self => {
-      
+      $self => {        
+        'dispatch' => '_dispatch',
         'shutdown' => '_shutdown',
-        
-        ## FIXME
       },
       
       $self => [
@@ -153,12 +152,7 @@ sub ircsock_input {
 
   my $cmd = lc($ev->command);
 
-  my $event_name;
-  given ($from_type) {
-    $event_name = 'peer_'.$ev->{command}      when "peer"   ;
-    $event_name = 'user_'.$ev->{command}      when "client" ;
-    $self->_dispatch_from_unknown($conn, $ev) when "unknown";
-  }
+  my $event_name = join '_', $from_type, $cmd ;
 
   ## process() via our plugin pipeline:
   return 
@@ -167,18 +161,16 @@ sub ircsock_input {
   $self->emit( $event_name, $conn, $ev );
 }
 
-sub _dispatch_from_unknown {
-  my ($self, $conn, $ev) = @_;
-
-  ## FIXME
-}
-
 sub ircsock_connector_open {
   ## Opened connection to remote.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
 
-  ## FIXME
+  my $event_name = 'connected_peer';
+
+  return
+    if $self->process( $event_name, $conn ) == EAT_NONE;
+  $self->emit( $event_name, $conn )
 }
 
 sub ircsock_connector_failure {
@@ -196,7 +188,11 @@ sub ircsock_compressed {
   my $conn = $_[ARG0];
   ## ircsock is (probably) burstable.
 
-  $self->emit( 'sock_compressed', $conn );
+  my $event_name = 'compressed_peer';
+
+  return
+    if $self->process( $event_name, $conn ) == EAT_NONE;
+  $self->emit( $event_name, $conn );
 }
 
 sub ircsock_disconnect {
@@ -210,7 +206,12 @@ sub ircsock_disconnect {
 sub ircsock_listener_created {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $listener = $_[ARG0];
-  ## FIXME
+
+  my $event_name = 'listener_created';
+  
+  return
+    if $self->process( $event_name, $listener ) == EAT_NONE;
+  $self->emit( $event_name, $listener );
 }
 
 sub ircsock_listener_failure {
@@ -236,7 +237,14 @@ sub ircsock_listener_removed {
   ## FIXME
 }
 
-## FIXME method to relay output?
+
+sub dispatch {
+  ## FIXME oo interface to message dispatch (backend)
+}
+
+sub _dispatch {
+  ## FIXME event interface to message dispatch (backend)
+}
 
 
 q{

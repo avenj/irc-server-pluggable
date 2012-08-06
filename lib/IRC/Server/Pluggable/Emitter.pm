@@ -125,16 +125,15 @@ sub _start_emitter {
       
         '_start'   => '_emitter_start',
         '_stop'    => '_emitter_stop',
+        'shutdown_emitter' => '__shutdown_emitter',
         
         'register'   => '_emitter_register',
         'unregister' => '_emitter_unregister',
 
-        '_default' => '_emitter_default',
-
+        '_default'   => '_emitter_default',
       },
 
       $self => [ qw/
-        _emitter_shutdown
 
         _dispatch_notify
 
@@ -164,31 +163,6 @@ around '_pluggable_event' => sub {
 
 
 ### Methods.
-
-sub _trigger_object_states {
-  my ($self, $states) = @_;
-  
-  confess "object_states() should be an ARRAY or HASH"
-    unless ref $states eq 'HASH' or ref $states eq 'ARRAY' ;
-
-  my $die_no_startstop =
-   "Should not have _start or _stop handlers defined; "
-   ."use emitter_started & emitter_stopped" ;
-
-  for (my $i=1; $i <= (scalar(@$states) - 1 ); $i+=2 ) {
-    my $events = $states->[$i];
-    if      (ref $events eq 'HASH') {
-      confess $die_no_startstop 
-        if defined $events->{'_start'}
-        or defined $events->{'_stop'}
-    } elsif (ref $events eq 'ARRAY') {
-      confess $die_no_startstop
-        if grep { $_ eq '_start' || $_ eq '_stop' } @$events;
-    }
-  }
-
-  $states
-}
 
 ## TODO alarm/delay frontends, perhaps?
 
@@ -226,6 +200,33 @@ sub process {
   $self->_pluggable_process( 'PROCESS', $event, \@args );
 
   ## FIXME should we notify sessions at all ... ? Worth a ponder.
+    ## PROCESSED_* events ?
+}
+
+
+sub _trigger_object_states {
+  my ($self, $states) = @_;
+  
+  confess "object_states() should be an ARRAY or HASH"
+    unless ref $states eq 'HASH' or ref $states eq 'ARRAY' ;
+
+  my $die_no_startstop =
+   "Should not have _start or _stop handlers defined; "
+   ."use emitter_started & emitter_stopped" ;
+
+  for (my $i=1; $i <= (scalar(@$states) - 1 ); $i+=2 ) {
+    my $events = $states->[$i];
+    if      (ref $events eq 'HASH') {
+      confess $die_no_startstop 
+        if defined $events->{'_start'}
+        or defined $events->{'_stop'}
+    } elsif (ref $events eq 'ARRAY') {
+      confess $die_no_startstop
+        if grep { $_ eq '_start' || $_ eq '_stop' } @$events;
+    }
+  }
+
+  $states
 }
 
 
@@ -250,6 +251,23 @@ sub __get_ses_refc {
 sub __reg_ses_id {
   my ($self, $sess_id) = @_;
   $self->_emitter_reg_sessions->{$sess_id}->{id} = $sess_id
+}
+
+
+sub _emitter_drop_sessions {
+  my ($self) = @_;
+  
+  for my $id (keys %{ $self->_emitter_reg_sessions }) {
+    my $count = $self->__get_ses_refc($id);
+
+    $poe_kernel->refcount_decrement(
+      $id, 'Emitter running'
+    ) while $count-- > 0;
+    
+    delete $self->_emitter_reg_sessions->{$id}
+  }
+
+  1
 }
 
 
@@ -359,15 +377,27 @@ sub _emitter_stop {
   $self->call( 'emitter_stopped' );
 }
 
-sub _emitter_shutdown {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
+sub _shutdown_emitter {
+  ## Opposite of _start_emitter
+  my $self = shift;
+  
+  $self->call( 'shutdown_emitter', @_ );
+  
+  1
+}
 
-  ## Send this session an _emitter_shutdown to clean up.
+sub __shutdown_emitter {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   $kernel->alarm_remove_all;
 
+  ## Destroy plugin pipeline.
   $self->_pluggable_destroy;
 
+  ## Notify sessions.
+  $self->emit( 'shutdown', @_[ARG0 .. $#_] );
+
+  ## Drop sessions and we're spent.
   $self->_emitter_drop_sessions;
 }
 
@@ -430,22 +460,6 @@ sub _emitter_unregister {
     }
 
   } ## EV
-}
-
-sub _emitter_drop_sessions {
-  my ($self) = @_;
-  
-  for my $id (keys %{ $self->_emitter_reg_sessions }) {
-    my $count = $self->__get_ses_refc($id);
-
-    $poe_kernel->refcount_decrement(
-      $id, 'Emitter running'
-    ) while $count-- > 0;
-    
-    delete $self->_emitter_reg_sessions->{$id}
-  }
-
-  1
 }
 
 

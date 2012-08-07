@@ -1,4 +1,4 @@
-use Test::More tests => 6;
+use Test::More tests => 8;
 use strict; use warnings FATAL => 'all';
 
 use POE;
@@ -50,6 +50,11 @@ use POE;
     $self->call( 'shutdown_emitter' );
   }
   
+  sub P_things {
+    pass("Emitter received P_things");
+    is( $_[ARG0], 1, "P_things had expected args" );
+  }
+  
 }
 
 POE::Session->create(
@@ -58,9 +63,9 @@ POE::Session->create(
  
       _start
       
-      Emitter_ev_registered
+      emitted_registered
 
-      Emitter_ev_test_emit
+      emitted_test_emit
 
     / ],
   ],
@@ -75,15 +80,17 @@ sub _start {
   $poe_kernel->post( $sess_id, 'register' );
 }
 
-sub Emitter_ev_registered {
+sub emitted_registered {
   ## Test 'registered' ev
   isa_ok( $_[ARG0], 'IRC::Server::Pluggable::Emitter' );
+  ## Test process()
+  $_[ARG0]->process( 'things', 1 );
   ## Test emit()
   $_[ARG0]->emit( 'test_emit', 1 );
 }
 
-sub Emitter_ev_test_emit {
+sub emitted_test_emit {
   ## emit() received
-  is( $_[ARG0], 1, 'Emitter_ev_test()' );
+  is( $_[ARG0], 1, 'emitted_test()' );
   $poe_kernel->post( $_[SENDER], 'shutdown' );  
 }

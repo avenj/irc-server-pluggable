@@ -41,7 +41,7 @@ has 'event_prefix' => (
   isa  => Str,
   predicate => 'has_event_prefix',
   writer    => 'set_event_prefix',
-  default   => sub { "Emitter_ev_" },
+  default   => sub { "emitted_" },
 );
 
 has 'object_states' => (
@@ -94,7 +94,7 @@ sub _start_emitter {
   ##   my $self = $class->new(
   ##     alias           => Emitter session alias
   ##     debug           => Debug true/false
-  ##     event_prefix    => Session event prefix (Emitter_ev_)
+  ##     event_prefix    => Session event prefix (emitted_)
   ##     register_prefix => _register/_unregister prefix (Emitter_)
   ##     object_states   => Extra object_states for Session
   ##   )->_start_emitter();
@@ -215,15 +215,20 @@ sub _trigger_object_states {
    ."use emitter_started & emitter_stopped" ;
 
   for (my $i=1; $i <= (scalar(@$states) - 1 ); $i+=2 ) {
+
     my $events = $states->[$i];
+
     if      (ref $events eq 'HASH') {
       confess $die_no_startstop 
         if defined $events->{'_start'}
         or defined $events->{'_stop'}
+
     } elsif (ref $events eq 'ARRAY') {
       confess $die_no_startstop
         if grep { $_ eq '_start' || $_ eq '_stop' } @$events;
+
     }
+
   }
 
   $states
@@ -551,7 +556,7 @@ FIXME
 B<event_prefix> is prepended to notification events before they are 
 dispatched to registered sessions.
 
-Defaults to I<Emitter_ev_>
+Defaults to I<emitted_>
 
 Set via B<set_event_prefix>
 

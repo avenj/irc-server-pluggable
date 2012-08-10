@@ -534,8 +534,9 @@ IRC::Server::Pluggable::Emitter - Event emitter base class
 
 =head1 DESCRIPTION
 
-This is a base class for a POE-oriented observer pattern implementation 
-based on L<POE::Component::Syndicator>.
+This is a base class for a POE-oriented observer pattern implementation; 
+it is based on L<POE::Component::Syndicator> (which may be better suited 
+to general purpose use).
 
 This class inherits from L<Object::Pluggable>; the documentation 
 for plugin manipulation methods can be found there.
@@ -610,19 +611,55 @@ FIXME
 
 =head3 NOTIFY events
 
-=head3 PROCESS events
+B<NOTIFY> events are intended to be dispatched asynchronously to our own 
+session, the registered plugin pipeline, and registered sessions, 
+respectively.
+
+See L</emit> for complete details.
+
+=head3 PROCESS events 
+
+B<PROCESS> events are intended to be processed by the plugin pipeline 
+immediately; these are intended for message processing and similar 
+synchronous action handled by plugins.
+
+Handlers for B<PROCESS> events are prefixed with C<P_>
+
+See L</process>.
 
 
 =head2 Sending events
 
 =head3 emit
 
+  $self->emit( $event, @args );
+
+B<emit()> dispatches L</"NOTIFY events"> -- these events are dispatched 
+first to our own session (with L</event_prefix> prepended), then the 
+registered plugin pipeline (with C<N_> prepended), then registered 
+sessions (with L</event_prefix> prepended):
+
+  With default event_prefix:
+
+  $self->emit( 'my_event', @args )
+
+    -> Dispatched to own session as 'emitted_my_event'
+    --> Dispatched to plugin pipeline as 'N_my_event'
+    ---> Dispatched to registered sessions as 'emitted_my_event'
+
 =head3 emit_now
+
+  $self->emit_now( $event, @args );
+
+B<emit_now()> synchronously dispatches L</"NOTIFY events"> -- see 
+L</emit>.
 
 =head3 process
 
-FIXME
+  $self->process( $event, @args );
 
+B<process()> calls registered plugin handlers for L</"PROCESS events"> 
+immediately; these are not dispatched to sessions.
 
 =head1 AUTHOR
 

@@ -200,7 +200,7 @@ sub ircsock_disconnect {
   ## This $conn has had its wheel cleared.
   my $conn = $_[ARG0];
 
-  ## FIXME
+  ## FIXME figure out type, dispatch accordingly?
 }
 
 sub ircsock_listener_created {
@@ -234,16 +234,27 @@ sub ircsock_listener_open {
 sub ircsock_listener_removed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $listener = $_[ARG0];
+
   ## FIXME
 }
 
 
 sub dispatch {
-  ## FIXME oo interface to message dispatch (backend)
+  my $self = shift;
+
+  $self->call( 'dispatch', @_ )
 }
 
 sub _dispatch {
-  ## FIXME event interface to message dispatch (backend)
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD :	
+  my ($out, @ids) = $_[ARG0 .. $#_];
+
+  return
+    if $self->process( 'message_dispatch', $out, \@ids ) == EAT_NONE;
+
+  $self->backend->send( $out, @ids )
 }
 
 

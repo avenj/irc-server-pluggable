@@ -59,6 +59,7 @@ has 'register_prefix' => (
   isa  => Str,
   predicate => 'has_register_prefix',
   writer    => 'set_register_prefix',
+  ## Emitter_register / Emitter_unregister
   default   => sub { "Emitter_" },
 );
 
@@ -148,7 +149,7 @@ sub _start_emitter {
     ], 
   );
 
-  1
+  $self
 }
 
 
@@ -169,25 +170,36 @@ around '_pluggable_event' => sub {
 ## yield/call provide post()/call() frontends.
 sub yield {
   my ($self, @args) = @_;
-  $poe_kernel->post( $self->session_id, @args )
+
+  $poe_kernel->post( $self->session_id, @args );
+
+  $self
 }
 
 sub call {
   my ($self, @args) = @_;
-  $poe_kernel->call( $self->session_id, @args )
+
+  $poe_kernel->call( $self->session_id, @args );
+
+  $self
 }
 
 sub emit {
   ## Async NOTIFY event dispatch.
   my ($self, $event, @args) = @_;
+
   $self->yield( '_dispatch_notify', $event, @args );
-  1
+
+  $self
 }
 
 sub emit_now {
   ## Synchronous NOTIFY event dispatch.
   my ($self, $event, @args) = @_;
+
   $self->call( '_dispatch_notify', $event, @args );
+
+  $self
 }
 
 sub process {
@@ -201,6 +213,8 @@ sub process {
 
   ## FIXME should we notify sessions at all ... ? Worth a ponder.
     ## PROCESSED_* events ?
+
+  $self
 }
 
 
@@ -346,6 +360,8 @@ sub _emitter_start {
   }
 
   $self->call( 'emitter_started' );
+  
+  $self
 }
 
 sub _emitter_default {
@@ -562,7 +578,8 @@ Set via B<set_event_prefix>
 
 =head4 register_prefix
 
-B<register_prefix> is prepended to 'register' and 'unregister' events.
+B<register_prefix> is prepended to 'register' and 'unregister' methods 
+called on plugins at load time.
 
 Defaults to I<Emitter_>
 

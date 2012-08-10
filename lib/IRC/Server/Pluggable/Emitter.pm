@@ -211,9 +211,6 @@ sub process {
   ## Dispatched to P_$event :
   $self->_pluggable_process( 'PROCESS', $event, \@args );
 
-  ## FIXME should we notify sessions at all ... ? Worth a ponder.
-    ## PROCESSED_* events ?
-
   $self
 }
 
@@ -224,23 +221,20 @@ sub _trigger_object_states {
   confess "object_states() should be an ARRAY or HASH"
     unless ref $states eq 'HASH' or ref $states eq 'ARRAY' ;
 
-  my $die_no_startstop =
-   "Should not have _start or _stop handlers defined; "
-   ."use emitter_started & emitter_stopped" ;
+  my @disallowed = qw/
+    _start
+    _stop
+    register
+    unregister
+  /;
 
   for (my $i=1; $i <= (scalar(@$states) - 1 ); $i+=2 ) {
-
     my $events = $states->[$i];
+    my $evarr = ref $events eq 'ARRAY' ? $events : keys %$events;
 
-    if      (ref $events eq 'HASH') {
-      confess $die_no_startstop 
-        if defined $events->{'_start'}
-        or defined $events->{'_stop'}
-
-    } elsif (ref $events eq 'ARRAY') {
-      confess $die_no_startstop
-        if grep { $_ eq '_start' || $_ eq '_stop' } @$events;
-
+    for my $ev (@$evarr) {
+      confess "Disallowed handler: $ev"
+        if $ev ~~ @disallowed;
     }
 
   }

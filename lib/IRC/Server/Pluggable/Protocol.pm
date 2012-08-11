@@ -9,20 +9,60 @@ use Carp;
 use Moo;
 use POE;
 
-use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable qw/
+  IRC::Channel
+  IRC::Peer
+  IRC::User
 
+  Types
+/;
 
 extends 'IRC::Server::Pluggable::Emitter';
 
 
+has 'dispatcher' => (
+  lazy => 1,
+  
+  is  => 'ro',
+  
+  predicate => 'has_dispatcher',
+  writer    => 'set_dispatcher',
+
+  default => sub {
+    my ($self) = @_;
+    
+    require IRC::Server::Pluggable::Dispatcher;
+    
+    IRC::Server::Pluggable::Dispatcher->new(
+      ## FIXME requires backend_opts to construct all the way down
+      ##  may make more sense to just require a Dispatcher?
+    )
+  },
+);
+
+
 ### IRCD-relevant attribs
-has 'casemapping' => (
+has 'casemap' => (
   lazy => 1,
 
   is  => 'rw',
   isa => CaseMap,
   
   default => sub { 'rfc1459' },
+);
+
+has 'channel_types' => (
+  lazy => 1,
+  
+  is  => 'rw',
+  isa => HashRef,
+  
+  default => sub {
+    ## FIXME map channel prefixes to a IRC::Channel subclass?
+    ##  These can control the behavior of specific channel types.
+    '#' => 'IRC::Server::Pluggable::IRC::Channel::Global',
+    '&' => 'IRC::Server::Pluggable::IRC::Channel::Local',
+  },
 );
 
 has 'max_chan_length' => (
@@ -119,16 +159,72 @@ has 'version_string' => (
   default => sub { ref $self },
 );
 
+has 'users' => (
+  lazy => 1,
+
+  is => 'ro',
+  
+  isa => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::IRC::Users')
+      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Users"
+  },
+  
+  default => sub {
+    my ($self) = @_;
+    
+    require IRC::Server::Pluggable::IRC::Users;    
+
+    IRC::Server::Pluggable::IRC::Users->new(
+      casemap => $self->casemap,
+    )    
+  },  
+);
+
+has 'channels' => (
+  ## FIXME
+  ## Hash of Channel objects
+  ##  .. or Protocol::Channels class instance ?
+);
+
 sub BUILD {
   my ($self) = @_;
 
   ### FIXME set up object_states etc and $self->_start_emitter()
   $self->set_object_states(
     [
+      ## FIXME _default handler?
+      ##  may need to catch stuff that should be relayed like numerics?
       $self => {
-        'emitter_started' => '_protocol_start',
+        'emitter_started' => '_emitter_started',
       },
       
+      $self => [ 
+        ## Connectors and listeners:
+        qw/
+          backend_ev_connection_idle
+          backend_ev_connected_peer
+          backend_ev_compressed_peer
+          backend_ev_listener_created
+        /,
+        
+        ## peer_* cmds:
+        qw/
+          backend_ev_peer_  ## FIXME
+        /,
+        
+        ## client_* cmds:
+        qw/
+          backend_ev_client_ ## FIXME
+        /,
+        
+        ## unknown_* cmds:
+        qw/
+          backend_ev_unknown_ ## FIXME
+        /,
+      ],
+
+      ## May have other object_states specified at construction time:
       (
         $self->has_object_states ? @{ $self->object_states } : ()
       ),
@@ -138,9 +234,73 @@ sub BUILD {
   $self->_start_emitter;
 }
 
-sub _protocol_start {
+sub _emitter_started {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  ## FIXME register with a Dispatcher session?
+
+  ## Register with Dispatcher.
+  $kernel->post( $self->dispatcher->session_id, 'register' );
+}
+
+
+sub backend_ev_connection_idle {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  ## FIXME handle pings
+}
+
+sub backend_ev_connected_peer {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+}
+
+sub backend_ev_compressed_peer {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+}
+
+sub backend_ev_listener_created {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+}
+
+
+## peer_* handlers
+
+sub backend_ev_peer_squit {
+
+}
+
+sub backend_ev_PEER_NUMERIC {
+  ## FIXME routed to a client wheel
+  ##  first arg should be target nick
+}
+
+## client_* handlers
+
+
+## unknown_* handlers
+
+sub backend_ev_unknown_pass {
+
+}
+
+sub backend_ev_unknown_nick {
+
+}
+
+sub backend_ev_unknown_server {
+
+}
+
+sub backend_ev_unknown_user {
+
+}
+
+sub backend_ev_unknown_pass {
+
+}
+
+sub backend_ev_unknown_error {
 
 }
 

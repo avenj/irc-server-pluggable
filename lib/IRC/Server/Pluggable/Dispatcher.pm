@@ -149,13 +149,14 @@ sub ircsock_input {
   my $event_name = join '_', $from_type, $cmd ;
 
   if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
-    ## Dispatch _PEER_NUMERIC
-    ## FIXME These are probably just being routed to a client wheel.
-    ##  Should probably just do that here before we return.
+    ## Numerics from peers are headed to client wheels.
+
+    ## P_peer_NUMERIC / backend_ev_peer_NUMERIC / N_peer_NUMERIC :  
+
     return
-      if $self->process( 'PEER_NUMERIC', $cmd, $conn, $ev ) == EAT_NONE;
+      if $self->process( 'peer_NUMERIC', $cmd, $conn, $ev ) == EAT_NONE;
     
-    $self->emit( 'PEER_NUMERIC', $cmd, $conn, $ev );
+    $self->emit( 'peer_NUMERIC', $cmd, $conn, $ev );
 
     return
   }

@@ -265,8 +265,7 @@ sub _accept_conn {
 
   ## Our sock addr/port.
   my $sock_packed = getsockname($sock);
-  my ($protocol, $sockaddr, $sockport) 
-    = get_unpacked_addr($sock_packed);
+  my ($protocol, $sockaddr, $sockport) = get_unpacked_addr($sock_packed);
 
   ## Our peer's addr.
   my $n_err;

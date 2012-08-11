@@ -56,7 +56,11 @@ has 'raw_line' => (
   default => sub { '' },
 );
 
-1;
+q{
+ <rnowak> fine, be rude like that
+ <Perihelion> SORRY I WAS DISCUSSING THE ABILITY TO PUT 
+  AN IRCD ON A ROOMBA
+};
 
 =pod
 

@@ -4,13 +4,38 @@ use 5.12.1;
 use strictures 1;
 use Carp;
 
-
 use base 'Exporter';
-our @EXPORT = qw/
-  get_unpacked_addr
-/;
+our %EXPORT_TAGS = (
+
+  network => [ qw/  
+
+    get_unpacked_addr
+
+  / ],
+
+  irc  => [ qw/
+
+    lc_irc
+    uc_irc
+
+    parse_user
+
+  / ],
+);
+
+our @EXPORT;
+{
+  my %s;
+  push @EXPORT,
+    grep { !$s{$_}++ } @{ $EXPORT_TAGS{$_} } for keys %EXPORT_TAGS;
+}
+
+sub import {
+  __PACKAGE__->export_to_level(1, @_)
+}
 
 
+## Networking-related
 use Socket qw/
   :addrinfo
 
@@ -61,6 +86,48 @@ sub get_unpacked_addr {
   ($inet_proto, $sockaddr, $sockport)
 }
 
+
+## IRC-related
+sub lc_irc ($;$) {
+  my ($string, $casemap) = @_;
+  
+  $casemap = lc( $casemap // 'rfc1459' );
+
+  for ($casemap) {
+    $string =~ tr/A-Z[]\\/a-z{}|/  when "strict-rfc1459";
+    $string =~ tr/A-Z/a-z/         when "ascii";
+    default { $string =~ tr/A-Z[]\\~/a-z{}|^/ }
+  }
+
+  $string
+}
+
+sub uc_irc ($;$) {
+  my ($string, $casemap) = @_;
+  
+  $casemap = lc( $casemap // 'rfc1459' );
+  
+  for ($casemap) {
+    $string =~ tr/a-z{}|/A-Z[]\\/  when "strict-rfc1459";
+    $string =~ tr/a-z/A-Z/         when "ascii";
+    default { $string =~ tr/a-z{}|^/A-Z[]\\~/ }
+  }
+  
+  $string
+}
+
+sub parse_user ($) {
+  my ($full) = @_;
+  
+  confess "parse_user() called with no arguments"
+    unless defined $full;
+
+  my ($nick, $user, $host) = split /[!@]/, $full;
+
+  wantarray ? ($nick, $user, $host) : $nick
+}
+
+
 q{
  <bob2> I got my first ipv6+tls spam yesterday
  <bob2> a+ for effort
@@ -81,14 +148,44 @@ IRC::Server::Pluggable::Utils - IRC::Server::Pluggable tools
 
 Various small utilities for L<IRC::Server::Pluggable>.
 
-=head2 get_unpacked_addr
+=head2 IRC-related
+
+=head3 lc_irc
+
+  my $lower = lc_irc( $string [, $casemap ] );
+
+Takes a string and an optional casemap:
+
+  'ascii'           a-z      -->  A-Z
+  'rfc1459'         a-z{}|^  -->  A-Z[]\~   (default)
+  'strict-rfc1459'  a-z{}|   -->  A-Z[]\
+
+Returns the string (lowercased according to the specified rules).
+
+=head3 uc_irc
+
+  my $upper = uc_irc( $string [, $casemap ] );
+
+The reverse of L</lc_irc>.
+
+=head3 parse_user
+
+  my ($nick, $user, $host) = parse_user( $full );
+
+Split a 'nick!user@host' into components.
+
+Returns just the nickname in scalar context.
+
+=head2 Network-related
+
+=head3 get_unpacked_addr
 
   my ($inet_proto, $sock_addr, $sock_port) = get_unpacked_addr( 
     getsockname($sock)
   );
 
 Given a packed socket address, returns an Internet protocol version (4 or 
-6) and the unpacked address and port.
+6) and the unpacked address and port (as a list, see example above).
 
 
 =head1 AUTHOR

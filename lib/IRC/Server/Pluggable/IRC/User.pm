@@ -66,11 +66,30 @@ sub full {
 sub set_modes {
   my ($self, $data) = @_;
 
+  confess "set_modes() called with no defined arguments"
+    unless defined $data;
+
+  $data = $self->_parse_mode_str($data)
+    unless ref $data;
+
+  $self->_set_modes_from_ref($data)
+}
+
+sub _set_modes_from_ref {
+  my ($self, $data) = @_;
+
   my %changed;
   
   if (ref $data eq 'ARRAY') {
-
+  
     MODE: for my $mode (@$data) {
+
+      ## Accept [ $flag, $params ] -- default to bool
+      my $params = 1;
+      if (ref $mode eq 'ARRAY') {
+        ($mode, $params) = @$mode;
+      }
+    
       my ($chg, $flag) = $mode =~ /^(+|-)([A-Za-z])$/;
 
       unless ($chg && $flag) {
@@ -83,7 +102,7 @@ sub set_modes {
         unless ($self->modes->{$flag}) {
           ## Add this mode and record the change.
           $self->modes->{$flag} = 1;
-          $changed{$flag} = 1;
+          $changed{$flag}       = 1;
         }
       } elsif ($chg eq '-') {
         if ($self->modes->{$flag}) {
@@ -95,14 +114,68 @@ sub set_modes {
     } ## MODE
 
   } elsif (ref $data eq 'HASH') {
-    ## FIXME hash-based implementation?
-    confess "Passing set_modes a HASH not implemented in this class"
+
+    ## add => [ mode, ... ],
+    ## add => [ [ mode, params ], ... ],
+    ## del => [ mode, ... ],
+    
+    ADD: for my $flag (@{ $ref->{add} }) {
+      my $params = 1;
+      if (ref $flag eq 'ARRAY') {
+        ($flag, $params) = @$flag;
+      }
+
+      unless ($self->modes->{$flag} 
+        && $self->modes->{$flag} eq $params) {
+
+        $self->modes->{$flag} = $params;
+        $changed{$flag}       = $params;
+      }
+
+    }
+    
+    DEL: for my $flag (@{ $ref->{del} }) {
+      if ($self->modes->{$flag}) {
+        $changed{$flag} = delete $self->modes->{$flag};
+      }
+    }
+
   } else {
-    ## Probably a string.
-    ## FIXME shove parser for this in Utils?
+    confess "Passed an unknown reference type: ".ref($data)." ($data)"
   }
 
   \%changed
+}
+
+sub _parse_mode_str {
+  my ($self, $str) = @_;
+
+  my %res = ( add => [], del => [] );
+  
+  my $in_add = 1;
+  for (split '', $str) {
+    when ('+') {
+      $in_add = 1;
+    }
+    
+    when ('-') {
+      $in_add = 0;
+    }
+    
+    when (/A-Za-z/) {
+      if ($in_add) {
+        push(@{$res{add}}, $_)
+      } else {
+        push(@{$res{del}}, $_)
+      }
+    }
+    
+    default {
+      carp "Could not parse mode change $_ in $str";
+    }
+  }
+  
+  \%res
 }
 
 

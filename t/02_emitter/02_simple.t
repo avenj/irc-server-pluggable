@@ -1,4 +1,4 @@
-use Test::More tests => 8;
+use Test::More tests => 9;
 use strict; use warnings FATAL => 'all';
 
 use POE;
@@ -51,8 +51,10 @@ use POE;
   }
   
   sub P_things {
+    my ($self, $emitter, $first) = @_;
     pass("Emitter received P_things");
-    is( $_[ARG0], 1, "P_things had expected args" );
+    isa_ok( $emitter, 'IRC::Server::Pluggable::Emitter' );
+    is( $$first, 1, "P_things had expected args" );
   }
   
 }

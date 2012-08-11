@@ -33,7 +33,7 @@ ok(
 
 ok( ! is_CaseMap('abc'), 'CaseMap reject' );
 ok( is_CaseMap('rfc1459'), 'CaseMap rfc1459' );
-ok( is_CaseMap('rfc1459-strict'), 'CaseMap rfc1459-strict' );
+ok( is_CaseMap('strict-rfc1459'), 'CaseMap strict-rfc1459' );
 ok( is_CaseMap('ascii'), 'CaseMap ascii' );
 
 ## FIXME ProtocolClass

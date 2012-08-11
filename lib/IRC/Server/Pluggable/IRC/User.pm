@@ -2,12 +2,18 @@ package IRC::Server::Pluggable::IRC::User;
 ## Base class for Users.
 ## Overridable by Protocols.
 
+## FIXME stringify out to (lowercased?) nickname?
+
 use 5.12.1;
 use strictures 1;
 
 use Carp;
 use Moo;
 
+use IRC::Server::Pluggable qw/
+  Types
+  Utils
+/;
 
 has 'nick' => (
   required => 1,
@@ -47,9 +53,57 @@ has 'realname' => (
 has 'modes' => (
   lazy => 1,
   is  => 'ro',
-  isa => ArrayRef,
-  default => sub { [] },
+  isa => HashRef,
+  default => sub { {} },
 );
+
+
+sub full {
+  my ($self) = @_;
+  $self->nick .'!'. $self->user .'@'. $self->host
+}
+
+sub set_modes {
+  my ($self, $data) = @_;
+
+  my %changed;
+  
+  if (ref $data eq 'ARRAY') {
+
+    MODE: for my $mode (@$data) {
+      my ($chg, $flag) = $mode =~ /^(+|-)([A-Za-z])$/;
+
+      unless ($chg && $flag) {
+        carp "Could not parse mode change $mode";
+        next MODE
+      }
+      
+      ## Boolean flip.
+      if ($chg eq '+') {
+        unless ($self->modes->{$flag}) {
+          ## Add this mode and record the change.
+          $self->modes->{$flag} = 1;
+          $changed{$flag} = 1;
+        }
+      } elsif ($chg eq '-') {
+        if ($self->modes->{$flag}) {
+          ## Delete this mode and record the change.
+          $changed{$flag} = delete $self->modes->{$flag};
+        }
+      }
+
+    } ## MODE
+
+  } elsif (ref $data eq 'HASH') {
+    ## FIXME hash-based implementation?
+    confess "Passing set_modes a HASH not implemented in this class"
+  } else {
+    ## Probably a string.
+    ## FIXME shove parser for this in Utils?
+  }
+
+  \%changed
+}
 
 
 q{

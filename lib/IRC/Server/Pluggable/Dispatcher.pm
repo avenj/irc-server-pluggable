@@ -1,11 +1,5 @@
 package IRC::Server::Pluggable::Dispatcher;
 
-## FIXME
-##  - bridge backend and protocol sessions
-##    - parse Event objs and dispatch to Protocol
-
-## 
-
 use 5.12.1;
 use strictures 1;
 
@@ -154,9 +148,22 @@ sub ircsock_input {
 
   my $event_name = join '_', $from_type, $cmd ;
 
+  if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
+    ## Dispatch _PEER_NUMERIC
+    ## FIXME These are probably just being routed to a client wheel.
+    ##  Should probably just do that here before we return.
+    return
+      if $self->process( 'PEER_NUMERIC', $cmd, $conn, $ev ) == EAT_NONE;
+    
+    $self->emit( 'PEER_NUMERIC', $cmd, $conn, $ev );
+
+    return
+  }
+
   ## process() via our plugin pipeline:
   return 
     if $self->process( $event_name, $conn, $ev ) == EAT_NONE;
+
   ## .. then emit() to registered sessions:
   $self->emit( $event_name, $conn, $ev );
 }
@@ -170,6 +177,7 @@ sub ircsock_connector_open {
 
   return
     if $self->process( $event_name, $conn ) == EAT_NONE;
+
   $self->emit( $event_name, $conn )
 }
 
@@ -192,6 +200,7 @@ sub ircsock_compressed {
 
   return
     if $self->process( $event_name, $conn ) == EAT_NONE;
+
   $self->emit( $event_name, $conn );
 }
 
@@ -211,6 +220,7 @@ sub ircsock_listener_created {
   
   return
     if $self->process( $event_name, $listener ) == EAT_NONE;
+
   $self->emit( $event_name, $listener );
 }
 

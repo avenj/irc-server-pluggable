@@ -2,8 +2,6 @@ package IRC::Server::Pluggable::IRC::User;
 ## Base class for Users.
 ## Overridable by Protocols.
 
-## FIXME stringify out to (lowercased?) nickname?
-
 use 5.12.1;
 use strictures 1;
 
@@ -178,6 +176,14 @@ sub _parse_mode_str {
   \%res
 }
 
+sub modes_as_string {
+  my ($self) = @_;
+  
+  $str .= $_ for keys %{ $self->modes };
+  
+  $str
+}
+
 
 q{
   <Schroedingers_hat> i suppose I could analyse the gif and do a fourier 
@@ -186,3 +192,100 @@ q{
   <Schroedingers_hat> ^ The best part is that sentence was 
    about breasts.
 };
+
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::IRC::User - Base class for Users
+
+=head1 SYNOPSIS
+
+FIXME
+
+=head1 DESCRIPTION
+
+A base class for a User belonging to a 
+L<IRC::Server::Pluggable::Protocol>.
+
+=head2 Attributes
+
+Attributes can be changed after initialization by prefixing the attribute 
+name with B<set_>
+
+=head3 nick
+
+The nickname string for this User.
+
+=head3 user
+
+The username ('ident') string for this User.
+
+=head3 host
+
+The visible hostname string for this User.
+
+=head3 modes
+
+The HASH mapping mode characters to any scalar parameters for same.
+
+Most user modes in most IRC implementations are simple booleans; the 
+scalar value for an enabled boolean mode is '1'
+
+Also see L</set_modes> and L</modes_as_string>
+
+=head3 realname
+
+The GECOS / 'real name' string for this User.
+
+=head3 server
+
+The visible server string for this User.
+
+=head2 Methods
+
+=head3 full
+
+This User's full nick!user@host string.
+
+=head3 modes_as_string
+
+The currently enabled modes for this User as a concatenated string.
+
+=head3 set_modes
+
+C<set_modes> allows for easy mode hash manipulation.
+
+Pass a string:
+
+  $user->set_modes( '+Aow-i' );
+
+Pass an ARRAY:
+
+  $user->set_modes(
+    [ '+s', '-c' ],
+  );
+
+Pass an ARRAY containing ARRAYs mapping params to a specific mode:
+
+  $user->set_modes(
+    [
+      [ '+s', $params ],
+      '-c',
+    ],
+  );
+
+Pass a HASH with 'add' and 'del' ARRAYs:
+
+  $user->set_modes( {
+    add => [ split '', 'Aow' ],
+    del => [ 'i' ],
+  } );
+
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

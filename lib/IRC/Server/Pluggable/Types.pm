@@ -50,12 +50,12 @@ my $type_definitions = [
       (
        $_[0] eq 'rfc1459' 
        || $_[0] eq 'ascii' 
-       || $_[0] eq 'rfc1459-strict'
+       || $_[0] eq 'strict-rfc1459'
       )
     },
     message => sub { 
      "$_[0] is not a valid IRC casemap, "
-     ."should be one of: rfc1459, ascii, rfc1459-strict"
+     ."should be one of: rfc1459, ascii, strict-rfc1459"
     },
   },
 
@@ -82,7 +82,7 @@ q{
  <Schroedingers_hat> But not the man you deserve. 
  <Capn_Refsmmat> eh, you'll have to do
 };
-__END__
+
 
 =pod
 

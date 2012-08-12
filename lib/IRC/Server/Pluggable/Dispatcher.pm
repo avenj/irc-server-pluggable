@@ -132,7 +132,7 @@ sub ircsock_registered {
 sub ircsock_connection_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   
-  $self->emit( 'connection_idle', @_[ARG0 .. $#_] );
+  $self->emit_now( 'connection_idle', @_[ARG0 .. $#_] );
 }
 
 sub ircsock_input {
@@ -156,7 +156,7 @@ sub ircsock_input {
     return
       if $self->process( 'peer_NUMERIC', $conn, $ev ) == EAT_NONE;
     
-    $self->emit( 'peer_NUMERIC', $conn, $ev );
+    $self->emit_now( 'peer_NUMERIC', $conn, $ev );
 
     return
   }
@@ -165,8 +165,8 @@ sub ircsock_input {
   return 
     if $self->process( $event_name, $conn, $ev ) == EAT_NONE;
 
-  ## .. then emit() to registered sessions:
-  $self->emit( $event_name, $conn, $ev );
+  ## .. then emit_now() to registered sessions:
+  $self->emit_now( $event_name, $conn, $ev );
 }
 
 sub ircsock_connector_open {
@@ -179,30 +179,33 @@ sub ircsock_connector_open {
   return
     if $self->process( $event_name, $conn ) == EAT_NONE;
 
-  $self->emit( $event_name, $conn )
+  $self->emit_now( $event_name, $conn )
 }
 
 sub ircsock_connector_failure {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   ## This Connector has had its wheel cleared.
-  my $connector = $_[ARG0];
-  my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
+#  my $connector = $_[ARG0];
+#  my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
 
-  ## FIXME
+  ## Not much a plugin can do here, particularly ...
+  ## emit_now() only:
+  $self->emit_now( 'connector_failure', @_[ARG0 .. ARG3] ) 
 }
 
 sub ircsock_compressed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
-  ## ircsock is (probably) burstable.
+
+  ## FIXME ircsock is (probably) burstable.
 
   my $event_name = 'compressed_peer';
 
   return
     if $self->process( $event_name, $conn ) == EAT_NONE;
 
-  $self->emit( $event_name, $conn );
+  $self->emit_now( $event_name, $conn );
 }
 
 sub ircsock_disconnect {
@@ -210,7 +213,8 @@ sub ircsock_disconnect {
   ## This $conn has had its wheel cleared.
   my $conn = $_[ARG0];
 
-  ## FIXME figure out type, dispatch accordingly?
+  ## FIXME figure out type, dispatch accordingly
+  ##  should Protocol layer care about unknown disconnects ... ?
 }
 
 sub ircsock_listener_created {
@@ -222,13 +226,13 @@ sub ircsock_listener_created {
   return
     if $self->process( $event_name, $listener ) == EAT_NONE;
 
-  $self->emit( $event_name, $listener );
+  $self->emit_now( $event_name, $listener );
 }
 
 sub ircsock_listener_failure {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my $listener = $_[ARG0];
 
+  my $listener = $_[ARG0];
   my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
 
   ## FIXME
@@ -239,14 +243,20 @@ sub ircsock_listener_open {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
 
-  ## FIXME
+  my $event_name = 'listener_accepted';
+
+  return
+    if $self->process( $event_name, $conn ) == EAT_NONE;
+
+  $self->emit_now( $event_name, $conn )
 }
 
 sub ircsock_listener_removed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
+  ## This listener is no longer active (wheel is cleared)
   my $listener = $_[ARG0];
 
-  ## FIXME
+  $self->emit_now( 'listener_removed', $listener )
 }
 
 

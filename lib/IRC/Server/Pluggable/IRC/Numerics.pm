@@ -40,7 +40,9 @@ sub _build_rpl_map {
     while (my $line = readline($fh) ) {
       ##  <NUMERIC> <STR>    
       my ($num, @str) = split ' ', $line;
+
       next unless @str;
+
       $rplmap{$num} = join ' ', @str;
     }
 
@@ -51,27 +53,40 @@ sub _build_rpl_map {
       402 => 'No such server',
       403 => 'No such channel',
       404 => 'Cannot send to channel',
-      ## FIXME
+      ## FIXME arrays instead?
+      ##  [ <PCOUNT>, <STR> ] ?
     )
   }
 
   {%rplmap}
 }
 
-sub to_str {
+sub to_hash {
   my ($self, $numeric, @params) = @_;
 
   unless (defined $self->rpl_map->{$numeric}) {
-    carp "to_str() called for unknown numeric $numeric";
+    carp "to_hash() called for unknown numeric $numeric";
     return
   }
+  
+  my $this_numeric = $self->rpl_map->{$numeric};
 
-  sprintf( $self->rpl_map->{$numeric}, @_ )
+  my %input = (
+    command => $numeric,
+    prefix  => shift(@params),
+    params  => [ shift @params ],
+  );
+  
+  ## FIXME
+  ##  need to sketch out use cases for this
+  ##  ... go lite, do it C-style like existing messages.tab etc ?
+
+  \%input
 }
 
 
 
-
+no warnings 'void';
 q{
  <Gilded> Has he done this before? 
  <Gilded> Is vandalizing AT&T boxes his... calling?

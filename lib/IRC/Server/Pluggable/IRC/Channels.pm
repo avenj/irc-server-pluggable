@@ -20,6 +20,9 @@ has 'casemap' => (
   isa => CaseMap,
 );
 
+with 'IRC::Server::Pluggable::Role::CaseMap';
+
+
 
 has '_channels' => (
   ## Map (lowercased) channel names to Channel objects.
@@ -30,6 +33,9 @@ has '_channels' => (
   
   default => sub { {} },
 );
+
+
+
 
 
 q{

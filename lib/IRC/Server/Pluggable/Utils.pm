@@ -4,6 +4,8 @@ use 5.12.1;
 use strictures 1;
 use Carp;
 
+use IRC::Utils qw/matches_mask normalize_mask/;
+
 use base 'Exporter';
 our %EXPORT_TAGS = (
 
@@ -14,6 +16,8 @@ our %EXPORT_TAGS = (
   / ],
 
   irc  => [ qw/
+    matches_mask
+    normalize_mask
 
     lc_irc
     uc_irc

@@ -1,5 +1,5 @@
 package IRC::Server::Pluggable;
-our $VERSION = '0.001';
+our $VERSION = '0.000_01';
 
 use 5.12.1;
 use strictures 1;

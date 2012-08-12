@@ -1,5 +1,5 @@
 package IRC::Server::Pluggable::Emitter;
-our $VERSION = 1;
+our $VERSION = '0.000_01';
 
 use 5.12.1;
 use strictures 1;
@@ -477,7 +477,7 @@ sub _emitter_unregister {
   } ## EV
 }
 
-
+no warnings 'void';
 q[
  <tberman> who wnats to sing a song with me?
  <tberman> its the i hate php song

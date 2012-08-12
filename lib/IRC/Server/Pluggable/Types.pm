@@ -76,13 +76,7 @@ our @EXPORT = (
   @MooX::Types::MooseLike::Base::EXPORT_OK
 );
 
-
-q{
- <Capn_Refsmmat> aha. just the man I need 
- <Schroedingers_hat> But not the man you deserve. 
- <Capn_Refsmmat> eh, you'll have to do
-};
-
+1;
 
 =pod
 

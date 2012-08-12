@@ -1,5 +1,5 @@
 package IRC::Server::Pluggable::Backend;
-our $VERSION = '0.001';
+our $VERSION = '0.000_01';
 
 use 5.12.1;
 use strictures 1;
@@ -836,12 +836,12 @@ sub unset_compressed_link {
 
 ## FIXME listener connect ip blacklist?
 
-
+no warnings 'void';
 q{
  <CaptObviousman> pretend for a moment that I'm stuck with mysql 
  <rnowak> ok, fetching my laughing hat and monocle
 };
-__END__
+
 
 =pod
 

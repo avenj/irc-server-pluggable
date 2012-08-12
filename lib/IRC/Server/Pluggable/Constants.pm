@@ -1,7 +1,5 @@
 package IRC::Server::Pluggable::Constants;
-our $VERSION = 1;
-
-## Object::Pluggable::Constants, but less typing.
+our $VERSION = '0.000_01';
 
 use strictures 1;
 
@@ -21,6 +19,8 @@ our @EXPORT = qw/
   EAT_ALL
 /;
 
+
+no warnings 'void';
 q{
  <bob2> your question is similar to "why can't I jam burritos in my 
   earholes"

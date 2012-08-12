@@ -44,15 +44,48 @@ has 'modes' => (
 );
 
 
+has '_list_classes' => (
+  ## Map list keys to classes
+  lazy => 1,
+  
+  is  => 'ro',
+  isa => HashRef,
+  
+  default => sub {
+    my $base = "IRC::Server::Pluggable::IRC::Channel::List::";
+
+    {
+      bans => $base . "Bans",
+    },
+  },
+  
+  writer => '_set_list_classes',
+);
+
+
 has 'lists' => (
-  ## FIXME Channel::List:: classes ?
-  ##  Would be helpful in constructing new ban types, etc
+  ## Ban lists, etc
   lazy => 1,
   
   is  => 'ro',
   isa => HashRef,
 
-  default => sub { {} },
+  default => sub {
+    ## Construct from _list_classes
+    my ($self) = @_;
+
+    my $listref = {};
+
+    for my $key (keys %{ $self->_list_classes }) {
+      my $class = $self->_list_classes->{$key};
+      
+      require $class;
+      
+      $listref->{$key} = $class->new;
+    }
+    
+    $listref
+  },
   
   writer => 'set_lists',
 );

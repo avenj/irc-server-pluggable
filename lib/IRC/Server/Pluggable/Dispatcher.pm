@@ -154,9 +154,9 @@ sub ircsock_input {
     ## P_peer_NUMERIC / backend_ev_peer_NUMERIC / N_peer_NUMERIC :  
 
     return
-      if $self->process( 'peer_NUMERIC', $cmd, $conn, $ev ) == EAT_NONE;
+      if $self->process( 'peer_NUMERIC', $conn, $ev ) == EAT_NONE;
     
-    $self->emit( 'peer_NUMERIC', $cmd, $conn, $ev );
+    $self->emit( 'peer_NUMERIC', $conn, $ev );
 
     return
   }
@@ -268,7 +268,7 @@ sub _dispatch {
   $self->backend->send( $out, @ids )
 }
 
-
+no warnings 'void';
 q{
  <nitric> the more you think about facebook actions in real life, the 
   weirder facebook seems

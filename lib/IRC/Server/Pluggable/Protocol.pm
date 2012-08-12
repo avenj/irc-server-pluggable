@@ -52,6 +52,9 @@ has 'casemap' => (
   default => sub { 'rfc1459' },
 );
 
+with 'IRC::Server::Pluggable::Role::CaseMap';
+
+
 has 'channel_types' => (
   lazy => 1,
   
@@ -161,6 +164,8 @@ has 'version_string' => (
 );
 
 has 'users' => (
+  ## Map nicknames to objects
+  ## (IRC::Users objects have conn() attribs containing the Backend::Wheel)
   lazy => 1,
 
   is => 'ro',
@@ -290,6 +295,7 @@ sub backend_ev_peer_squit {
 sub backend_ev_PEER_NUMERIC {
   ## FIXME routed to a client wheel
   ##  first arg should be target nick
+  ##  relay to $self->users->by_nick($nick)->conn->wheel
 }
 
 ## client_* handlers

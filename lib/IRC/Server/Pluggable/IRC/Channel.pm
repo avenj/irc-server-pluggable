@@ -8,27 +8,53 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable qw/
+  Types
+  Utils
+/;
 
 
-has 'users' => (
+has 'name' => (
+  required => 1,
+
   is  => 'ro',
-  isa => HashRef,
-  default => sub { {} },
+  isa => Str,
 );
 
-has 'modes' => (
+has 'users' => (
+  lazy => 1,
+
   is  => 'ro',
   isa => HashRef,
+
   default => sub { {} },
+  writer  => 'set_users',
+);
+
+## FIXME track status modes separately, perhaps as part of ->users ?
+##  Relying on ->prefix_map() and ->valid_channel_modes() from Protocol 
+##  to find out what modes actually are/do, so this all has to be handled 
+##  outside of these per-channel objects ...
+
+has 'modes' => (
+  lazy => 1,
+
+  is  => 'ro',
+  isa => HashRef,
+
+  default => sub { {} },
+  writer  => 'set_modes',
 );
 
 has 'array_bans' => (
+  lazy => 1,
+
   is  => 'ro',
   isa => ArrayRef,
-  default => sub { [] },
-);
 
+  default => sub { [] },
+  writer  => 'set_array_bans',
+);
 
 
 q{

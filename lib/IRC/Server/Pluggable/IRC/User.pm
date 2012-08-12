@@ -13,6 +13,22 @@ use IRC::Server::Pluggable qw/
   Utils
 /;
 
+has 'conn' => (
+  ## Backend::Wheel conn obj for a User belonging to us.
+  lazy => 1,
+
+  is  => 'ro',
+  isa => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::Backend::Wheel')
+      or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Wheel"
+  },
+
+  predicate => 'has_conn',
+  writer    => 'set_conn',
+  clearer   => 'clear_conn',
+);
+
 has 'nick' => (
   required => 1,
   is  => 'ro',

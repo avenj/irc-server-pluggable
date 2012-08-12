@@ -8,20 +8,27 @@ use strictures 1;
 use Carp;
 use Moo;
 
+has 'conn' => (
+  ## Our directly-linked peers should have a Backend::Wheel
+  lazy => 1,
+
+  is  => 'ro',
+  isa => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::Backend::Wheel')
+      or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Wheel"
+  },
+  
+  predicate => 'has_conn',  
+  writer    => 'set_conn',
+  clearer   => 'clear_conn',
+);
 
 has 'name' => (
   required => 1,
   is  => 'ro',
   isa => Str,
   writer => 'set_name',
-);
-
-has 'route' => (
-  ## List of hops to peer.
-  required => 1,
-  is  => 'ro',
-  isa => ArrayRef,
-  writer => 'set_route',
 );
 
 

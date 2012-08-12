@@ -288,14 +288,31 @@ sub backend_ev_listener_created {
 
 ## peer_* handlers
 
+sub backend_ev_peer_ping {
+
+}
+
+sub backend_ev_peer_pong {
+
+}
+
 sub backend_ev_peer_squit {
 
 }
 
 sub backend_ev_PEER_NUMERIC {
-  ## FIXME routed to a client wheel
-  ##  first arg should be target nick
-  ##  relay to $self->users->by_nick($nick)->conn->wheel
+  ## Numeric from peer intended for a client of ours.
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  my $target_nick  = $ev->params->[0];
+  my $this_user    = $self->users->by_nick($target_nick);
+
+  return unless $this_user;
+
+  my $target_wheel = $this_user->conn->wheel_id;
+  
+  $self->dispatcher->dispatch( $ev, $target_wheel )
 }
 
 ## client_* handlers
@@ -332,7 +349,7 @@ sub backend_ev_unknown_error {
 ## FIXME need to handle unknown command input (_default handler?)
 
 
-
+no warnings 'void';
 q{
 <Gilded> I'm only level 24 myself so I try to avoid the hard quests 
  like "Job" or "Sex"

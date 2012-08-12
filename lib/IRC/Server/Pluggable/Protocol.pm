@@ -36,6 +36,7 @@ has 'dispatcher' => (
     IRC::Server::Pluggable::Dispatcher->new(
       ## FIXME requires backend_opts to construct all the way down
       ##  may make more sense to just require a Dispatcher?
+      ##  then we'd need a Controller to tie it all together ...
     )
   },
 );
@@ -182,9 +183,25 @@ has 'users' => (
 );
 
 has 'channels' => (
-  ## FIXME
-  ## Hash of Channel objects
-  ##  .. or Protocol::Channels class instance ?
+  lazy => 1,
+  
+  is => 'ro',
+  
+  isa => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::IRC::Channels')
+      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Channels"
+  },
+
+  default => sub {
+    my ($self) = @_;
+    
+    require IRC::Server::Pluggable::IRC::Channels;
+    
+    IRC::Server::Pluggable::IRC::Channels->new(
+      casemap => $self->casemap,
+    )
+  },
 );
 
 sub BUILD {

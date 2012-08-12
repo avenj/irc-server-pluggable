@@ -35,7 +35,48 @@ has '_channels' => (
 );
 
 
+sub as_array {
+  my ($self) = @_;
 
+  [ map { $self->_channels->{$_}->name } keys %{ $self->_channels } ]
+}
+
+
+sub by_name {
+  my ($self, $name) = @_;
+  
+  unless (defined $name) {
+    carp "by_name() called with no name specified";
+    return
+  }
+  
+  $self->_channels->{ $self->lower($name) }
+}
+
+sub add {
+  my ($self, $chan) = @_;
+  
+  confess "$chan is not a IRC::Server::Pluggable::IRC::Channel"
+    unless is_Object($chan)
+    and $chan->isa('IRC::Server::Pluggable::IRC::Channel');
+
+  my $name = $self->lower( $chan->name );
+
+  $self->_channels->{$name} = $chan;
+
+  $chan
+}
+
+sub del {
+  my ($self, $name) = @_;
+
+  confess "del() called with no channel specified"
+    unless defined $name;
+
+  $name = $self->lower($name);
+  
+  delete $self->_channels->{$name}
+}
 
 
 q{

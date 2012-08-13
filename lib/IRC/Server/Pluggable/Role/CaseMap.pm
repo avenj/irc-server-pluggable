@@ -13,7 +13,7 @@ sub lower {
   my ($self, $name) = @_;
 
   unless (defined $name) {
-    carp "lower() called with no channel name specified"
+    carp "lower() called with no channel name specified";
     return
   }
 
@@ -24,7 +24,7 @@ sub upper {
   my ($self, $name) = @_;
 
   unless (defined $name) {
-    carp "upper() called with no channel name specified"
+    carp "upper() called with no channel name specified";
     return
   }
 
@@ -35,7 +35,7 @@ sub equal {
   my ($self, $one, $two) = @_;
 
   unless (defined $one && defined $two) {
-    carp "equal() called without enough arguments"
+    carp "equal() called without enough arguments";
     return
   }
   

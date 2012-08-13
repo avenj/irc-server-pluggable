@@ -161,7 +161,7 @@ has 'version_string' => (
   isa => Str,
   is  => 'rw',
   
-  default => sub { ref $self },
+  default => sub { ref $_[0] },
 );
 
 has 'users' => (
@@ -232,19 +232,22 @@ sub BUILD {
         /,
         
         ## peer_* cmds:
-        qw/
-          backend_ev_peer_  ## FIXME
-        /,
+        ## FIXME
+#        qw/
+#          backend_ev_peer_
+#        /,
         
         ## client_* cmds:
-        qw/
-          backend_ev_client_ ## FIXME
-        /,
+        ## FIXME
+#        qw/
+#          backend_ev_client_
+#        /,
         
         ## unknown_* cmds:
-        qw/
-          backend_ev_unknown_ ## FIXME
-        /,
+        ## FIXME
+#        qw/
+#          backend_ev_unknown_
+#        /,
       ],
 
       ## May have other object_states specified at construction time:
@@ -320,10 +323,6 @@ sub backend_ev_PEER_NUMERIC {
 
 
 ## unknown_* handlers
-
-sub backend_ev_unknown_pass {
-
-}
 
 sub backend_ev_unknown_nick {
 

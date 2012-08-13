@@ -104,7 +104,7 @@ sub _set_modes_from_ref {
         ($mode, $params) = @$mode;
       }
     
-      my ($chg, $flag) = $mode =~ /^(+|-)([A-Za-z])$/;
+      my ($chg, $flag) = $mode =~ /^(\+|-)([A-Za-z])$/;
 
       unless ($chg && $flag) {
         carp "Could not parse mode change $mode";
@@ -133,7 +133,7 @@ sub _set_modes_from_ref {
     ## add => [ [ mode, params ], ... ],
     ## del => [ mode, ... ],
     
-    ADD: for my $flag (@{ $ref->{add} }) {
+    ADD: for my $flag (@{ $data->{add} }) {
       my $params = 1;
       if (ref $flag eq 'ARRAY') {
         ($flag, $params) = @$flag;
@@ -148,7 +148,7 @@ sub _set_modes_from_ref {
 
     }
     
-    DEL: for my $flag (@{ $ref->{del} }) {
+    DEL: for my $flag (@{ $data->{del} }) {
       if ($self->modes->{$flag}) {
         $changed{$flag} = delete $self->modes->{$flag};
       }
@@ -194,13 +194,13 @@ sub _parse_mode_str {
 
 sub modes_as_string {
   my ($self) = @_;
-  
-  $str .= $_ for keys %{ $self->modes };
-  
+  my $str;
+  $str .= $_ for keys %{ $self->modes };  
   $str
 }
 
 
+no warnings 'void';
 q{
   <Schroedingers_hat> i suppose I could analyse the gif and do a fourier 
    decomposition, then feed that into a linear model and see what 

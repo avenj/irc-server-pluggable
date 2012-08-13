@@ -87,6 +87,8 @@ my $build = $class->new(
     
     'strictures' => 1,
 
+    'IRC::Utils' => 0,
+
     'Moo' => 1,
     'MooX::Types::MooseLike' => 0,
     

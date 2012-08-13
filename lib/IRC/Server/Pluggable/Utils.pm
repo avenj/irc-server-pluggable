@@ -26,6 +26,8 @@ our %EXPORT_TAGS = (
 
     parse_user
 
+    mode_to_hash
+
   / ],
 );
 
@@ -95,6 +97,8 @@ sub get_unpacked_addr {
 
 
 ## IRC-related
+
+# lc_ / uc_irc are prototyped to vaguely line up with lc / uc
 sub lc_irc ($;$) {
   my ($string, $casemap) = @_;
   
@@ -123,7 +127,7 @@ sub uc_irc ($;$) {
   $string
 }
 
-sub parse_user ($) {
+sub parse_user {
   my ($full) = @_;
   
   confess "parse_user() called with no arguments"
@@ -136,7 +140,7 @@ sub parse_user ($) {
 
 sub mode_to_hash {
   ## mode_to_hash( $string,
-  ##   param_always => [ 'k', 'b' ],
+  ##   param_always => [ split //, 'bkov' ],
   ##   param_set    => [ 'l' ],
   ##   params       => [ ],
   ## )
@@ -156,7 +160,7 @@ sub mode_to_hash {
 
   my %args = @_;
 
-  $args{param_always} ||= [ 'k', 'b' ];
+  $args{param_always} ||= [ split //, 'bkov' ];
   $args{param_set}    ||= [ 'l' ];
   $args{params}       ||= [ ];
 
@@ -239,6 +243,47 @@ Returns the string (lowercased according to the specified rules).
   my $upper = uc_irc( $string [, $casemap ] );
 
 The reverse of L</lc_irc>.
+
+=head3 mode_to_hash
+
+  my $hash = mode_to_hash( 
+    ## Mode change string without params, e.g. '+kl-t'
+    $mode_string,
+
+    ## Modes that always have a param:
+    param_always => ARRAY,
+    
+    ## Modes that only have a param when set:
+    param_set    => ARRAY,
+    
+    ## Respective params for modes specified above:
+    params       => ARRAY,
+  );
+
+Given a mode string (without params) and some options, return a HASH with 
+the keys B<add> and B<del>.
+
+B<add> and B<del> are HASHes mapping mode characters to either a simple 
+boolean true value or an ARRAY whose only element is the mode's 
+parameters, e.g.:
+
+  mode_to_hash( '+kl-t',
+    params => [ 'key', 10 ],
+    param_always => [ split //, 'bkov' ],
+    param_set    => [ 'l' ],
+  );
+
+  ## Result:
+  {
+    add => {
+      'l' => [ 10 ],
+      'k' => [ 'key' ],
+    },
+    
+    del => {
+      't' => 1,
+    },
+  }
 
 =head3 parse_user
 

@@ -41,7 +41,6 @@ sub as_array {
   [ map { $self->_channels->{$_}->name } keys %{ $self->_channels } ]
 }
 
-
 sub by_name {
   my ($self, $name) = @_;
   

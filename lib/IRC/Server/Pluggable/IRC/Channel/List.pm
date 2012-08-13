@@ -45,3 +45,45 @@ sub keys {
 }
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::IRC::Channel::List - Base class for channel lists
+
+=head1 SYNOPSIS
+
+FIXME
+
+=head1 DESCRIPTION
+
+Base class for lists used by L<IRC::Server::Pluggable::IRC::Channel> 
+instances, such as ban lists (see 
+L<IRC::Server::Pluggable::IRC::Channel::List::Bans).
+
+=head2 Methods
+
+=head3 add
+
+  $list->add( $key, $value );
+
+=head3 del
+
+  $list->del( $key );
+
+=head3 get
+
+  my $item = $list->get( $key );
+
+=head3 keys
+
+  for my $key ( $list->keys ) {
+    . . .
+  }
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

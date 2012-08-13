@@ -169,7 +169,7 @@ sub mode_to_hash {
       unless ref $args{$_} eq 'ARRAY';
   }
 
-  my $modes;
+  my $modes = { add => {}, del => {} };
 
   my @chunks = split //, $modestr;
 

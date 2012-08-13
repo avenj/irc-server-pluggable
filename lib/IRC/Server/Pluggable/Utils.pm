@@ -7,6 +7,7 @@ use Carp;
 use IRC::Utils qw/matches_mask normalize_mask/;
 
 use base 'Exporter';
+
 our %EXPORT_TAGS = (
 
   network => [ qw/  
@@ -16,6 +17,7 @@ our %EXPORT_TAGS = (
   / ],
 
   irc  => [ qw/
+
     matches_mask
     normalize_mask
 
@@ -28,6 +30,7 @@ our %EXPORT_TAGS = (
 );
 
 our @EXPORT;
+
 {
   my %s;
   push @EXPORT,
@@ -129,6 +132,75 @@ sub parse_user ($) {
   my ($nick, $user, $host) = split /[!@]/, $full;
 
   wantarray ? ($nick, $user, $host) : $nick
+}
+
+sub mode_to_hash {
+  ## mode_to_hash( $string,
+  ##   param_always => [ 'k', 'b' ],
+  ##   param_set    => [ 'l' ],
+  ##   params       => [ ],
+  ## )
+
+  ## Returns HASH like:
+  ##  add => {
+  ##    'o' => [ 'some_nick' ],
+  ##    't' => 1,
+  ##  },
+  ##  del => {
+  ##    'k' => [ 'some_key' ],
+  ##  },
+
+  my $modestr = shift;
+  confess "mode_to_hash() called with no mode string"
+    unless $modestr;
+
+  my %args = @_;
+
+  $args{param_always} ||= [ 'k', 'b' ];
+  $args{param_set}    ||= [ 'l' ];
+  $args{params}       ||= [ ];
+
+  for (qw/ param_always param_set params /) {
+    confess "$_ should be an ARRAY"
+      unless ref $args{$_} eq 'ARRAY';
+  }
+
+  my $modes;
+
+  my @chunks = split //, $modestr;
+
+  my $in = '+';
+  PIECE: while (my $chunk = shift @chunks) {
+    if ($chunk eq '-' || $chunk eq '+') {
+      $in = $chunk;
+      next PIECE
+    }
+    
+    if ($in eq '+') {
+
+      if ($chunk ~~ @{$args{param_always}} ||
+          $chunk ~~ @{$args{param_set}}) {
+        ## Modes that have params always or when set.
+        ## Value for this mode will be an ARRAY with one value.
+        $modes->{add}->{$chunk} = [ shift @{$args{params}} ];
+      } else {
+        ## ... otherwise, simple boolean true
+        $modes->{add}->{$chunk} = 1;
+      }
+
+    } else {
+
+      if ($chunk ~~ @{$args{param_always}}) {
+        $modes->{del}->{$chunk} = [ shift @{$args{params}} ];
+      } else {
+        $modes->{del}->{$chunk} = 1;
+      }
+    }
+
+  }  ## PIECE
+
+
+  $modes
 }
 
 

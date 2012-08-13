@@ -259,8 +259,13 @@ sub ircsock_listener_removed {
   $self->emit_now( 'listener_removed', $listener )
 }
 
-
 sub dispatch {
+  my $self = shift;
+  
+  $self->yield( 'dispatch', @_ )
+}
+
+sub dispatch_now {
   my $self = shift;
 
   $self->call( 'dispatch', @_ )

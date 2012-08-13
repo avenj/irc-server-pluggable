@@ -6,8 +6,13 @@ use Carp;
 use Moo::Role;
 
 
-requires 'casemap';
-
+sub __get_cmap {
+  my ($self) = @_;
+  
+  $self->can('protocol') ? $self->protocol->casemap
+   : $self->can('casemap') ? $self->casemap
+    : confess "Could not retrieve casemap()"
+}
 
 sub lower {
   my ($self, $name) = @_;
@@ -17,7 +22,7 @@ sub lower {
     return
   }
 
-  lc_irc( $name, $self->casemap )
+  lc_irc( $name, $self->__get_cmap )
 }
 
 sub upper {
@@ -28,7 +33,7 @@ sub upper {
     return
   }
 
-  uc_irc( $name, $self->casemap )
+  uc_irc( $name, $self->__get_cmap )
 }
 
 sub equal {
@@ -43,13 +48,7 @@ sub equal {
 }
 
 
-q{
- <avenj> I already emailed it to your mom    
- <Capn_Refsmmat> did I mention that she looked through my facebook 
-  friends once and found you? 
- <Capn_Refsmmat> she was worried
-};
-
+1;
 
 =pod
 

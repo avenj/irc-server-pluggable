@@ -14,10 +14,11 @@ use IRC::Server::Pluggable qw/
 /;
 
 
-has 'casemap' => (
+has 'protocol' => (
   required => 1,
+  weak_ref => 1,
   is  => 'ro',
-  isa => CaseMap,
+  isa => ProtocolClass,
 );
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
@@ -59,9 +60,7 @@ sub add {
     unless is_Object($chan)
     and $chan->isa('IRC::Server::Pluggable::IRC::Channel');
 
-  my $name = $self->lower( $chan->name );
-
-  $self->_channels->{$name} = $chan;
+  $self->_channels->{ $self->lower($chan->name) } = $chan;
 
   $chan
 }
@@ -72,9 +71,7 @@ sub del {
   confess "del() called with no channel specified"
     unless defined $name;
 
-  $name = $self->lower($name);
-  
-  delete $self->_channels->{$name}
+  delete $self->_channels->{ $self->lower($name) }
 }
 
 

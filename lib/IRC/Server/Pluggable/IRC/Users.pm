@@ -14,10 +14,11 @@ use IRC::Server::Pluggable qw/
 /;
 
 
-has 'casemap' => (
+has 'protocol' => (
   required => 1,
+  weak_ref => 1,
   is  => 'ro',
-  isa => CaseMap,
+  isa => ProtocolClass,
 );
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
@@ -94,7 +95,7 @@ IRC::Server::Pluggable::IRC::Users - Base class for User object tracking
 
   ## Create a User tracker
   my $users = IRC::Server::Pluggable::IRC::Users->new(
-    casemap => 'rfc1459',
+    protocol => $protocol_obj,
   );
 
   ## Add User objects
@@ -119,11 +120,11 @@ L<IRC::Server::Pluggable::Protocol> classes can use this to manage a
 collection of L<IRC::Server::Pluggable::IRC::User> (or subclasses 
 thereof) objects.
 
-An appropriate casemap value (see L</"casemap"> should be specified 
-during construction:
+An appropriate L<IRC::Server::Pluggable::Protocol> should be specified at 
+construction time:
 
   my $users = IRC::Server::Pluggable::IRC::Users->new(
-    casemap => $my_casemap,
+    protocol => $protocol,
   );
 
 =head2 Attributes

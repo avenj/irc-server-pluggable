@@ -154,6 +154,10 @@ sub chg_status {
   $self->nicknames->{$nickname} = [ sort @$final ];
 }
 
+sub chg_modes {
+  ## FIXME take a hash from mode_to_hash
+}
+
 
 no warnings 'void';
 q{

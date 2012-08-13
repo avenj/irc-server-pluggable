@@ -183,7 +183,7 @@ has 'users' => (
     require IRC::Server::Pluggable::IRC::Users;    
 
     IRC::Server::Pluggable::IRC::Users->new(
-      casemap => $self->casemap,
+      protocol => $self,
     )    
   },  
 );
@@ -205,7 +205,7 @@ has 'channels' => (
     require IRC::Server::Pluggable::IRC::Channels;
     
     IRC::Server::Pluggable::IRC::Channels->new(
-      casemap => $self->casemap,
+      protocol => $self,
     )
   },
 );

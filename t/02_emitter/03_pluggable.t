@@ -73,5 +73,5 @@ sub _start {
 }
 
 sub emitted_registered {
-
+  $_[ARG0]->shutdown  ## FIXME
 }

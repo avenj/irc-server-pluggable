@@ -230,7 +230,7 @@ sub _trigger_object_states {
 
   for (my $i=1; $i <= (scalar(@$states) - 1 ); $i+=2 ) {
     my $events = $states->[$i];
-    my $evarr = ref $events eq 'ARRAY' ? $events : keys %$events;
+    my $evarr = ref $events eq 'ARRAY' ? $events : [ keys %$events ];
 
     for my $ev (@$evarr) {
       confess "Disallowed handler: $ev"

@@ -5,6 +5,11 @@ package IRC::Server::Pluggable::IRC::User;
 use 5.12.1;
 use strictures 1;
 
+use overload
+  bool     => sub { 1 },
+  '""'     => 'nick',
+  fallback => 1;
+
 use Carp;
 use Moo;
 
@@ -164,25 +169,22 @@ sub _set_modes_from_ref {
 sub _parse_mode_str {
   my ($self, $str) = @_;
 
+  ## FIXME
+  ## Doesn't currently handle params at all.
+  ## Should be swapped out for Utils::mode_to_hash
+
   my %res = ( add => [], del => [] );
   
   my $in_add = 1;
   for (split '', $str) {
-    when ('+') {
-      $in_add = 1;
-    }
+    $in_add = 1 when '+';
+    $in_add = 0 when '-';
     
-    when ('-') {
-      $in_add = 0;
-    }
-    
-    when (/A-Za-z/) {
-      if ($in_add) {
-        push(@{$res{add}}, $_)
-      } else {
-        push(@{$res{del}}, $_)
-      }
-    }
+    push(
+      @{ 
+        $res{ ($in_add ? 'add' : 'del') }
+      },  $_ 
+    ) when /A-Z/i;
     
     default {
       carp "Could not parse mode change $_ in $str";

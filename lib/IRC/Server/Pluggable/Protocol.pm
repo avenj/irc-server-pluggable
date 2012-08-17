@@ -234,7 +234,7 @@ sub BUILD {
         ## peer_* cmds:
         ## FIXME
 #        qw/
-#          backend_ev_peer_
+#          backend_ev_peer_cmd_
 #        /,
         
         ## client_* cmds:
@@ -246,7 +246,7 @@ sub BUILD {
         ## unknown_* cmds:
         ## FIXME
 #        qw/
-#          backend_ev_unknown_
+#          backend_ev_unknown_cmd_
 #        /,
       ],
 
@@ -292,19 +292,19 @@ sub backend_ev_listener_created {
 
 ## peer_* handlers
 
-sub backend_ev_peer_ping {
+sub backend_ev_peer_cmd_ping {
 
 }
 
-sub backend_ev_peer_pong {
+sub backend_ev_peer_cmd_pong {
 
 }
 
-sub backend_ev_peer_squit {
+sub backend_ev_peer_cmd_squit {
 
 }
 
-sub backend_ev_PEER_NUMERIC {
+sub backend_ev_peer_numeric {
   ## Numeric from peer intended for a client of ours.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
@@ -324,23 +324,23 @@ sub backend_ev_PEER_NUMERIC {
 
 ## unknown_* handlers
 
-sub backend_ev_unknown_nick {
+sub backend_ev_unknown_cmd_nick {
 
 }
 
-sub backend_ev_unknown_server {
+sub backend_ev_unknown_cmd_server {
 
 }
 
-sub backend_ev_unknown_user {
+sub backend_ev_unknown_cmd_user {
 
 }
 
-sub backend_ev_unknown_pass {
+sub backend_ev_unknown_cmd_pass {
 
 }
 
-sub backend_ev_unknown_error {
+sub backend_ev_unknown_cmd_error {
 
 }
 

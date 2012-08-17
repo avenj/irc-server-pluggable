@@ -146,17 +146,17 @@ sub ircsock_input {
 
   my $cmd = lc($ev->command);
 
-  my $event_name = join '_', $from_type, $cmd ;
+  my $event_name = join '_', $from_type, 'cmd', $cmd ;
 
   if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
     ## Numerics from peers are headed to client wheels.
 
-    ## P_peer_NUMERIC / backend_ev_peer_NUMERIC / N_peer_NUMERIC :  
+    ## P_peer_numeric / backend_ev_peer_numeric / N_peer_numeric :  
 
     return
-      if $self->process( 'peer_NUMERIC', $conn, $ev ) == EAT_NONE;
+      if $self->process( 'peer_numeric', $conn, $ev ) == EAT_NONE;
     
-    $self->emit_now( 'peer_NUMERIC', $conn, $ev );
+    $self->emit_now( 'peer_numeric', $conn, $ev );
 
     return
   }

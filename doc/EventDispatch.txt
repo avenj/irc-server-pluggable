@@ -1,13 +1,13 @@
-IRC -> IRC RAW INPUT ->
-  -> BACKEND (Backend.pm) ->
-      Sends ircsock_input( $conn_obj, $event_obj )
-    -> DISPATCH (Dispatcher.pm) ->
-      
-      -> PROTOCOL (Protocol.pm) ->
-        
-        <- OUTPUT EVENT <-
-      <- DISPATCH <-
+IRC -> Filter -> Backend
+  { ircsock_* event post }
 
-    <- BACKEND <-
+    -> Dispatcher (ISA Emitter)
+    { process() / emit() }
 
-IRC <-
+      -> Protocol  <-> [ registered consumer sessions ]
+      { ->dispatcher->dispatch() }
+
+    <- Dispatcher
+    { dispatch() yields send() }
+
+IRC <- Filter <- Backend

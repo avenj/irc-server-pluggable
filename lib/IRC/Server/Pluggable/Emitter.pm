@@ -67,7 +67,7 @@ has 'session_id' => (
   init_arg => undef,
   lazy => 1,
   is   => 'ro',
-  isa  => Defined,  
+  isa  => Defined,
   predicate => 'has_session_id',
   writer    => 'set_session_id',
 );
@@ -118,16 +118,16 @@ sub _start_emitter {
 
     debug => $self->debug,
   );
-  
+
   POE::Session->create(
     object_states => [
 
       $self => {
-      
+
         '_start'   => '_emitter_start',
         '_stop'    => '_emitter_stop',
         'shutdown_emitter' => '__shutdown_emitter',
-        
+
         'register'   => '_emitter_register',
         'unregister' => '_emitter_unregister',
 
@@ -142,11 +142,11 @@ sub _start_emitter {
 
       / ],
 
-      ( 
+      (
         $self->has_object_states ? @{ $self->object_states } : ()
       ),
 
-    ], 
+    ],
   );
 
   $self
@@ -217,7 +217,7 @@ sub process {
 
 sub _trigger_object_states {
   my ($self, $states) = @_;
-  
+
   confess "object_states() should be an ARRAY or HASH"
     unless ref $states eq 'HASH' or ref $states eq 'ARRAY' ;
 
@@ -252,7 +252,7 @@ sub __decr_ses_refc {
   my ($self, $sess_id) = @_;
   --$self->_emitter_reg_sessions->{$sess_id}->{refc};
   $self->_emitter_reg_sessions->{$sess_id}->{refc} = 0
-    unless $self->_emitter_reg_sessions->{$sess_id}->{refc} > 0      
+    unless $self->_emitter_reg_sessions->{$sess_id}->{refc} > 0
 }
 
 sub __get_ses_refc {
@@ -269,14 +269,14 @@ sub __reg_ses_id {
 
 sub _emitter_drop_sessions {
   my ($self) = @_;
-  
+
   for my $id (keys %{ $self->_emitter_reg_sessions }) {
     my $count = $self->__get_ses_refc($id);
 
     $poe_kernel->refcount_decrement(
       $id, 'Emitter running'
     ) while $count-- > 0;
-    
+
     delete $self->_emitter_reg_sessions->{$id}
   }
 
@@ -301,8 +301,8 @@ sub _dispatch_notify {
   for my $regev ('all', $event) {
     if (exists $self->_emitter_reg_events->{$regev}) {
       next unless keys %{ $self->_emitter_reg_events->{$regev} };
-      
-      $sessions{$_} = 1 
+
+      $sessions{$_} = 1
         for values %{ $self->_emitter_reg_events->{$regev} };
     }
   }
@@ -313,7 +313,7 @@ sub _dispatch_notify {
 
   ## Dispatched to N_$event after Sessions have been notified:
   my $eat = $self->_pluggable_process( 'NOTIFY', $event, \@args );
-  
+
   unless ($eat == EAT_ALL) {
     ## Notify registered sessions.
     $kernel->call( $_, $prefix.$event, @args )
@@ -350,11 +350,11 @@ sub _emitter_start {
     $self->_emitter_reg_events->{ 'all' }->{ $s_id } = 1;
 
     ## Detach child session.
-    $kernel->detach_myself;      
+    $kernel->detach_myself;
   }
 
   $self->call( 'emitter_started' );
-  
+
   $self
 }
 
@@ -377,8 +377,8 @@ sub _emitter_sigdie {
   my $event   = $exh->{event};
   my $dest_id = $exh->{dest_session}->ID;
   my $errstr  = $exh->{error_str};
-  
-  warn 
+
+  warn
     "SIG_DIE: Event '$event'  session '$dest_id'\n",
     "  exception: $errstr\n";
 
@@ -395,9 +395,9 @@ sub _emitter_stop {
 sub _shutdown_emitter {
   ## Opposite of _start_emitter
   my $self = shift;
-  
+
   $self->call( 'shutdown_emitter', @_ );
-  
+
   1
 }
 
@@ -421,7 +421,7 @@ sub __shutdown_emitter {
 sub _emitter_register {
   my ($kernel, $self, $sender) = @_[KERNEL, OBJECT, SENDER];
   my @events = @_[ARG0 .. $#_];
-  
+
   @events = 'all' unless @events;
 
   my $s_id = $sender->ID;
@@ -432,13 +432,13 @@ sub _emitter_register {
   for my $event (@events) {
     ## Add session to registered event lists.
     $self->_emitter_reg_events->{$event}->{$s_id} = 1;
-    
+
     ## Make sure registered session hangs around
     ##  (until _unregister or shutdown)
     $kernel->refcount_increment( $s_id, 'Emitter running' )
       if not $self->__get_ses_refc($s_id)
       and $s_id ne $self->session_id ;
-  
+
     $self->__incr_ses_refc( $s_id );
   }
 
@@ -469,7 +469,7 @@ sub _emitter_unregister {
     unless ($self->__get_ses_refc($s_id)) {
       ## No events left for this session.
       delete $self->_emitter_reg_sessions->{$s_id};
-      
+
       $kernel->refcount_decrement( $s_id, 'Emitter running' )
         unless $_[SESSION] == $sender;
     }
@@ -482,8 +482,8 @@ q[
  <tberman> who wnats to sing a song with me?
  <tberman> its the i hate php song
  * rac adds a stanza to tberman's song about braindead variable scoping
-   that just made forums search return a bunch of false positives when 
-   you search for posts by poster and return by topics  
+   that just made forums search return a bunch of false positives when
+   you search for posts by poster and return by topics
 ];
 
 
@@ -497,7 +497,7 @@ IRC::Server::Pluggable::Emitter - Event emitter base class
 
   ## In a subclass:
   package My::EventEmitter;
-  
+
   use Moo;
   extends 'IRC::Server::Pluggable::Emitter';
 
@@ -535,10 +535,10 @@ IRC::Server::Pluggable::Emitter - Event emitter base class
 =head1 DESCRIPTION
 
 This is a base class for a POE-oriented observer pattern implementation; 
-it is based on L<POE::Component::Syndicator> (which may be better suited 
+it is based on L<POE::Component::Syndicator> (which may be better suited
 to general purpose use).
 
-This class inherits from L<Object::Pluggable>; the documentation 
+This class inherits from L<Object::Pluggable>; the documentation
 for plugin manipulation methods can be found there.
 
   FIXME
@@ -546,8 +546,8 @@ for plugin manipulation methods can be found there.
 
 =head2 Creating an Emitter
 
-L</SYNOPSIS> contains an Emitter that uses B<set_$attrib> methods to 
-configure itself when C<spawn()> is called; these attribs can, of course, 
+L</SYNOPSIS> contains an Emitter that uses B<set_$attrib> methods to
+configure itself when C<spawn()> is called; these attribs can, of course,
 be set when your Emitter is instantiated instead.
 
 =head3 Attributes
@@ -564,7 +564,7 @@ FIXME
 
 =head4 event_prefix
 
-B<event_prefix> is prepended to notification events before they are 
+B<event_prefix> is prepended to notification events before they are
 dispatched to registered sessions.
 
 Defaults to I<emitted_>
@@ -573,7 +573,7 @@ Set via B<set_event_prefix>
 
 =head4 register_prefix
 
-B<register_prefix> is prepended to 'register' and 'unregister' methods 
+B<register_prefix> is prepended to 'register' and 'unregister' methods
 called on plugins at load time.
 
 Defaults to I<Emitter_>
@@ -582,8 +582,8 @@ Set via B<set_register_prefix>
 
 =head4 object_states
 
-B<object_states> is an array reference suitable for passing to 
-L<POE::Session>; the subclasses own handlers should be added to 
+B<object_states> is an array reference suitable for passing to
+L<POE::Session>; the subclasses own handlers should be added to
 B<object_states> prior to calling L</_start_emitter>.
 
 Set via B<set_object_states>
@@ -595,7 +595,7 @@ B<session_id> is our Emitter L<POE::Session> ID.
 
 =head3 _start_emitter
 
-B<_start_emitter()> should be called on our object to spawn the actual 
+B<_start_emitter()> should be called on our object to spawn the actual
 Emitter session.
 
 
@@ -611,16 +611,16 @@ FIXME
 
 =head3 NOTIFY events
 
-B<NOTIFY> events are intended to be dispatched asynchronously to our own 
-session, the registered plugin pipeline, and registered sessions, 
+B<NOTIFY> events are intended to be dispatched asynchronously to our own
+session, the registered plugin pipeline, and registered sessions,
 respectively.
 
 See L</emit> for complete details.
 
-=head3 PROCESS events 
+=head3 PROCESS events
 
-B<PROCESS> events are intended to be processed by the plugin pipeline 
-immediately; these are intended for message processing and similar 
+B<PROCESS> events are intended to be processed by the plugin pipeline
+immediately; these are intended for message processing and similar
 synchronous action handled by plugins.
 
 Handlers for B<PROCESS> events are prefixed with C<P_>
@@ -634,9 +634,9 @@ See L</process>.
 
   $self->emit( $event, @args );
 
-B<emit()> dispatches L</"NOTIFY events"> -- these events are dispatched 
-first to our own session (with L</event_prefix> prepended), then the 
-registered plugin pipeline (with C<N_> prepended), then registered 
+B<emit()> dispatches L</"NOTIFY events"> -- these events are dispatched
+first to our own session (with L</event_prefix> prepended), then the
+registered plugin pipeline (with C<N_> prepended), then registered
 sessions (with L</event_prefix> prepended):
 
   With default event_prefix:
@@ -651,21 +651,21 @@ sessions (with L</event_prefix> prepended):
 
   $self->emit_now( $event, @args );
 
-B<emit_now()> synchronously dispatches L</"NOTIFY events"> -- see 
+B<emit_now()> synchronously dispatches L</"NOTIFY events"> -- see
 L</emit>.
 
 =head3 process
 
   $self->process( $event, @args );
 
-B<process()> calls registered plugin handlers for L</"PROCESS events"> 
+B<process()> calls registered plugin handlers for L</"PROCESS events">
 immediately; these are not dispatched to sessions.
 
 =head1 AUTHOR
 
 Jon Portnoy <avenj@cobaltirc.org>
 
-Based largely on L<POE::Component::Syndicator>-0.06 -- I needed something 
+Based largely on L<POE::Component::Syndicator>-0.06 -- I needed something
 Moo-ish I could tweak.
 
 =cut

@@ -65,26 +65,26 @@ my $build = $class->new(
   dist_author   => 'Jon Portnoy <avenj@cobaltirc.org>',
 
   recursive_test_files => 1,
-  
+
   create_readme      => 1,
   create_makefile_pl => 'small',
 
   configure_requires => {
     'Module::Build' => '0.40',
   },
-  
+
   build_requires => {
     'Test::More'      => 0,
     'Test::Exception' => 0,
   },
-  
+
   requires => {
     'perl'     => '5.12.1',
 
     'Carp'     => 0,
     'Exporter' => 0,
     'Socket'   => 2,
-    
+
     'strictures'             => 1,
     'IRC::Utils'             => 0,
     'Moo'                    => '1.000003',

@@ -32,7 +32,7 @@ has 'compressed' => (
 
 has 'idle' => (
   lazy => 1,
-  
+
   is  => 'rwp',
   isa => Num,
 
@@ -65,74 +65,74 @@ has 'is_pending_compress' => (
 
 has 'peeraddr' => (
   required => 1,
-  
+
   isa => Str,
   is  => 'ro',
-  
+
   writer => 'set_peeraddr',
 );
 
 has 'peerport' => (
   required => 1,
-  
+
   isa => Int,
   is  => 'ro',
-  
+
   writer => 'set_peerport',
 );
 
 has 'protocol' => (
   required => 1,
-  
+
   isa => InetProtocol,
   is  => 'ro',
 );
 
 has 'seen' => (
   lazy => 1,
-  
+
   isa => Num,
   is  => 'rw',
-  
+
   default => sub { 0 },
 );
 
 has 'sockaddr' => (
   required => 1,
-  
+
   isa => Str,
   is  => 'ro',
-  
+
   writer => 'set_sockaddr',
 );
 
 has 'sockport' => (
   required => 1,
-  
+
   isa => Int,
   is  => 'ro',
-  
+
   writer => 'set_sockport',
 );
 
 has 'wheel_id' => (
   lazy => 1,
-  
+
   isa => Defined,
   is  => 'ro',
-  
+
   writer => 'set_wheel_id',
 );
 
 has 'wheel' => (
   required => 1,
-  
+
   isa => Wheel,
   is  => 'ro',
-  
+
   clearer => 'clear_wheel',
   writer  => 'set_wheel',
-  
+
   trigger => sub {
     my ($self, $wheel) = @_;
     $self->set_wheel_id( $wheel->ID )

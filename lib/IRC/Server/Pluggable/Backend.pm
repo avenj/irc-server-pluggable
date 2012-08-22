@@ -12,7 +12,7 @@ use IRC::Server::Pluggable qw/
   Backend::Event
   Backend::Listener
   Backend::Wheel
-  
+
   Types
   Utils
 /;
@@ -28,7 +28,7 @@ use POE qw/
   Wheel::SocketFactory
 
   Component::SSLify
-  
+
   Filter::Stackable
   Filter::IRCD
   Filter::Line
@@ -51,10 +51,10 @@ has 'session_id' => (
   lazy => 1,
 
   is  => 'ro',
-  
+
   writer    => 'set_session_id',
   predicate => 'has_session_id',
-  
+
   default => sub { undef },
 );
 
@@ -72,12 +72,12 @@ has 'controller' => (
 
 has 'filter_irc' => (
   lazy => 1,
-  
+
   isa => Filter,
   is  => 'rwp',
 
-  default => sub { 
-    POE::Filter::IRCD->new( colonify => 1 ) 
+  default => sub {
+    POE::Filter::IRCD->new( colonify => 1 )
   },
 );
 
@@ -131,10 +131,10 @@ has 'connectors' => (
 ## These are our connected wheels.
 has 'wheels' => (
   is  => 'rwp',
-  isa => HashRef,  
+  isa => HashRef,
   default => sub { {} },
   clearer => 1,
-); 
+);
 
 
 ## Constants. These class names are long and I am very lazy.
@@ -150,7 +150,7 @@ sub spawn {
   my ($class, %args) = @_;
 
   $args{lc $_} = delete $args{$_} for keys %args;
-  
+
   my $self = $class->new;
 
   my $sess_id = POE::Session->create(
@@ -158,30 +158,30 @@ sub spawn {
       $self => {
         '_start' => '_start',
         '_stop'  => '_stop',
-        
+
         'register' => '_register_controller',
         'shutdown' => '_shutdown',
-        
+
         'send' => '_send',
-                
+
         'create_listener' => '_create_listener',
         'remove_listener' => '_remove_listener',
 
         '_accept_conn' => '_accept_conn',
         '_accept_fail' => '_accept_fail',
         '_idle_alarm'  => '_idle_alarm',
-        
+
         'create_connector'  => '_create_connector',
         '_connector_up'     => '_connector_up',
         '_connector_failed' => '_connector_failed',
-        
+
         '_ircsock_input'    => '_ircsock_input',
         '_ircsock_error'    => '_ircsock_error',
         '_ircsock_flushed'  => '_ircsock_flushed',
       },
     ],
   )->ID;
-  
+
   confess "Unable to spawn POE::Session and retrieve ID()"
     unless $sess_id;
 
@@ -190,7 +190,7 @@ sub spawn {
   if ($args{ssl_opts}) {
     confess "ssl_opts should be an ARRAY"
       unless ref $args{ssl_opts} eq 'ARRAY';
-    
+
     my $ssl_err;
     try {
       POE::Component::SSLify::SSLify_Options(
@@ -206,7 +206,7 @@ sub spawn {
   }
 
   ## FIXME add listeners / connectors here if they're configured?
-  
+
   $self
 }
 
@@ -225,7 +225,7 @@ sub shutdown {
   my $self = shift;
 
   $poe_kernel->post( $self->session_id,
-    'shutdown', 
+    'shutdown',
     @_
   );
 
@@ -252,7 +252,7 @@ sub _register_controller {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   $self->set_controller( $_[SENDER]->ID );
-  
+
   $kernel->refcount_increment( $self->controller, "IRCD Running" );
 
   $kernel->post( $self->controller, 'ircsock_registered', $self );
@@ -269,13 +269,13 @@ sub _accept_conn {
 
   ## Our peer's addr.
   my $n_err;
-  ($n_err, $p_addr) = getnameinfo( 
+  ($n_err, $p_addr) = getnameinfo(
    $p_addr,
    NI_NUMERICHOST | NIx_NOSERV
   );
-  
+
   my $listener = $self->listeners->{$listener_id};
-  
+
   if ( $listener->ssl ) {
     try {
       $sock = POE::Component::SSLify::Client_SSLify($sock)
@@ -284,7 +284,7 @@ sub _accept_conn {
       undef
     } or return;
   }
-  
+
   my $wheel = POE::Wheel::ReadWrite->new(
     Handle => $sock,
     Filter => $self->filter,
@@ -292,12 +292,12 @@ sub _accept_conn {
     ErrorEvent   => '_ircsock_error',
     FlushedEvent => '_ircsock_flushed',
   );
-  
+
   unless ($wheel) {
     carp "Wheel creation failure in _accept_conn";
     return
   }
-  
+
   my $w_id = $wheel->ID;
 
   my $this_conn = WheelClass->new(
@@ -309,7 +309,7 @@ sub _accept_conn {
 
     sockaddr => $sockaddr,
     sockport => $sockport,
-    
+
     seen => time,
     idle => $listener->idle,
   );
@@ -333,7 +333,7 @@ sub _accept_conn {
 sub _idle_alarm {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $w_id = $_[ARG0];
-  
+
   my $this_conn = $self->wheels->{$w_id} || return;
 
   $kernel->post( $self->controller,
@@ -356,11 +356,11 @@ sub _accept_fail {
 
   ## TODO Hmm .. is clearing the listener the right thing to do?
   ##   PoCo::Server::IRC::Backend does it this way ...
-  
+
   my $listener = delete $self->listeners->{$listener_id};
   if ($listener) {
     $listener->clear_wheel;
-    
+
     $kernel->post( $self->controller,
       'ircsock_listener_failure',
       $listener, $op, $errnum, $errstr
@@ -373,7 +373,7 @@ sub create_listener {
   my $self = shift;
 
   $poe_kernel->post( $self->session_id,
-    'create_listener', 
+    'create_listener',
     @_
   );
 
@@ -391,7 +391,7 @@ sub _create_listener {
   my %args = @_[ARG0 .. $#_];
 
   $args{lc $_} = delete $args{$_} for keys %args;
-  
+
   my $idle_time = delete $args{idle}     || 180;
 
   my $bindaddr  = delete $args{bindaddr} || '0.0.0.0';
@@ -422,7 +422,7 @@ sub _create_listener {
     idle  => $idle_time,
     ssl   => $ssl,
   );
-  
+
   $self->listeners->{$id} = $listener;
 
   ## Real bound port/addr
@@ -430,7 +430,7 @@ sub _create_listener {
   $listener->set_port($port) if $port;
 
   ## Tell our controller session
-  $kernel->post( $self->controller, 
+  $kernel->post( $self->controller,
     'ircsock_listener_created',
     $listener
   );
@@ -446,8 +446,8 @@ sub remove_listener {
     unless defined $args{port} or defined $args{listener};
 
   $poe_kernel->post( $self->session_id,
-    'remove_listener', 
-    @_ 
+    'remove_listener',
+    @_
   );
 
   $self
@@ -466,9 +466,9 @@ sub _remove_listener {
       my $listener = $self->listeners->{$id};
       if ($args{port} == $listener->port) {
         delete $self->listeners->{$id};
-        
+
         $listener->clear_wheel;
-        
+
         $kernel->post( $self->controller,
           'ircsock_listener_removed',
           $listener
@@ -485,7 +485,7 @@ sub _remove_listener {
       my $listener = delete $self->listeners->{ $args{listener} };
 
       $listener->clear_wheel;
-      
+
       $kernel->post( $self->controller,
         'ircsock_listener_removed',
         $listener
@@ -493,7 +493,7 @@ sub _remove_listener {
     }
 
   }
-  
+
 }
 
 sub create_connector {
@@ -511,7 +511,7 @@ sub _create_connector {
   ## Connector; try to spawn socket <-> remote peer
   ##  remoteaddr =>
   ##  remoteport =>
-  ## [optional] 
+  ## [optional]
   ##  bindaddr =>
   ##  ipv6 =>
   ##  ssl  =>
@@ -540,21 +540,21 @@ sub _create_connector {
     SuccessEvent   => '_connector_up',
     FailureEvent   => '_connector_failed',
 
-    (defined $args{bindaddr} ? 
+    (defined $args{bindaddr} ?
       (BindAddress => delete $args{bindaddr}) : () ),
   );
 
   my $id = $wheel->ID;
-  
+
   $self->connectors->{$id} = ConnectorClass->new(
     wheel => $wheel,
     addr  => $remote_addr,
     port  => $remote_port,
 
-    (defined $args{ssl}      ? 
+    (defined $args{ssl}      ?
       (ssl      => delete $args{ssl}) : () ),
 
-    (defined $args{bindaddr} ? 
+    (defined $args{bindaddr} ?
       (bindaddr => delete $args{bindaddr}) : () ),
 
     ## Attach any extra args to Connector->args()
@@ -618,10 +618,10 @@ sub _connector_up {
     ## FIXME some way to set an idle timeout for these?
     ##  otherwise defaults to 180 ...
   );
-  
+
   $self->wheels->{$w_id} = $this_conn;
-  
-  $kernel->post( $self->controller, 
+
+  $kernel->post( $self->controller,
     'ircsock_connector_open',
     $this_conn
   );
@@ -634,7 +634,7 @@ sub _connector_failed {
   my $ct = delete $self->connectors->{$c_id};
   $ct->clear_wheel;
 
-  $kernel->post( $self->controller, 
+  $kernel->post( $self->controller,
     'ircsock_connector_failure',
     $ct, $op, $errno, $errstr
   );
@@ -662,7 +662,7 @@ sub _ircsock_input {
   );
 
   ## Send ircsock_input to controller/dispatcher
-  $kernel->post( $self->controller, 
+  $kernel->post( $self->controller,
     'ircsock_input',
     $this_conn,
     $obj
@@ -697,12 +697,12 @@ sub _ircsock_flushed {
     );
     return
   }
-  
+
   if ($this_conn->is_pending_compress) {
     $self->set_compressed_link_now($w_id);
     return
   }
-  
+
 }
 
 sub _send {
@@ -718,7 +718,7 @@ sub send {
 
   if (is_Object($out) &&
     $out->isa('IRC::Server::Pluggable::Backend::Event') ) {
-    
+
     $out = {
       prefix  => $out->prefix,
       params  => $out->params,
@@ -730,7 +730,7 @@ sub send {
     carp "send() takes a HASH and a list of connection IDs";
     return
   }
-  
+
   for my $id (grep { $self->wheels->{$_} } @ids) {
     $self->wheels->{$id}->wheel->put( $out );
   }
@@ -741,12 +741,12 @@ sub send {
 sub disconnect {
   ## Mark a wheel for disconnection.
   my ($self, $w_id, $str) = @_;
-  
+
   confess "disconnect() needs a wheel ID"
     unless defined $w_id;
 
   return unless $self->wheels->{$w_id};
-  
+
   $self->wheels->{$w_id}->is_disconnecting(
     $str || "Client disconnect"
   );
@@ -758,12 +758,12 @@ sub _disconnected {
   ## Wheel needs cleanup.
   my ($self, $w_id, $str) = @_;
   return unless $w_id and $self->wheels->{$w_id};
-  
+
   my $this_conn = delete $self->wheels->{$w_id};
 
   ## Idle timer cleanup
   $poe_kernel->alarm_remove( $this_conn->alarm_id );
-    
+
   if ($^O =~ /(cygwin|MSWin32)/) {
     $this_conn->wheel->shutdown_input;
     $this_conn->wheel->shutdown_output;
@@ -781,26 +781,26 @@ sub _disconnected {
 
 sub set_compressed_link {
   my ($self, $w_id) = @_;
-  
+
   confess "set_compressed_link() needs a wheel ID"
     unless defined $w_id;
 
   return unless $self->wheels->{$w_id};
 
   $self->wheels->{$w_id}->is_pending_compress(1);
-  
+
   $self
 }
 
 sub set_compressed_link_now {
   my ($self, $w_id) = @_;
-  
+
   confess "set_compressed_link() needs a wheel ID"
     unless defined $w_id;
 
-  my $this_conn;  
+  my $this_conn;
   return unless $this_conn = $self->wheels->{$w_id};
-  
+
   $this_conn->wheel->get_input_filter->unshift(
     POE::Filter::Zlib::Stream->new,
   );
@@ -830,7 +830,7 @@ sub unset_compressed_link {
   $this_conn->wheel->get_input_filter->shift;
 
   $this_conn->set_compressed(0);
-  
+
   $self
 }
 
@@ -838,7 +838,7 @@ sub unset_compressed_link {
 
 no warnings 'void';
 q{
- <CaptObviousman> pretend for a moment that I'm stuck with mysql 
+ <CaptObviousman> pretend for a moment that I'm stuck with mysql
  <rnowak> ok, fetching my laughing hat and monocle
 };
 
@@ -893,7 +893,7 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
 
 =head1 DESCRIPTION
 
-A L<POE> IRC backend socket handler based loosely on 
+A L<POE> IRC backend socket handler based loosely on
 L<POE::Component::Server::IRC>.
 
 

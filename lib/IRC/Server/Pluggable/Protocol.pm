@@ -23,17 +23,17 @@ extends 'IRC::Server::Pluggable::Emitter';
 
 has 'dispatcher' => (
   lazy => 1,
-  
+
   is  => 'ro',
-  
+
   predicate => 'has_dispatcher',
   writer    => 'set_dispatcher',
 
   default => sub {
     my ($self) = @_;
-    
+
     require IRC::Server::Pluggable::Dispatcher;
-    
+
     IRC::Server::Pluggable::Dispatcher->new(
       ## FIXME requires backend_opts to construct all the way down
       ##  may make more sense to just require a Dispatcher?
@@ -49,7 +49,7 @@ has 'casemap' => (
 
   is  => 'rw',
   isa => CaseMap,
-  
+
   default => sub { 'rfc1459' },
 );
 
@@ -58,10 +58,10 @@ with 'IRC::Server::Pluggable::Role::CaseMap';
 
 has 'channel_types' => (
   lazy => 1,
-  
+
   is  => 'rw',
   isa => HashRef,
-  
+
   default => sub {
     ## FIXME map channel prefixes to a IRC::Channel subclass?
     ##  These can control the behavior of specific channel types.
@@ -72,37 +72,37 @@ has 'channel_types' => (
 
 has 'max_chan_length' => (
   lazy => 1,
-  
+
   is  => 'rw',
   isa => Int,
-  
+
   default => sub { 30 },
 );
 
 has 'max_nick_length' => (
   lazy => 1,
-  
+
   is  => 'rw',
   isa => Int,
-  
+
   default => sub { 9 },
 );
 
 has 'max_msg_targets' => (
   lazy => 1,
-  
+
   is  => 'rw',
   isa => Int,
-  
+
   default => sub { 4 },
 );
 
 has 'network_name' => (
   lazy => 1,
-  
+
   is  => 'rw',
   isa => Str,
-  
+
   default => sub { 'NoNetworkDefined' },
 );
 
@@ -119,15 +119,15 @@ has 'prefix_map' => (
       '@' => 'o',
       '+' => 'v',
     },
-  },  
+  },
 );
 
 has 'valid_channel_modes' => (
   lazy => 1,
-  
+
   isa => HashRef,
   is  => 'rw',
-  
+
   default => sub {
     ## ISUPPORT CHANMODES=1,2,3,4
     ## Channel modes fit in four categories:
@@ -146,10 +146,10 @@ has 'valid_channel_modes' => (
 
 has 'valid_user_modes' => (
   lazy => 1,
-  
+
   isa => ArrayRef,
   is  => 'rw',
-  
+
   default => sub {
     [ split '', 'iaow' ]
   },
@@ -157,10 +157,10 @@ has 'valid_user_modes' => (
 
 has 'version_string' => (
   lazy => 1,
-  
+
   isa => Str,
   is  => 'rw',
-  
+
   default => sub { ref $_[0] },
 );
 
@@ -170,29 +170,29 @@ has 'users' => (
   lazy => 1,
 
   is => 'ro',
-  
+
   isa => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Users')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Users"
   },
-  
+
   default => sub {
     my ($self) = @_;
-    
-    require IRC::Server::Pluggable::IRC::Users;    
+
+    require IRC::Server::Pluggable::IRC::Users;
 
     IRC::Server::Pluggable::IRC::Users->new(
       protocol => $self,
-    )    
-  },  
+    )
+  },
 );
 
 has 'channels' => (
   lazy => 1,
-  
+
   is => 'ro',
-  
+
   isa => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Channels')
@@ -201,9 +201,9 @@ has 'channels' => (
 
   default => sub {
     my ($self) = @_;
-    
+
     require IRC::Server::Pluggable::IRC::Channels;
-    
+
     IRC::Server::Pluggable::IRC::Channels->new(
       protocol => $self,
     )
@@ -221,8 +221,8 @@ sub BUILD {
       $self => {
         'emitter_started' => '_emitter_started',
       },
-      
-      $self => [ 
+
+      $self => [
         ## Connectors and listeners:
         qw/
           backend_ev_connection_idle
@@ -230,19 +230,19 @@ sub BUILD {
           backend_ev_compressed_peer
           backend_ev_listener_created
         /,
-        
+
         ## peer_* cmds:
         ## FIXME
 #        qw/
 #          backend_ev_peer_cmd_
 #        /,
-        
+
         ## client_* cmds:
         ## FIXME
 #        qw/
 #          backend_ev_client_
 #        /,
-        
+
         ## unknown_* cmds:
         ## FIXME
 #        qw/
@@ -315,7 +315,7 @@ sub backend_ev_peer_numeric {
   return unless $this_user;
 
   my $target_wheel = $this_user->conn->wheel_id;
-  
+
   $self->dispatcher->dispatch( $ev, $target_wheel )
 }
 
@@ -351,7 +351,7 @@ sub backend_ev_unknown_cmd_error {
 
 no warnings 'void';
 q{
-<Gilded> I'm only level 24 myself so I try to avoid the hard quests 
+<Gilded> I'm only level 24 myself so I try to avoid the hard quests
  like "Job" or "Sex"
 };
 

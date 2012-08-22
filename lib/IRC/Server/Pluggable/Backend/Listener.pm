@@ -10,10 +10,10 @@ use IRC::Server::Pluggable::Types;
 
 has 'addr'  => (
   required => 1,
-  
+
   isa => Str,
   is  => 'ro',
-  
+
   writer => 'set_addr',
 );
 
@@ -22,21 +22,21 @@ has 'idle'  => (
 
   isa => Num,
   is  => 'rw',
-  
+
   ## FIXME?
 
   predicate => 'has_idle',
   writer    => 'set_idle',
-  
+
   default => sub { 0 },
 );
 
 has 'port'  => (
   required => 1,
-  
+
   isa => Int,
   is  => 'ro',
-  
+
   writer => 'set_port',
 );
 
@@ -45,38 +45,38 @@ has 'protocol' => (
 
   isa => InetProtocol,
   is  => 'ro',
-  
+
   writer => 'set_protocol',
 );
 
 has 'ssl'   => (
   isa => Bool,
   is  => 'ro',
-  
+
   predicate => 'has_ssl',
   writer    => 'set_ssl',
-  
+
   default => sub { 0 },
 );
 
 has 'wheel_id' => (
   lazy => 1,
-  
+
   isa => Defined,
   is  => 'ro',
-  
+
   writer => 'set_wheel_id',
 );
 
 has 'wheel' => (
   required => 1,
-  
+
   isa => Wheel,
   is  => 'ro',
-  
+
   clearer => 'clear_wheel',
   writer  => 'set_wheel',
-  
+
   trigger => sub {
     my ($self, $wheel) = @_;
     $self->set_wheel_id( $wheel->ID )

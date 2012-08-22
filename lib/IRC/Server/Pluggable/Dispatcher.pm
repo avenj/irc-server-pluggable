@@ -44,14 +44,14 @@ has 'backend' => (
 
   default => sub {
     my ($self) = @_;
-    
+
     my $b_class = $self->_backend_class;
 
     { local $@;
       eval "require $b_class";
       confess "Could not load $b_class : $@" if $@;
     }
-    
+
     $b_class->spawn( %{ $self->backend_opts } )
   },
 );
@@ -65,11 +65,11 @@ sub BUILD {
 
   $self->set_object_states(
     [
-      $self => {        
+      $self => {
         'dispatch' => '_dispatch',
         'shutdown' => '_shutdown',
       },
-      
+
       $self => [
         'ircsock_registered',
 
@@ -89,23 +89,23 @@ sub BUILD {
         'ircsock_listener_open',
         'ircsock_listener_removed',
       ],
-      
+
       ( $self->has_object_states ? @{$self->object_states} : () ),
     ],
   );
 
-  
+
   $self->_start_emitter;
 }
 
 sub shutdown {
   my $self = shift;
-  
+
   $poe_kernel->post( $self->session_id,
     'shutdown',
     @_
   );
-  
+
   1
 }
 
@@ -116,14 +116,14 @@ sub _shutdown {
     'shutdown',
     @_[ARG0 .. $#_]
   );
-  
+
   $self->_yield( '_emitter_shutdown' );
 }
 
 
 sub ircsock_registered {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  
+
   my $backend = $_[ARG0];
 
   $self->set_backend( $backend )
@@ -131,7 +131,7 @@ sub ircsock_registered {
 
 sub ircsock_connection_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  
+
   $self->emit_now( 'connection_idle', @_[ARG0 .. $#_] );
 }
 
@@ -139,9 +139,9 @@ sub ircsock_input {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
-  my $from_type = 
-    $conn->is_peer   ? 'peer'   : 
-    $conn->is_client ? 'client' : 
+  my $from_type =
+    $conn->is_peer   ? 'peer'   :
+    $conn->is_client ? 'client' :
                        'unknown';
 
   my $cmd = lc($ev->command);
@@ -151,18 +151,18 @@ sub ircsock_input {
   if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
     ## Numerics from peers are headed to client wheels.
 
-    ## P_peer_numeric / backend_ev_peer_numeric / N_peer_numeric :  
+    ## P_peer_numeric / backend_ev_peer_numeric / N_peer_numeric :
 
     return
       if $self->process( 'peer_numeric', $conn, $ev ) == EAT_NONE;
-    
+
     $self->emit_now( 'peer_numeric', $conn, $ev );
 
     return
   }
 
   ## process() via our plugin pipeline:
-  return 
+  return
     if $self->process( $event_name, $conn, $ev ) == EAT_NONE;
 
   ## .. then emit_now() to registered sessions:
@@ -191,7 +191,7 @@ sub ircsock_connector_failure {
 
   ## Not much a plugin can do here, particularly ...
   ## emit_now() only:
-  $self->emit_now( 'connector_failure', @_[ARG0 .. ARG3] ) 
+  $self->emit_now( 'connector_failure', @_[ARG0 .. ARG3] )
 }
 
 sub ircsock_compressed {
@@ -222,7 +222,7 @@ sub ircsock_listener_created {
   my $listener = $_[ARG0];
 
   my $event_name = 'listener_created';
-  
+
   return
     if $self->process( $event_name, $listener ) == EAT_NONE;
 
@@ -261,7 +261,7 @@ sub ircsock_listener_removed {
 
 sub dispatch {
   my $self = shift;
-  
+
   $self->yield( 'dispatch', @_ )
 }
 
@@ -274,7 +274,7 @@ sub dispatch_now {
 sub _dispatch {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD :	
+  ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD :
   my ($out, @ids) = $_[ARG0 .. $#_];
 
   return
@@ -285,12 +285,12 @@ sub _dispatch {
 
 no warnings 'void';
 q{
- <nitric> the more you think about facebook actions in real life, the 
+ <nitric> the more you think about facebook actions in real life, the
   weirder facebook seems
- <nitric> irl, I DON'T want people writing on my wall at 1am    
- <nitric> or poking me   
- <Schroedingers_hat> HEY YOU HELP ME WITH MY GARDEN!    
- <Schroedingers_hat> Who are you?    
+ <nitric> irl, I DON'T want people writing on my wall at 1am
+ <nitric> or poking me
+ <Schroedingers_hat> HEY YOU HELP ME WITH MY GARDEN!
+ <Schroedingers_hat> Who are you?
  <Schroedingers_hat> GIVE ME SOME CARROTS
 };
 

@@ -25,10 +25,10 @@ has 'command' => (
 
   isa => Str,
   is  => 'ro',
-  
+
   predicate => 'has_command',
   writer    => 'set_command',
-  
+
   default => sub { '' },
 );
 
@@ -40,7 +40,7 @@ has 'params' => (
 
   predicate => 'has_params',  
   writer    => 'set_params',
-  
+
   default => sub { [] },
 );
 
@@ -52,7 +52,7 @@ has 'raw_line' => (
 
   predicate => 'has_raw_line',
   writer    => 'set_raw_line',
-  
+
   default => sub { '' },
 );
 

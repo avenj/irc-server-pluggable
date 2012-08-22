@@ -8,13 +8,12 @@ use Carp;
 
 sub import {
   my $self = shift;
-
   my @modules = @_;
-  
+
   my $pkg = caller;
-  
+
   my @failed;
-  
+
   for my $module (@modules) {
     my $c =
       "package $pkg; use IRC::Server::Pluggable::$module;" ;
@@ -25,7 +24,7 @@ sub import {
       push @failed, $module;
     }
   }
-  
+
   confess "Failed to import ".join ' ', @failed
     if @failed;
 

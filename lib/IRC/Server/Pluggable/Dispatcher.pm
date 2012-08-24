@@ -60,7 +60,7 @@ has 'backend' => (
 sub BUILD {
   my ($self) = @_;
 
-  $self->set_event_prefix( "backend_ev_" )
+  $self->set_event_prefix( "irc_ev_" )
     unless $self->has_event_prefix;
 
   $self->set_object_states(
@@ -154,7 +154,8 @@ sub ircsock_input {
   if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
     ## Numerics from peers are headed to client wheels.
 
-    ## P_peer_numeric / backend_ev_peer_numeric / N_peer_numeric :
+    ## P_peer_numeric
+    ## irc_ev_peer_numeric / N_peer_numeric
 
     return
       if $self->process( 'peer_numeric', $conn, $ev ) == EAT_ALL;

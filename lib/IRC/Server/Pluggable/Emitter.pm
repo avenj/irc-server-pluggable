@@ -234,7 +234,7 @@ sub _trigger_object_states {
 
     for my $ev (@$evarr) {
       confess "Disallowed handler: $ev"
-        if $ev ~~ @disallowed;
+        if grep { $_ eq $ev } @disallowed;
     }
 
   }

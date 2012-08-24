@@ -179,11 +179,11 @@ sub mode_to_hash {
       $in = $chunk;
       next PIECE
     }
-    
+
     if ($in eq '+') {
 
-      if ($chunk ~~ @{$args{param_always}} ||
-          $chunk ~~ @{$args{param_set}}) {
+      if (grep { $_ eq $chunk } @{$args{param_always}} ||
+          grep { $_ eq $chunk } @{$args{param_set}}) {
         ## Modes that have params always or when set.
         ## Value for this mode will be an ARRAY with one value.
         $modes->{add}->{$chunk} = [ shift @{$args{params}} ];
@@ -194,7 +194,7 @@ sub mode_to_hash {
 
     } else {
 
-      if ($chunk ~~ @{$args{param_always}}) {
+      if (grep { $_ eq $chunk } @{$args{param_always}}) {
         $modes->{del}->{$chunk} = [ shift @{$args{params}} ];
       } else {
         $modes->{del}->{$chunk} = 1;

@@ -8,7 +8,7 @@ use Moo::Role;
 
 sub __get_cmap {
   my ($self) = @_;
-  
+
   $self->can('protocol') ? $self->protocol->casemap
    : $self->can('casemap') ? $self->casemap
     : confess "Could not retrieve casemap()"
@@ -43,7 +43,7 @@ sub equal {
     carp "equal() called without enough arguments";
     return
   }
-  
+
   $self->upper($one) eq $self->upper($two) ? 1 : 0
 }
 
@@ -59,18 +59,20 @@ IRC::Server::Pluggable::Role::CaseMap - IRC casemap-aware lc/uc
 =head1 SYNOPSIS
 
   use Moo;
-  
+
   has 'casemap' => (
     is  => 'ro',
 
     isa => sub {
-      $_[0] ~~ qw/rfc1459 strict-rfc1459 ascii/
+      my $value = $_[0];
+      defined $value
+        and (grep { $_ eq $value} qw/rfc1459 strict-rfc1459 ascii/)
         or die "$_[0] is not a known valid IRC casemap"
     },
 
     default => sub { "rfc1459" },
   );
-  
+
   with 'IRC::Server::Pluggable::Role::CaseMap';
 
 =head1 DESCRIPTION

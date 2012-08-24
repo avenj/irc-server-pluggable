@@ -36,8 +36,8 @@ has 'nicknames' => (
 
 has 'modes' => (
   ##  Status modes are handled via nicknames hash and chg_status()
-  ##  Relies on ->prefix_map() and ->valid_channel_modes() from Protocol 
-  ##  to find out what modes actually are/do, so this all has to be 
+  ##  Relies on ->prefix_map() and ->valid_channel_modes() from Protocol
+  ##  to find out what modes actually are/do, so this all has to be
   ##  outside of these per-channel objects
   lazy => 1,
 
@@ -52,10 +52,10 @@ has 'modes' => (
 has '_list_classes' => (
   ## Map list keys to classes
   lazy => 1,
-  
+
   is  => 'ro',
   isa => HashRef,
-  
+
   default => sub {
     my $base = "IRC::Server::Pluggable::IRC::Channel::List::";
 
@@ -63,7 +63,7 @@ has '_list_classes' => (
       bans => $base . "Bans",
     },
   },
-  
+
   writer => '_set_list_classes',
 );
 
@@ -71,7 +71,7 @@ has '_list_classes' => (
 has 'lists' => (
   ## Ban lists, etc
   lazy => 1,
-  
+
   is  => 'ro',
   isa => HashRef,
 
@@ -83,20 +83,20 @@ has 'lists' => (
 
     for my $key (keys %{ $self->_list_classes }) {
       my $class = $self->_list_classes->{$key};
-      
+
       require $class;
-      
+
       $listref->{$key} = $class->new;
     }
-    
+
     $listref
   },
-  
+
   writer => 'set_lists',
 );
 
 
-## IMPORTANT: These functions all currently expect a higher 
+## IMPORTANT: These functions all currently expect a higher
 ##  level layer to handle upper/lower case manipulation.
 ##  May reconsider this later ...
 
@@ -112,13 +112,13 @@ sub add_user {
     carp "add_user passed non-ARRAY params argument for $nickname";
     return
   }
-  
+
   $self->nicknames->{$nickname} = $data // []
 }
 
 sub del_user {
   my ($self, $nickname) = @_;
-  
+
   delete $self->nicknames->{$nickname}
 }
 
@@ -144,16 +144,18 @@ sub chg_status {
 
   my $final;
   unless ($final = $self->nicknames->{$nickname}) {
-    carp 
+    carp
       "chg_status() called on $nickname but not present on ".$self->name;
-    
+
     return
   }
-  
+
   if (defined $exclude && (my @splitex = split //, $exclude) ) {
+   ## FIXME
+   ##  smart-match needs to go and this is probably stupid.
     $final = [ grep { !($_ ~~ @splitex) } @$final ]
   }
-  
+
   push @$final, split //, $modestr;
 
   $self->nicknames->{$nickname} = [ sort @$final ];
@@ -166,8 +168,8 @@ sub chg_modes {
 
 no warnings 'void';
 q{
- <LeoNerd> Hehe.. this does not bode well. I google searched for "MSWin32 
-  socket non blocking connect", to read about how to do it. Got 1 404, 1 
-  ancient article about 1990s UNIX, one about python, then the 4th 
+ <LeoNerd> Hehe.. this does not bode well. I google searched for "MSWin32
+  socket non blocking connect", to read about how to do it. Got 1 404, 1
+  ancient article about 1990s UNIX, one about python, then the 4th
   result is me, talking about how I don't know how to do it.
 };

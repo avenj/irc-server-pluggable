@@ -283,6 +283,7 @@ sub BUILD {
           irc_ev_listener_created
       / ],
 
+      ## Command handlers:
       ( @{ $self->states_unknown_cmds } ),
       ( @{ $self->states_peer_cmds    } ),
       ( @{ $self->states_client_cmds  } ),
@@ -435,6 +436,15 @@ sub irc_ev_peer_numeric {
 
 ## client_* handlers
 
+sub irc_ev_client_cmd_privmsg {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+}
+
+sub irc_ev_client_cmd_notice {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+}
 
 
 ## FIXME need an overridable way to format numeric replies

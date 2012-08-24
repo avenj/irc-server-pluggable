@@ -176,19 +176,25 @@ sub _parse_mode_str {
   my %res = ( add => [], del => [] );
 
   my $in_add = 1;
-  for (split '', $str) {
-    $in_add = 1 when '+';
-    $in_add = 0 when '-';
-
-    push(
-      @{
-        $res{ ($in_add ? 'add' : 'del') }
-      },  $_
-    ) when /A-Z/i;
-
-    default {
-      carp "Could not parse mode change $_ in $str";
+  for my $char (split '', $str) {
+    if ($char eq '+') {
+      $in_add = 1;
+      next
     }
+
+    if ($char eq '-') {
+      $in_add = 0;
+      next
+    }
+
+    if ($char =~ /A-Z/i) {
+      push( @{ $res{ ($in_add ? 'add' : 'del') } },  $_ );
+      next
+    }
+
+    ## ...elsewise no clue what the hell we were given.
+    ## (Protocol side should've returned unknown mode)
+    carp "Unknown value $char in _parse_mode_str($str)"
   }
 
   \%res

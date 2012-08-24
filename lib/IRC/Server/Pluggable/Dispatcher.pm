@@ -146,6 +146,9 @@ sub ircsock_input {
 
   my $cmd = lc($ev->command);
 
+  ## client_cmd_
+  ## peer_cmd_
+  ## unknown_cmd_
   my $event_name = join '_', $from_type, 'cmd', $cmd ;
 
   if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
@@ -174,7 +177,7 @@ sub ircsock_connector_open {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
 
-  my $event_name = 'connected_peer';
+  my $event_name = 'peer_connected';
 
   return
     if $self->process( $event_name, $conn ) == EAT_ALL;
@@ -200,7 +203,7 @@ sub ircsock_compressed {
 
   ## Link is probably burstable
 
-  my $event_name = 'compressed_peer';
+  my $event_name = 'peer_compressed';
 
   return
     if $self->process( $event_name, $conn ) == EAT_ALL;
@@ -215,11 +218,11 @@ sub ircsock_disconnect {
 
   my $event_name;
   if ($conn->is_peer) {
-    $event_name = 'disconnected_peer'
+    $event_name = 'peer_disconnected'
   } elsif ($conn->is_client) {
-    $event_name = 'disconnected_client'
+    $event_name = 'client_disconnected'
   } else {
-    ## FIXME should we care about disconnects from unknown?
+    $event_name = 'unknown_disconnected'
   }
 
   return
@@ -250,9 +253,10 @@ sub ircsock_listener_failure {
 }
 
 sub ircsock_listener_open {
-  ## Accepted connection.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
+
+  ## Accepted connection.
 
   my $event_name = 'listener_accepted';
 
@@ -264,6 +268,7 @@ sub ircsock_listener_open {
 
 sub ircsock_listener_removed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
+
   ## This listener is no longer active (wheel is cleared)
   my $listener = $_[ARG0];
 

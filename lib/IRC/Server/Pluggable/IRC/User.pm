@@ -98,9 +98,9 @@ sub _set_modes_from_ref {
   my ($self, $data) = @_;
 
   my %changed;
-  
+
   if (ref $data eq 'ARRAY') {
-  
+
     MODE: for my $mode (@$data) {
 
       ## Accept [ $flag, $params ] -- default to bool
@@ -108,14 +108,14 @@ sub _set_modes_from_ref {
       if (ref $mode eq 'ARRAY') {
         ($mode, $params) = @$mode;
       }
-    
+
       my ($chg, $flag) = $mode =~ /^(\+|-)([A-Za-z])$/;
 
       unless ($chg && $flag) {
         carp "Could not parse mode change $mode";
         next MODE
       }
-      
+
       ## Boolean flip.
       if ($chg eq '+') {
         unless ($self->modes->{$flag}) {
@@ -137,14 +137,14 @@ sub _set_modes_from_ref {
     ## add => [ mode, ... ],
     ## add => [ [ mode, params ], ... ],
     ## del => [ mode, ... ],
-    
+
     ADD: for my $flag (@{ $data->{add} }) {
       my $params = 1;
       if (ref $flag eq 'ARRAY') {
         ($flag, $params) = @$flag;
       }
 
-      unless ($self->modes->{$flag} 
+      unless ($self->modes->{$flag}
         && $self->modes->{$flag} eq $params) {
 
         $self->modes->{$flag} = $params;
@@ -152,7 +152,7 @@ sub _set_modes_from_ref {
       }
 
     }
-    
+
     DEL: for my $flag (@{ $data->{del} }) {
       if ($self->modes->{$flag}) {
         $changed{$flag} = delete $self->modes->{$flag};
@@ -174,30 +174,30 @@ sub _parse_mode_str {
   ## Should be swapped out for Utils::mode_to_hash
 
   my %res = ( add => [], del => [] );
-  
+
   my $in_add = 1;
   for (split '', $str) {
     $in_add = 1 when '+';
     $in_add = 0 when '-';
-    
+
     push(
-      @{ 
+      @{
         $res{ ($in_add ? 'add' : 'del') }
-      },  $_ 
+      },  $_
     ) when /A-Z/i;
-    
+
     default {
       carp "Could not parse mode change $_ in $str";
     }
   }
-  
+
   \%res
 }
 
 sub modes_as_string {
   my ($self) = @_;
   my $str;
-  $str .= $_ for keys %{ $self->modes };  
+  $str .= $_ for keys %{ $self->modes };
   $str
 }
 

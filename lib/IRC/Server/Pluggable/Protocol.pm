@@ -216,8 +216,6 @@ sub BUILD {
   ### FIXME set up object_states etc and $self->_start_emitter()
   $self->set_object_states(
     [
-      ## FIXME _default handler?
-      ##  may need to catch stuff that should be relayed like numerics?
       $self => {
         'emitter_started' => '_emitter_started',
       },
@@ -225,28 +223,28 @@ sub BUILD {
       $self => [
         ## Connectors and listeners:
         qw/
-          backend_ev_connection_idle
-          backend_ev_connected_peer
-          backend_ev_compressed_peer
-          backend_ev_listener_created
+          irc_ev_connection_idle
+          irc_ev_peer_connected
+          irc_ev_peer_compressed
+          irc_ev_listener_created
         /,
 
         ## peer_* cmds:
         ## FIXME
 #        qw/
-#          backend_ev_peer_cmd_
+#          irc_ev_peer_cmd_
 #        /,
 
         ## client_* cmds:
         ## FIXME
 #        qw/
-#          backend_ev_client_
+#          irc_ev_client_
 #        /,
 
         ## unknown_* cmds:
         ## FIXME
 #        qw/
-#          backend_ev_unknown_cmd_
+#          irc_ev_unknown_cmd_
 #        /,
       ],
 
@@ -268,43 +266,118 @@ sub _emitter_started {
 }
 
 
-sub backend_ev_connection_idle {
+sub irc_ev_connection_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   ## FIXME handle pings
 }
 
-sub backend_ev_connected_peer {
+sub irc_ev_peer_connected {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
 }
 
-sub backend_ev_compressed_peer {
+sub irc_ev_peer_compressed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
 }
 
-sub backend_ev_listener_created {
+sub irc_ev_listener_created {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
+}
+
+
+## unknown_* handlers
+## These primarily deal with registration.
+
+sub irc_ev_unknown_cmd_server {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  unless (@{$ev->params}) {
+    ## FIXME 461
+  }
+
+  ## FIXME
+  ##  check auth
+  ##  check if peer exists
+  ##  set up Peer obj
+  ##  check if we should be setting up compressed_link
+  ##  burst (event for this we can also trigger on compressed_link ?)
+}
+
+sub irc_ev_unknown_cmd_nick {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  unless (@{$ev->params}) {
+    ## FIXME 461
+  }
+
+  ## FIXME
+  ##  NICK/USER may come in indeterminate order
+  ##  set up a User obj appropriately
+  ##  need a method to create/modify these as-needed
+  ##  see notes in PASS/USER
+}
+
+sub irc_ev_unknown_cmd_user {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  unless (@{$ev->params} && @{$ev->params} < 4) {
+   ## FIXME
+   ##  bad args, return numeric 461
+  }
+
+  ## USERNAME HOSTNAME SERVERNAME REALNAME
+  my ($username, undef, $servername, $gecos) = @{$ev->params};
+
+  ## FIXME
+  ##  Set up a User obj if we don't have one from PASS / NICK ?
+}
+
+sub irc_ev_unknown_cmd_pass {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  unless (@{$ev->params}) {
+    ## FIXME 461
+  }
+
+  ## RFC:
+  ## A "PASS" command is not required for either client or server
+  ## connection to be registered, but it must precede the server message
+  ## or the latter of the NICK/USER combination.
+
+  ## Set a pass() for this connection Wheel.
+  $conn->set_pass( $ev->params->[0] )
+    unless $conn->has_pass;
+}
+
+sub irc_ev_unknown_cmd_error {
+  ## FIXME
+  ##  if this is a peer, call a handler event.
+  ##  (may want/need notification)
 }
 
 
 ## peer_* handlers
 
-sub backend_ev_peer_cmd_ping {
+sub irc_ev_peer_cmd_ping {
 
 }
 
-sub backend_ev_peer_cmd_pong {
+sub irc_ev_peer_cmd_pong {
 
 }
 
-sub backend_ev_peer_cmd_squit {
+sub irc_ev_peer_cmd_squit {
 
 }
 
-sub backend_ev_peer_numeric {
+sub irc_ev_peer_numeric {
   ## Numeric from peer intended for a client of ours.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
@@ -322,27 +395,6 @@ sub backend_ev_peer_numeric {
 ## client_* handlers
 
 
-## unknown_* handlers
-
-sub backend_ev_unknown_cmd_nick {
-
-}
-
-sub backend_ev_unknown_cmd_server {
-
-}
-
-sub backend_ev_unknown_cmd_user {
-
-}
-
-sub backend_ev_unknown_cmd_pass {
-
-}
-
-sub backend_ev_unknown_cmd_error {
-
-}
 
 ## FIXME need an overridable way to format numeric replies
 

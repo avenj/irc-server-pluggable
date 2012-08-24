@@ -10,7 +10,7 @@ use base 'Exporter';
 
 our %EXPORT_TAGS = (
 
-  network => [ qw/  
+  network => [ qw/
 
     get_unpacked_addr
 
@@ -101,13 +101,20 @@ sub get_unpacked_addr {
 # lc_ / uc_irc are prototyped to vaguely line up with lc / uc
 sub lc_irc ($;$) {
   my ($string, $casemap) = @_;
-  
   $casemap = lc( $casemap // 'rfc1459' );
 
-  for ($casemap) {
-    $string =~ tr/A-Z[]\\/a-z{}|/  when "strict-rfc1459";
-    $string =~ tr/A-Z/a-z/         when "ascii";
-    default { $string =~ tr/A-Z[]\\~/a-z{}|^/ }
+  CASE: {
+    if ($casemap eq 'strict-rfc1459') {
+      $string =~ tr/A-Z[]\\/a-z{}|/;
+      last CASE
+    }
+
+    if ($casemap eq 'ascii') {
+      $string =~ tr/A-Z/a-z/;
+      last CASE
+    }
+
+    $string =~ tr/A-Z[]\\~/a-z{}|^/
   }
 
   $string
@@ -115,21 +122,28 @@ sub lc_irc ($;$) {
 
 sub uc_irc ($;$) {
   my ($string, $casemap) = @_;
-  
   $casemap = lc( $casemap // 'rfc1459' );
-  
-  for ($casemap) {
-    $string =~ tr/a-z{}|/A-Z[]\\/  when "strict-rfc1459";
-    $string =~ tr/a-z/A-Z/         when "ascii";
-    default { $string =~ tr/a-z{}|^/A-Z[]\\~/ }
+
+  CASE: {
+    if ($casemap eq 'strict-rfc1459') {
+      $string =~ tr/a-z{}|/A-Z[]\\/;
+      last CASE
+    }
+
+    if ($casemap eq 'ascii') {
+      $string =~ tr/a-z/A-Z/;
+      last CASE
+    }
+
+    $string =~ tr/a-z{}|^/A-Z[]\\~/
   }
-  
+
   $string
 }
 
 sub parse_user {
   my ($full) = @_;
-  
+
   confess "parse_user() called with no arguments"
     unless defined $full;
 
@@ -182,8 +196,8 @@ sub mode_to_hash {
 
     if ($in eq '+') {
 
-      if (grep { $_ eq $chunk } @{$args{param_always}} ||
-          grep { $_ eq $chunk } @{$args{param_set}}) {
+      if ( (grep { $_ eq $chunk } @{$args{param_always}}) ||
+           (grep { $_ eq $chunk } @{$args{param_set}})  ) {
         ## Modes that have params always or when set.
         ## Value for this mode will be an ARRAY with one value.
         $modes->{add}->{$chunk} = [ shift @{$args{params}} ];

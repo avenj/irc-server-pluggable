@@ -8,7 +8,9 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
+
 has 'alarm_id' => (
+  ## Idle alarm ID.
   lazy => 1,
 
   isa => Defined,
@@ -19,7 +21,9 @@ has 'alarm_id' => (
   default => sub { 0 },
 );
 
+
 has 'compressed' => (
+  ## zlib filter added.
   lazy => 1,
 
   is  => 'rwp',
@@ -30,7 +34,9 @@ has 'compressed' => (
   default => sub { 0 },
 );
 
+
 has 'idle' => (
+  ## Idle delay.
   lazy => 1,
 
   is  => 'rwp',
@@ -39,11 +45,13 @@ has 'idle' => (
   default => sub { 180 },
 );
 
+
 has 'is_client' => (
   is  => 'rw',
   isa => Bool,
   default => sub { 0 },
 );
+
 
 has 'is_peer' => (
   is => 'rw',
@@ -51,17 +59,21 @@ has 'is_peer' => (
   default => sub { 0 },
 );
 
+
 has 'is_disconnecting' => (
-  ## Bool or string.
+  ## Bool or string (disconnect message)
   is  => 'rw',
   default => sub { 0 },
 );
 
+
 has 'is_pending_compress' => (
+  ## Wheel needs zlib filter after a socket flush.
   isa => Bool,
   is  => 'rw',
   default => sub { 0 },
 );
+
 
 has 'pass' => (
   ## Specified PASS in pre-registration for this connection.
@@ -75,6 +87,7 @@ has 'pass' => (
   clearer   => 'clear_pass',
 );
 
+
 has 'peeraddr' => (
   required => 1,
 
@@ -83,6 +96,7 @@ has 'peeraddr' => (
 
   writer => 'set_peeraddr',
 );
+
 
 has 'peerport' => (
   required => 1,
@@ -93,14 +107,18 @@ has 'peerport' => (
   writer => 'set_peerport',
 );
 
+
 has 'protocol' => (
+  ## 4 or 6.
   required => 1,
 
   isa => InetProtocol,
   is  => 'ro',
 );
 
+
 has 'seen' => (
+  ## TS of last activity on this wheel.
   lazy => 1,
 
   isa => Num,
@@ -108,6 +126,7 @@ has 'seen' => (
 
   default => sub { 0 },
 );
+
 
 has 'sockaddr' => (
   required => 1,
@@ -118,6 +137,7 @@ has 'sockaddr' => (
   writer => 'set_sockaddr',
 );
 
+
 has 'sockport' => (
   required => 1,
 
@@ -127,7 +147,9 @@ has 'sockport' => (
   writer => 'set_sockport',
 );
 
+
 has 'wheel_id' => (
+  ## Actual POE wheel ID.
   lazy => 1,
 
   isa => Defined,
@@ -136,7 +158,9 @@ has 'wheel_id' => (
   writer => 'set_wheel_id',
 );
 
+
 has 'wheel' => (
+  ## Actual POE::Wheel
   required => 1,
 
   isa => Wheel,

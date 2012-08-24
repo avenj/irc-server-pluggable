@@ -210,6 +210,61 @@ has 'channels' => (
   },
 );
 
+has 'states_unknown_cmds' => (
+  lazy => 1,
+
+  is  => 'ro',
+  isa => ArrayRef,
+
+  writer => 'set_states_unknown_cmds',
+
+  default => sub {
+    my ($self) = @_;
+    [ $self => [ qw/
+          irc_ev_unknown_cmd_pass
+          irc_ev_unknown_cmd_nick
+          irc_ev_unknown_cmd_user
+          irc_ev_unknown_cmd_server
+      / ],
+    ],
+  },
+);
+
+has 'states_peer_cmds' => (
+  lazy => 1,
+
+  is  => 'ro',
+  isa => ArrayRef,
+
+  writer => 'set_states_peer_cmds',
+
+  default => sub {
+    my ($self) = @_;
+    [ $self => [ qw/
+          irc_ev_peer_cmd_squit
+      / ],
+    ],
+  },
+);
+
+has 'states_client_cmds' => (
+  lazy => 1,
+
+  is  => 'ro',
+  isa => ArrayRef,
+
+  writer => 'set_states_client_cmds',
+
+  default => sub {
+    my ($self) = @_;
+    [ $self => [ qw/
+          irc_ev_client_cmd_privmsg
+          irc_ev_client_cmd_notice
+      / ],
+    ],
+  },
+);
+
 sub BUILD {
   my ($self) = @_;
 
@@ -220,33 +275,17 @@ sub BUILD {
         'emitter_started' => '_emitter_started',
       },
 
-      $self => [
-        ## Connectors and listeners:
-        qw/
+      ## Connectors and listeners:
+      $self => [ qw/
           irc_ev_connection_idle
           irc_ev_peer_connected
           irc_ev_peer_compressed
           irc_ev_listener_created
-        /,
+      / ],
 
-        ## peer_* cmds:
-        ## FIXME
-#        qw/
-#          irc_ev_peer_cmd_
-#        /,
-
-        ## client_* cmds:
-        ## FIXME
-#        qw/
-#          irc_ev_client_
-#        /,
-
-        ## unknown_* cmds:
-        ## FIXME
-#        qw/
-#          irc_ev_unknown_cmd_
-#        /,
-      ],
+      ( @{ $self->states_unknown_cmds } ),
+      ( @{ $self->states_peer_cmds    } ),
+      ( @{ $self->states_client_cmds  } ),
 
       ## May have other object_states specified at construction time:
       (
@@ -335,7 +374,9 @@ sub irc_ev_unknown_cmd_user {
   my ($username, undef, $servername, $gecos) = @{$ev->params};
 
   ## FIXME
-  ##  Set up a User obj if we don't have one from PASS / NICK ?
+  ##  Need to set up a User obj if we don't have one from NICK
+  ##  Need method(s) to check auth; incl. passwd auth if $conn->has_pass
+  ##  Need registration method(s)
 }
 
 sub irc_ev_unknown_cmd_pass {

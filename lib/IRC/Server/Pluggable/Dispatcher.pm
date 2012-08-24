@@ -154,7 +154,7 @@ sub ircsock_input {
     ## P_peer_numeric / backend_ev_peer_numeric / N_peer_numeric :
 
     return
-      if $self->process( 'peer_numeric', $conn, $ev ) == EAT_NONE;
+      if $self->process( 'peer_numeric', $conn, $ev ) == EAT_ALL;
 
     $self->emit_now( 'peer_numeric', $conn, $ev );
 
@@ -163,7 +163,7 @@ sub ircsock_input {
 
   ## process() via our plugin pipeline:
   return
-    if $self->process( $event_name, $conn, $ev ) == EAT_NONE;
+    if $self->process( $event_name, $conn, $ev ) == EAT_ALL;
 
   ## .. then emit_now() to registered sessions:
   $self->emit_now( $event_name, $conn, $ev );
@@ -177,9 +177,9 @@ sub ircsock_connector_open {
   my $event_name = 'connected_peer';
 
   return
-    if $self->process( $event_name, $conn ) == EAT_NONE;
+    if $self->process( $event_name, $conn ) == EAT_ALL;
 
-  $self->emit_now( $event_name, $conn )
+  $self->emit_now( $event_name, $conn );
 }
 
 sub ircsock_connector_failure {
@@ -198,12 +198,12 @@ sub ircsock_compressed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
 
-  ## FIXME ircsock is (probably) burstable.
+  ## Link is probably burstable
 
   my $event_name = 'compressed_peer';
 
   return
-    if $self->process( $event_name, $conn ) == EAT_NONE;
+    if $self->process( $event_name, $conn ) == EAT_ALL;
 
   $self->emit_now( $event_name, $conn );
 }
@@ -213,8 +213,19 @@ sub ircsock_disconnect {
   ## This $conn has had its wheel cleared.
   my $conn = $_[ARG0];
 
-  ## FIXME figure out type, dispatch accordingly
-  ##  should Protocol layer care about unknown disconnects ... ?
+  my $event_name;
+  if ($conn->is_peer) {
+    $event_name = 'disconnected_peer'
+  } elsif ($conn->is_client) {
+    $event_name = 'disconnected_client'
+  } else {
+    ## FIXME should we care about disconnects from unknown?
+  }
+
+  return
+    if $self->process( $event_name, $conn ) == EAT_ALL;
+
+  $self->emit_now( $event_name, $conn )
 }
 
 sub ircsock_listener_created {
@@ -224,7 +235,7 @@ sub ircsock_listener_created {
   my $event_name = 'listener_created';
 
   return
-    if $self->process( $event_name, $listener ) == EAT_NONE;
+    if $self->process( $event_name, $listener ) == EAT_ALL;
 
   $self->emit_now( $event_name, $listener );
 }
@@ -246,9 +257,9 @@ sub ircsock_listener_open {
   my $event_name = 'listener_accepted';
 
   return
-    if $self->process( $event_name, $conn ) == EAT_NONE;
+    if $self->process( $event_name, $conn ) == EAT_ALL;
 
-  $self->emit_now( $event_name, $conn )
+  $self->emit_now( $event_name, $conn );
 }
 
 sub ircsock_listener_removed {
@@ -278,7 +289,7 @@ sub _dispatch {
   my ($out, @ids) = $_[ARG0 .. $#_];
 
   return
-    if $self->process( 'message_dispatch', $out, \@ids ) == EAT_NONE;
+    if $self->process( 'message_dispatch', $out, \@ids ) == EAT_ALL;
 
   $self->backend->send( $out, @ids )
 }

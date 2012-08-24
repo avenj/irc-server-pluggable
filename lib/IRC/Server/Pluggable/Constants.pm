@@ -20,13 +20,7 @@ our @EXPORT = qw/
 /;
 
 
-no warnings 'void';
-q{
- <bob2> your question is similar to "why can't I jam burritos in my 
-  earholes"
- <bob2> the answer is "well, you can, but it's a fucking 
-  stupid idea that won't help you make your crappy php forum work"
-};
+1;
 
 =pod
 

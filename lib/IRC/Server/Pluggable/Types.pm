@@ -42,22 +42,32 @@ my $type_definitions = [
     message => sub { "$_[0] is not a IRC::Server::Pluggable::Protocol" },
   },
 
-  ## IRC bits  
+  ## IRC bits
   {
     name => 'CaseMap',
     test => sub {
       is_Str($_[0]) &&
       (
-       $_[0] eq 'rfc1459' 
-       || $_[0] eq 'ascii' 
+       $_[0] eq 'rfc1459'
+       || $_[0] eq 'ascii'
        || $_[0] eq 'strict-rfc1459'
       )
     },
-    message => sub { 
+    message => sub {
      "$_[0] is not a valid IRC casemap, "
      ."should be one of: rfc1459, ascii, strict-rfc1459"
     },
   },
+  {
+    name => 'IRC_Nickname',
+    test => sub {
+      is_Str($_[0]) && length($_[0]) &&
+      ## Regexp borrowed from IRC::Utils
+      $_[0] =~ /^[A-Za-z_`\-^\|\\\{}\[\]][A-Za-z_0-9`\-^\|\\\{}\[\]]*$/;
+    },
+    message => sub { "$_[0] is not a valid IRC nickname" },
+  },
+
 
   ## Misc
   {

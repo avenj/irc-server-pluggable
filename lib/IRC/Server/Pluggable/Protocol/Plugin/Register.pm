@@ -129,16 +129,14 @@ sub N_connection {
 sub _maybe_finished {
   my ($self, $conn) = @_;
 
-  my $id = $conn->wheel_id;
-
   my $ref;
-  return unless $ref = $self->pending->{$id};
+  return unless $ref = $self->pending->{ $conn->wheel_id };
 
   return unless defined $ref->{host}
     and defined $ref->{ident};
 
   ## If we're done, tell our emitter.
-  delete $self->pending->{$id};
+  delete $self->pending->{ $conn->wheel_id };
   my $host  = $ref->{host}  eq '' ? undef : $ref->{host};
   my $ident = $ref->{ident} eq '' ? undef : $ref->{ident};
   $self->proto->emit( 'register_complete',

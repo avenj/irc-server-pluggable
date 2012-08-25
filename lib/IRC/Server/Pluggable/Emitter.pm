@@ -209,9 +209,7 @@ sub process {
   ##  and return the EAT value.
 
   ## Dispatched to P_$event :
-  $self->_pluggable_process( 'PROCESS', $event, \@args );
-
-  $self
+  $self->_pluggable_process( 'PROCESS', $event, \@args )
 }
 
 

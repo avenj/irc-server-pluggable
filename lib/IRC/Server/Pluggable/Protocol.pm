@@ -12,6 +12,7 @@ use POE;
 
 use IRC::Server::Pluggable qw/
   IRC::Channel
+  IRC::Numerics
   IRC::Peer
   IRC::User
 
@@ -122,6 +123,12 @@ has 'prefix_map' => (
   },
 );
 
+has 'server_name' => (
+  required => 1,
+  is  => 'rw',
+  isa => Str,
+);
+
 has 'valid_channel_modes' => (
   lazy => 1,
 
@@ -164,6 +171,8 @@ has 'version_string' => (
   default => sub { ref $_[0] },
 );
 
+
+### Helpers.
 has 'users' => (
   ## Map nicknames to objects
   ## (IRC::Users objects have conn() attribs containing the Backend::Wheel)
@@ -179,8 +188,6 @@ has 'users' => (
 
   default => sub {
     my ($self) = @_;
-
-    require IRC::Server::Pluggable::IRC::Users;
 
     IRC::Server::Pluggable::IRC::Users->new(
       casemap => $self->casemap,
@@ -202,14 +209,31 @@ has 'channels' => (
   default => sub {
     my ($self) = @_;
 
-    require IRC::Server::Pluggable::IRC::Channels;
-
     IRC::Server::Pluggable::IRC::Channels->new(
       casemap => $self->casemap,
     )
   },
 );
 
+has 'numeric' => (
+  ## Numerics parser.
+  lazy => 1,
+
+  is => 'ro',
+
+  isa => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::IRC::Numerics')
+      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Numerics"
+  },
+
+  default => sub {
+    IRC::Server::Pluggable::IRC::Numerics->new()
+  },
+);
+
+
+### States.
 has 'states_unknown_cmds' => (
   lazy => 1,
 
@@ -265,6 +289,7 @@ has 'states_client_cmds' => (
     ],
   },
 );
+
 
 sub BUILD {
   my ($self) = @_;
@@ -337,7 +362,13 @@ sub irc_ev_unknown_cmd_server {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   unless (@{$ev->params}) {
-    ## FIXME 461 to $conn
+    my $output = $self->numeric->to_hash( 461,
+      prefix => $self->server_name,
+      target => '*',
+      params => [ 'SERVER' ],
+    );
+    $self->dispatcher->dispatch( $output, $conn->wheel_id );
+    return
   }
 
   ## FIXME
@@ -353,7 +384,13 @@ sub irc_ev_unknown_cmd_nick {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   unless (@{$ev->params}) {
-    ## FIXME 461
+    my $output = $self->numeric->to_hash( 461,
+      prefix => $self->server_name,
+      target => '*',
+      params => [ 'NICK' ],
+    );
+    $self->dispatcher->dispatch( $output, $conn->wheel_id );
+    return
   }
 
   ## FIXME
@@ -398,7 +435,7 @@ sub irc_ev_unknown_cmd_pass {
   ## connection to be registered, but it must precede the server message
   ## or the latter of the NICK/USER combination.
 
-  ## Set a pass() for this connection Wheel.
+  ## Set a pass() for this connection Wheel; we can check it later.
   $conn->set_pass( $ev->params->[0] )
     unless $conn->has_pass;
 }

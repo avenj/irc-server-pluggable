@@ -16,6 +16,8 @@ use IRC::Server::Pluggable qw/
   IRC::Peer
   IRC::User
 
+  Protocol::Plugin::Register
+
   Types
 /;
 
@@ -243,7 +245,6 @@ has 'states_client_cmds' => (
 sub BUILD {
   my ($self) = @_;
 
-  ### FIXME set up object_states etc and $self->_start_emitter()
   $self->set_object_states(
     [
       $self => {
@@ -259,6 +260,8 @@ sub BUILD {
 
           irc_ev_listener_created
           irc_ev_listener_open
+
+          irc_ev_register_complete
       / ],
 
       ## Command handlers:
@@ -278,6 +281,11 @@ sub BUILD {
 
 sub _emitter_started {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  ## Load Protocol::Plugin::Register
+  $self->plugin_add( 'Register',
+    IRC::Server::Pluggable::Protocol::Plugin::Register->new
+  );
 
   ## Register with Dispatcher.
   $kernel->post( $self->dispatcher->session_id, 'register' );
@@ -306,9 +314,16 @@ sub irc_ev_listener_created {
 }
 
 sub irc_ev_listener_open {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $conn = $_[ARG0];
+
+  return if $self->process( 'connection', $conn ) == EAT_ALL;
+
+  $self->emit( 'connection', $conn );
   ## FIXME
   ## Accepted connection to a listener
   ## Need to:
+  ##  - Catch 
   ##  - send checking ident / hostname snotices
   ##  - call resolver and identd lookups w/ short timeouts
   ##  - lookup methods for hostname or ip
@@ -325,6 +340,10 @@ sub irc_ev_listener_open {
   ##   call registration method that returns unless we have complete reg?
   ##   could be called from relevant handlers (unknown_cmd_user/nick +
   ##   here?)
+}
+
+sub irc_ev_register_complete {
+  ## Got hostname / identd.
 }
 
 ## unknown_* handlers

@@ -99,7 +99,19 @@ sub N_connection {
     $conn->wheel_id
   );
 
-  ## FIXME handle localhost
+  if ($peeraddr =~ /^127\./ || $peeraddr eq '::1') {
+    ## Connection from localhost.
+    $proto->dispatcher->dispatch(
+      {
+        command => 'NOTICE',
+        params  => [ 'AUTH', '*** Found your hostname' ],
+      },
+      $conn->wheel_id
+    );
+
+    $self->pending->{ $conn->wheel_id }->{host} = 'localhost';
+    $self->_maybe_finished($conn);
+  }
 
   $poe_kernel->call( $self->session_id,
     'p_resolve_host',
@@ -321,7 +333,7 @@ sub ident_agent_error {
 
   my $conn = $ref->{Reference};
 
-  ## FIXME check if this conn still has wheel
+  return unless $conn->has_wheel and $conn->wheel;
 
   $self->proto->dispatcher->dispatch(
     {

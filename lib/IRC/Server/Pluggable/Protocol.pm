@@ -22,36 +22,28 @@ use IRC::Server::Pluggable qw/
 extends 'IRC::Server::Pluggable::Emitter';
 
 
+### Core bits.
+## A Dispatcher instance to register with.
+## FIXME need either:
+##  - a Controller to tie a Protocol to a Dispatcher
+##  - a spawn method carrying backend_opts to Dispatcher
 has 'dispatcher' => (
-  lazy => 1,
-
-  is  => 'ro',
-
-  predicate => 'has_dispatcher',
+  required  => 1,
+  is        => 'ro',
   writer    => 'set_dispatcher',
-
-  default => sub {
-    my ($self) = @_;
-
-    require IRC::Server::Pluggable::Dispatcher;
-
-    IRC::Server::Pluggable::Dispatcher->new(
-      ## FIXME requires backend_opts to construct all the way down
-      ##  may make more sense to just require a Dispatcher?
-      ##  then we'd need a Controller to tie it all together ...
-    )
+  isa       => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::Dispatcher')
+      or confess "$_[0] is not a IRC::Server::Pluggable::Dispatcher"
   },
 );
 
-
+## A IRC::Config object passed in.
 has 'config' => (
-  required => 1,
-
-  is  => 'ro',
-
-  writer => 'set_config',
-
-  isa => sub {
+  required  => 1,
+  is        => 'ro',
+  writer    => 'set_config',
+  isa       => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Config')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Config"
@@ -61,24 +53,22 @@ has 'config' => (
 
 ### IRCD-relevant attribs
 has 'casemap' => (
-  lazy => 1,
-
-  is  => 'rw',
-  isa => CaseMap,
-
-  default => sub { 'rfc1459' },
+  lazy      => 1,
+  is        => 'ro',
+  isa       => CaseMap,
+  writer    => 'set_casemap',
+  predicate => 'has_casemap',
+  default   => sub { 'rfc1459' },
 );
-
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
-
 has 'channel_types' => (
-  lazy => 1,
-
-  is  => 'rw',
-  isa => HashRef,
-
-  default => sub {
+  lazy      => 1,
+  is        => 'ro',
+  isa       => HashRef,
+  writer    => 'set_channel_types',
+  predicate => 'has_channel_types',
+  default   => sub {
     ## FIXME map channel prefixes to a IRC::Channel subclass?
     ##  These can control the behavior of specific channel types.
     '#' => 'IRC::Server::Pluggable::IRC::Channel::Global',
@@ -87,14 +77,14 @@ has 'channel_types' => (
 );
 
 has 'prefix_map' => (
+  lazy      => 1,
+  isa       => HashRef,
+  is        => 'ro',
+  predicate => 'has_prefix_map',
+  writer    => 'set_prefix_map',
+  default   => sub {
   ## Map PREFIX= to channel mode characters.
   ## (These also compose the valid status mode list)
-  lazy => 1,
-
-  isa => HashRef,
-  is  => 'rw',
-
-  default => sub {
     {
       '@' => 'o',
       '+' => 'v',
@@ -103,12 +93,12 @@ has 'prefix_map' => (
 );
 
 has 'valid_channel_modes' => (
-  lazy => 1,
-
-  isa => HashRef,
-  is  => 'rw',
-
-  default => sub {
+  lazy      => 1,
+  isa       => HashRef,
+  is        => 'ro',
+  predicate => 'has_valid_channel_modes',
+  writer    => 'set_valid_channel_modes',
+  default   => sub {
     ## ISUPPORT CHANMODES=1,2,3,4
     ## Channel modes fit in four categories:
     ##  'LIST'     -> Modes that manipulate list values
@@ -125,40 +115,36 @@ has 'valid_channel_modes' => (
 );
 
 has 'valid_user_modes' => (
-  lazy => 1,
-
-  isa => ArrayRef,
-  is  => 'rw',
-
-  default => sub {
-    [ split '', 'iaow' ]
-  },
+  lazy      => 1,
+  isa       => ArrayRef,
+  is        => 'ro',
+  predicate => 'has_valid_user_modes',
+  writer    => 'set_valid_user_modes',
+  default   => sub { [ split '', 'iaow' ] },
 );
 
 has 'version_string' => (
-  lazy => 1,
-
-  isa => Str,
-  is  => 'rw',
-
-  default => sub { ref $_[0] },
+  lazy       => 1,
+  isa        => Str,
+  is         => 'ro',
+  predicate  => 'has_version_string',
+  writer     => 'set_version_string',
+  default    => sub { ref $_[0] },
 );
 
 
-### Helpers.
+### Collections.
 has 'users' => (
   ## Map nicknames to objects
   ## (IRC::Users objects have conn() attribs containing the Backend::Wheel)
-  lazy => 1,
-
-  is => 'ro',
-
-  isa => sub {
+  lazy    => 1,
+  is      => 'ro',
+  writer  => 'set_users',
+  isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Users')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Users"
   },
-
   default => sub {
     my ($self) = @_;
 
@@ -169,16 +155,14 @@ has 'users' => (
 );
 
 has 'channels' => (
-  lazy => 1,
-
-  is => 'ro',
-
-  isa => sub {
+  lazy    => 1,
+  is      => 'ro',
+  writer  => 'set_channels',
+  isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Channels')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Channels"
   },
-
   default => sub {
     my ($self) = @_;
 
@@ -188,18 +172,18 @@ has 'channels' => (
   },
 );
 
+
+### Helpers.
 has 'numeric' => (
   ## Numeric parser.
-  lazy => 1,
-
-  is => 'ro',
-
-  isa => sub {
+  lazy    => 1,
+  is      => 'ro',
+  writer  => 'set_numeric',
+  isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Numerics')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Numerics"
   },
-
   default => sub {
     IRC::Server::Pluggable::IRC::Numerics->new()
   },
@@ -208,13 +192,10 @@ has 'numeric' => (
 
 ### States.
 has 'states_unknown_cmds' => (
-  lazy => 1,
-
-  is  => 'ro',
-  isa => ArrayRef,
-
-  writer => 'set_states_unknown_cmds',
-
+  lazy    => 1,
+  is      => 'ro',
+  isa     => ArrayRef,
+  writer  => 'set_states_unknown_cmds',
   default => sub {
     my ($self) = @_;
     [ $self => [ qw/
@@ -228,13 +209,10 @@ has 'states_unknown_cmds' => (
 );
 
 has 'states_peer_cmds' => (
-  lazy => 1,
-
-  is  => 'ro',
-  isa => ArrayRef,
-
-  writer => 'set_states_peer_cmds',
-
+  lazy    => 1,
+  is      => 'ro',
+  isa     => ArrayRef,
+  writer  => 'set_states_peer_cmds',
   default => sub {
     my ($self) = @_;
     [ $self => [ qw/
@@ -246,13 +224,10 @@ has 'states_peer_cmds' => (
 );
 
 has 'states_client_cmds' => (
-  lazy => 1,
-
-  is  => 'ro',
-  isa => ArrayRef,
-
-  writer => 'set_states_client_cmds',
-
+  lazy    => 1,
+  is      => 'ro',
+  isa     => ArrayRef,
+  writer  => 'set_states_client_cmds',
   default => sub {
     my ($self) = @_;
     [ $self => [ qw/
@@ -369,7 +344,7 @@ sub irc_ev_unknown_cmd_nick {
 
   unless (@{$ev->params}) {
     my $output = $self->numeric->to_hash( 461,
-      prefix => $self->cnofig->server_name,
+      prefix => $self->config->server_name,
       target => '*',
       params => [ 'NICK' ],
     );

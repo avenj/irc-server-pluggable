@@ -1,5 +1,7 @@
 package IRC::Server::Pluggable::Protocol::Plugin::Register;
 
+## Conceptually based on POE::Component::Server::IRC::Plugin::Auth
+
 use 5.12.1;
 use strictures 1;
 

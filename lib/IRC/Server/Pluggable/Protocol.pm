@@ -175,6 +175,14 @@ has 'channels' => (
   },
 );
 
+has '_pending_reg' => (
+  ## Keyed on $conn->wheel_id
+  ## Values are hashes with keys 'nick', 'user', 'pass'
+  lazy => 1,
+  is   => 'ro',
+  isa  => HashRef,
+  default => sub { {} },
+);
 
 ### Helpers.
 has 'numeric' => (
@@ -319,31 +327,15 @@ sub irc_ev_listener_open {
 
   return if $self->process( 'connection', $conn ) == EAT_ALL;
 
+  ## Usually picked up by Plugin::Register, at least.
   $self->emit( 'connection', $conn );
-  ## FIXME
-  ## Accepted connection to a listener
-  ## Need to:
-  ##  - Catch 
-  ##  - send checking ident / hostname snotices
-  ##  - call resolver and identd lookups w/ short timeouts
-  ##  - lookup methods for hostname or ip
-  ##  - resolver callback:
-  ##   - lookup IP to try to get hostname
-  ##    - if success, try to lookup hostname's A or AAAA
-  ##     - get IP(s) if possible, if none of them match peeraddr,
-  ##       issue fwd/rev dns mismatch notice
-  ##      else preserve hostname
-  ##  - identd callback:
-  ##   - send 'got ident'
-  ##   - preserve ident
-  ## - register client
-  ##   call registration method that returns unless we have complete reg?
-  ##   could be called from relevant handlers (unknown_cmd_user/nick +
-  ##   here?)
 }
 
 sub irc_ev_register_complete {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
   ## Got hostname / identd.
+  ## FIXME Try to call registration method.
+  ##  Should return if we don't have user, nick, and auth.
 }
 
 ## unknown_* handlers
@@ -385,11 +377,29 @@ sub irc_ev_unknown_cmd_nick {
     return
   }
 
+  my $nick = $ev->params->[0];
+  unless ( is_IRC_Nickname($nick) ) {
+    my $output = $self->numeric->to_hash( 432,
+      prefix => $self->config->server_name,
+      target => '*',
+      params => [ $nick ],
+    );
+    $self->dispatcher->dispatch( $output, $conn->wheel_id );
+    return
+  }
+
+  ## FIXME 433 if we have this nickname in state
+
+  ## FIXME truncate if longer than max
+
+  $self->_pending_reg->{ $conn->wheel_id }->{nick} = $nick;
+
   ## FIXME
   ##  NICK/USER may come in indeterminate order
-  ##  set up a User obj appropriately
-  ##  need a method to create/modify these as-needed
-  ##  see notes in PASS/USER
+  ##  Set up a $self->_pending_reg->{ $conn->wheel_id } hash entry.
+  ##  Call attempt_registration method.
+  ##   Should return if we don't have user, nick, and auth.
+  ##   Should set up a User object in ->users and delete pending_reg
   ##  post-registration, $conn->is_peer/is_client need to be set
 }
 
@@ -398,21 +408,25 @@ sub irc_ev_unknown_cmd_user {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   unless (@{$ev->params} && @{$ev->params} < 4) {
-   ## FIXME
-   ##  bad args, return numeric 461
+    my $output = $self->numeric->to_hash(
+      prefix => $self->config->server_name,
+      target => '*',
+      params => [ 'USER' ],
+    );
+    $self->dispatcher->dispatch( $output, $conn->wheel_id );
+    return
   }
 
   ## USERNAME HOSTNAME SERVERNAME REALNAME
   my ($username, undef, $servername, $gecos) = @{$ev->params};
 
+  ## FIXME username validation?
+
+  $self->_pending_reg->{ $conn->wheel_id }->{user}  = $username;
+  $self->_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';
+
   ## FIXME
-  ##  Need to set up a User obj if we don't have one from NICK
-  ##  Need method(s) to check auth; incl. passwd auth if $conn->has_pass
-  ##  Need registration method(s)
-}
-
-sub _construct_user_obj {
-
+  ##  Need registration method(s), see notes in _nick
 }
 
 sub irc_ev_unknown_cmd_pass {
@@ -420,7 +434,11 @@ sub irc_ev_unknown_cmd_pass {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   unless (@{$ev->params}) {
-    ## FIXME 461
+    my $output = $self->numeric->to_hash(
+      prefix => $self->config->server_name,
+      target => '*',
+      params => [ 'PASS' ],
+    );
   }
 
   ## RFC:
@@ -428,9 +446,8 @@ sub irc_ev_unknown_cmd_pass {
   ## connection to be registered, but it must precede the server message
   ## or the latter of the NICK/USER combination.
 
-  ## Set a pass() for this connection Wheel; we can check it later.
-  $conn->set_pass( $ev->params->[0] )
-    unless $conn->has_pass;
+  my $pass = $ev->params->[0];
+  $self->_pending_reg->{ $conn->wheel_id }->{pass} = $pass;
 }
 
 sub irc_ev_unknown_cmd_error {
@@ -491,11 +508,6 @@ sub irc_ev_client_cmd_notice {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
 }
-
-
-## FIXME need an overridable way to format numeric replies
-
-## FIXME need to handle unknown command input (_default handler?)
 
 
 no warnings 'void';

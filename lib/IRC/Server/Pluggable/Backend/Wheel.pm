@@ -75,19 +75,6 @@ has 'is_pending_compress' => (
 );
 
 
-has 'pass' => (
-  ## Specified PASS in pre-registration for this connection.
-  lazy => 1,
-
-  isa  => Defined,
-  is   => 'rw',
-
-  predicate => 'has_pass',
-  writer    => 'set_pass',
-  clearer   => 'clear_pass',
-);
-
-
 has 'peeraddr' => (
   required => 1,
 

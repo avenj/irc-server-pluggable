@@ -14,11 +14,10 @@ use IRC::Server::Pluggable qw/
 /;
 
 
-has 'protocol' => (
+has 'casemap' => (
   required => 1,
-  weak_ref => 1,
   is  => 'ro',
-  isa => ProtocolClass,
+  isa => CaseMap,
 );
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
@@ -29,7 +28,7 @@ has '_users' => (
   lazy => 1,
   is   => 'ro',
   isa  => HashRef,
-  default => sub { {} },  
+  default => sub { {} },
 );
 
 
@@ -40,7 +39,7 @@ sub by_nick {
     carp "by_nick() called with no nickname specified";
     return
   }
-  
+
   $self->_users->{ $self->lower($nick) }
 }
 
@@ -60,7 +59,7 @@ sub add {
 
 sub del {
   my ($self, $nick) = @_;
-  
+
   confess "del() called with no nickname specified"
     unless defined $nick;
 
@@ -78,9 +77,9 @@ sub as_array {
 
 
 q{
- <hypervalent_iodine> The people who irk me the most are the ones who use 
-  anecdotal evidence as some sort of unfalsifiable proof   
- <Schroedingers_hat> But I used anecdotal evidence once, and it turned 
+ <hypervalent_iodine> The people who irk me the most are the ones who use
+  anecdotal evidence as some sort of unfalsifiable proof
+ <Schroedingers_hat> But I used anecdotal evidence once, and it turned
   out I was right.
 };
 
@@ -95,7 +94,7 @@ IRC::Server::Pluggable::IRC::Users - Base class for User object tracking
 
   ## Create a User tracker
   my $users = IRC::Server::Pluggable::IRC::Users->new(
-    protocol => $protocol_obj,
+    casemap => $protocol_obj->casemap,
   );
 
   ## Add User objects
@@ -120,11 +119,10 @@ L<IRC::Server::Pluggable::Protocol> classes can use this to manage a
 collection of L<IRC::Server::Pluggable::IRC::User> (or subclasses 
 thereof) objects.
 
-An appropriate L<IRC::Server::Pluggable::Protocol> should be specified at 
-construction time:
+An appropriate casemap should be specified at construction time:
 
   my $users = IRC::Server::Pluggable::IRC::Users->new(
-    protocol => $protocol,
+    casemap => $protocol->casemap,
   );
 
 =head2 Attributes

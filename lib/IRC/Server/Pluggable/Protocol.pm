@@ -183,7 +183,7 @@ has 'users' => (
     require IRC::Server::Pluggable::IRC::Users;
 
     IRC::Server::Pluggable::IRC::Users->new(
-      protocol => $self,
+      casemap => $self->casemap,
     )
   },
 );
@@ -205,7 +205,7 @@ has 'channels' => (
     require IRC::Server::Pluggable::IRC::Channels;
 
     IRC::Server::Pluggable::IRC::Channels->new(
-      protocol => $self,
+      casemap => $self->casemap,
     )
   },
 );
@@ -241,6 +241,7 @@ has 'states_peer_cmds' => (
   default => sub {
     my ($self) = @_;
     [ $self => [ qw/
+          irc_ev_peer_cmd_server
           irc_ev_peer_cmd_squit
       / ],
     ],
@@ -336,7 +337,7 @@ sub irc_ev_unknown_cmd_server {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   unless (@{$ev->params}) {
-    ## FIXME 461
+    ## FIXME 461 to $conn
   }
 
   ## FIXME
@@ -380,6 +381,10 @@ sub irc_ev_unknown_cmd_user {
   ##  Need registration method(s)
 }
 
+sub _construct_user_obj {
+
+}
+
 sub irc_ev_unknown_cmd_pass {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
@@ -412,6 +417,10 @@ sub irc_ev_peer_cmd_ping {
 }
 
 sub irc_ev_peer_cmd_pong {
+
+}
+
+sub irc_ev_peer_cmd_server {
 
 }
 

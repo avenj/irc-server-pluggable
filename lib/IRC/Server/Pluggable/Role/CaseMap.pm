@@ -5,14 +5,7 @@ use Carp;
 
 use Moo::Role;
 
-
-sub __get_cmap {
-  my ($self) = @_;
-
-  $self->can('protocol') ? $self->protocol->casemap
-   : $self->can('casemap') ? $self->casemap
-    : confess "Could not retrieve casemap()"
-}
+requires 'casemap';
 
 sub lower {
   my ($self, $name) = @_;
@@ -22,7 +15,7 @@ sub lower {
     return
   }
 
-  lc_irc( $name, $self->__get_cmap )
+  lc_irc( $name, $self->casemap )
 }
 
 sub upper {
@@ -33,7 +26,7 @@ sub upper {
     return
   }
 
-  uc_irc( $name, $self->__get_cmap )
+  uc_irc( $name, $self->casemap )
 }
 
 sub equal {

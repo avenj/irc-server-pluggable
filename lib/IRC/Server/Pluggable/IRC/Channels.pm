@@ -14,11 +14,10 @@ use IRC::Server::Pluggable qw/
 /;
 
 
-has 'protocol' => (
+has 'casemap' => (
   required => 1,
-  weak_ref => 1,
   is  => 'ro',
-  isa => ProtocolClass,
+  isa => CaseMap,
 );
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
@@ -28,10 +27,10 @@ with 'IRC::Server::Pluggable::Role::CaseMap';
 has '_channels' => (
   ## Map (lowercased) channel names to Channel objects.
   lazy => 1,
-  
+
   is  => 'ro',
   isa => HashRef,
-  
+
   default => sub { {} },
 );
 
@@ -44,18 +43,18 @@ sub as_array {
 
 sub by_name {
   my ($self, $name) = @_;
-  
+
   unless (defined $name) {
     carp "by_name() called with no name specified";
     return
   }
-  
+
   $self->_channels->{ $self->lower($name) }
 }
 
 sub add {
   my ($self, $chan) = @_;
-  
+
   confess "$chan is not a IRC::Server::Pluggable::IRC::Channel"
     unless is_Object($chan)
     and $chan->isa('IRC::Server::Pluggable::IRC::Channel');
@@ -76,11 +75,11 @@ sub del {
 
 
 q{
- <Capn_Refsmmat> Gilded: Have you considered employment as a cheap 
-   punster?   
-  <Gilded> Pun good - make many pun is good for brain, also 
+ <Capn_Refsmmat> Gilded: Have you considered employment as a cheap
+   punster?
+  <Gilded> Pun good - make many pun is good for brain, also
    then make better English in future times
-  <Gilded> I also take slight offense at "cheap" considering all my puns 
+  <Gilded> I also take slight offense at "cheap" considering all my puns
    are solid gold
 };
 

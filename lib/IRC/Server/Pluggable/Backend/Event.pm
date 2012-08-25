@@ -56,6 +56,7 @@ has 'raw_line' => (
   default => sub { '' },
 );
 
+no warnings 'void';
 q{
  <rnowak> fine, be rude like that
  <Perihelion> SORRY I WAS DISCUSSING THE ABILITY TO PUT 

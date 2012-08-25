@@ -26,6 +26,7 @@ extends 'IRC::Server::Pluggable::Emitter';
 ## A Dispatcher instance to register with.
 ## FIXME need either:
 ##  - a Controller to tie a Protocol to a Dispatcher
+##    (probably a bin/ frontend could just do this)
 ##  - a spawn method carrying backend_opts to Dispatcher
 has 'dispatcher' => (
   required  => 1,
@@ -307,10 +308,23 @@ sub irc_ev_listener_created {
 sub irc_ev_listener_open {
   ## FIXME
   ## Accepted connection to a listener
-  ## ...  caching ->resolver backend?
-  ## Issue async queries and preserve limited set of
-  ##  cached replies we can try to pull from later
-  ## If no callback in short timeout, disregard?
+  ## Need to:
+  ##  - send checking ident / hostname snotices
+  ##  - call resolver and identd lookups w/ short timeouts
+  ##  - lookup methods for hostname or ip
+  ##  - resolver callback:
+  ##   - lookup IP to try to get hostname
+  ##    - if success, try to lookup hostname's A or AAAA
+  ##     - get IP(s) if possible, if none of them match peeraddr,
+  ##       issue fwd/rev dns mismatch notice
+  ##      else preserve hostname
+  ##  - identd callback:
+  ##   - send 'got ident'
+  ##   - preserve ident
+  ## - register client
+  ##   call registration method that returns unless we have complete reg?
+  ##   could be called from relevant handlers (unknown_cmd_user/nick +
+  ##   here?)
 }
 
 ## unknown_* handlers
@@ -357,6 +371,7 @@ sub irc_ev_unknown_cmd_nick {
   ##  set up a User obj appropriately
   ##  need a method to create/modify these as-needed
   ##  see notes in PASS/USER
+  ##  post-registration, $conn->is_peer/is_client need to be set
 }
 
 sub irc_ev_unknown_cmd_user {
@@ -444,6 +459,13 @@ sub irc_ev_peer_numeric {
 sub irc_ev_client_cmd_privmsg {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  ## FIXME
+  ##  general pattern for cmds:
+  ##   - plugin process()
+  ##   - return if EAT
+  ##   - execute our own normal actions
+  ##   - emit() notification? depending on cmd
 }
 
 sub irc_ev_client_cmd_notice {

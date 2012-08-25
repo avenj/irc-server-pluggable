@@ -554,7 +554,8 @@ be set when your Emitter is instantiated instead.
 
 =head4 alias
 
-B<alias> specifies the POE::Kernel alias used for our session.
+B<alias> specifies the POE::Kernel alias used for our session; defaults 
+to the stringified object.
 
 Set via B<set_alias>
 

@@ -476,7 +476,6 @@ sub irc_ev_peer_cmd_squit {
 }
 
 sub irc_ev_peer_numeric {
-  ## Numeric from peer intended for a client of ours.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
@@ -485,8 +484,8 @@ sub irc_ev_peer_numeric {
 
   return unless $this_user;
 
+  ## Numeric from peer intended for a client of ours.
   my $target_wheel = $this_user->conn->wheel_id;
-
   $self->dispatcher->dispatch( $ev, $target_wheel )
 }
 
@@ -509,6 +508,28 @@ sub irc_ev_client_cmd_notice {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 }
 
+around '_emitter_default' => sub {
+  my $orig = shift;
+
+  ## Override _default method.
+
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($event, $args)  = @_[ARG0, ARG1];
+
+  ## Our super's behavior:
+  unless ($event =~ /^_/ || $event =~ /^emitter_(?:started|stopped)$/) {
+    return if $self->process( $event, @$args ) == EAT_ALL
+  }
+
+  ## Not interested if it's not a client/peer cmd:
+  return unless $event =~ /^irc_ev_(?:client|peer)_cmd_/;
+
+  my ($conn, $ev) = @$args;
+  return if $ev->handled;
+
+  ## FIXME not handled, dispatch unknown cmd
+  ## FIXME  ... do servers need anything special?
+};
 
 no warnings 'void';
 q{

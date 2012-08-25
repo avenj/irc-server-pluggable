@@ -8,58 +8,53 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
-has 'prefix' => (
-  lazy => 1,
-
-  isa => Str,
-  is  => 'ro',
-
-  predicate => 'has_prefix',
-  writer    => 'set_prefix',
-
-  default => sub { '' },
-);
-
 has 'command' => (
-  lazy => 1,
-
-  isa => Str,
-  is  => 'ro',
-
+  is        => 'ro',
+  lazy      => 1,
+  isa       => Str,
   predicate => 'has_command',
   writer    => 'set_command',
+  default   => sub { '' },
+);
 
-  default => sub { '' },
+has 'handled' => (
+  is   => 'rw',
+  lazy => 1,
+  isa  => Bool,
+  default => sub { 0 },
+);
+
+has 'prefix' => (
+  is        => 'ro',
+  lazy      => 1,
+  isa       => Str,
+  predicate => 'has_prefix',
+  writer    => 'set_prefix',
+  default   => sub { '' },
 );
 
 has 'params' => (
-  lazy => 1,
-
-  isa => ArrayRef,
-  is  => 'ro',
-
-  predicate => 'has_params',  
+  is        => 'ro',
+  lazy      => 1,
+  isa       => ArrayRef,
+  predicate => 'has_params',
   writer    => 'set_params',
-
-  default => sub { [] },
+  default   => sub { [] },
 );
 
 has 'raw_line' => (
-  lazy => 1,
-
-  isa => Str,
-  is  => 'ro',
-
+  is        => 'ro',
+  lazy      => 1,
+  isa       => Str,
   predicate => 'has_raw_line',
   writer    => 'set_raw_line',
-
-  default => sub { '' },
+  default   => sub { '' },
 );
 
 no warnings 'void';
 q{
  <rnowak> fine, be rude like that
- <Perihelion> SORRY I WAS DISCUSSING THE ABILITY TO PUT 
+ <Perihelion> SORRY I WAS DISCUSSING THE ABILITY TO PUT
   AN IRCD ON A ROOMBA
 };
 

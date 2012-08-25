@@ -44,6 +44,21 @@ has 'dispatcher' => (
 );
 
 
+has 'config' => (
+  required => 1,
+
+  is  => 'ro',
+
+  writer => 'set_config',
+
+  isa => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::IRC::Config')
+      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Config"
+  },
+);
+
+
 ### IRCD-relevant attribs
 has 'casemap' => (
   lazy => 1,
@@ -71,42 +86,6 @@ has 'channel_types' => (
   },
 );
 
-has 'max_chan_length' => (
-  lazy => 1,
-
-  is  => 'rw',
-  isa => Int,
-
-  default => sub { 30 },
-);
-
-has 'max_nick_length' => (
-  lazy => 1,
-
-  is  => 'rw',
-  isa => Int,
-
-  default => sub { 9 },
-);
-
-has 'max_msg_targets' => (
-  lazy => 1,
-
-  is  => 'rw',
-  isa => Int,
-
-  default => sub { 4 },
-);
-
-has 'network_name' => (
-  lazy => 1,
-
-  is  => 'rw',
-  isa => Str,
-
-  default => sub { 'NoNetworkDefined' },
-);
-
 has 'prefix_map' => (
   ## Map PREFIX= to channel mode characters.
   ## (These also compose the valid status mode list)
@@ -121,12 +100,6 @@ has 'prefix_map' => (
       '+' => 'v',
     },
   },
-);
-
-has 'server_name' => (
-  required => 1,
-  is  => 'rw',
-  isa => Str,
 );
 
 has 'valid_channel_modes' => (
@@ -216,7 +189,7 @@ has 'channels' => (
 );
 
 has 'numeric' => (
-  ## Numerics parser.
+  ## Numeric parser.
   lazy => 1,
 
   is => 'ro',
@@ -304,9 +277,12 @@ sub BUILD {
       ## Connectors and listeners:
       $self => [ qw/
           irc_ev_connection_idle
+
           irc_ev_peer_connected
           irc_ev_peer_compressed
+
           irc_ev_listener_created
+          irc_ev_listener_open
       / ],
 
       ## Command handlers:
@@ -353,6 +329,14 @@ sub irc_ev_listener_created {
 
 }
 
+sub irc_ev_listener_open {
+  ## FIXME
+  ## Accepted connection to a listener
+  ## ...  caching ->resolver backend?
+  ## Issue async queries and preserve limited set of
+  ##  cached replies we can try to pull from later
+  ## If no callback in short timeout, disregard?
+}
 
 ## unknown_* handlers
 ## These primarily deal with registration.
@@ -363,7 +347,7 @@ sub irc_ev_unknown_cmd_server {
 
   unless (@{$ev->params}) {
     my $output = $self->numeric->to_hash( 461,
-      prefix => $self->server_name,
+      prefix => $self->config->server_name,
       target => '*',
       params => [ 'SERVER' ],
     );
@@ -385,7 +369,7 @@ sub irc_ev_unknown_cmd_nick {
 
   unless (@{$ev->params}) {
     my $output = $self->numeric->to_hash( 461,
-      prefix => $self->server_name,
+      prefix => $self->cnofig->server_name,
       target => '*',
       params => [ 'NICK' ],
     );

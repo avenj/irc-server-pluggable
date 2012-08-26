@@ -19,7 +19,8 @@ use IRC::Server::Pluggable qw/
 /;
 
 has 'conn' => (
-  ## Backend::Wheel conn obj for a User belonging to us.
+  ## Backend::Wheel conn obj for a local user.
+  ## See route() attrib with regards to remote users.
   lazy => 1,
 
   is  => 'ro',
@@ -36,45 +37,65 @@ has 'conn' => (
 
 has 'nick' => (
   required => 1,
-  is  => 'ro',
-  isa => Str,
-  writer => 'set_nick',
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_nick',
 );
 
 has 'user' => (
   required => 1,
-  is  => 'ro',
-  isa => Str,
-  writer => 'set_user',
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_user',
 );
 
 has 'host' => (
   required => 1,
-  is  => 'ro',
-  isa => Str,
-  writer => 'set_host',
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_host',
 );
 
 has 'server' => (
   required => 1,
-  is  => 'ro',
-  isa => Str,
-  writer => 'set_server',
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_server',
 );
 
 has 'realname' => (
   required => 1,
-  is  => 'ro',
-  isa => Str,
-  writer => 'set_realname',
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_realname',
+);
+
+has 'route' => (
+  ## A non-local user has a route() naming a Peer.
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_route',
+  predicate => 'has_route',
+  clearer   => 'clear_route',
+  default   => sub { '' },
 );
 
 has 'modes' => (
-  lazy => 1,
-  is  => 'ro',
-  isa => HashRef,
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
   default => sub { {} },
 );
+
+sub BUILD {
+  my ($self) = @_;
+
+  unless ($self->has_conn || $self->has_route) {
+    confess
+      "A User needs either a conn() or a route() at construction time"
+  }
+}
 
 
 sub full {

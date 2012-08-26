@@ -30,9 +30,19 @@ has 'conn' => (
 
 has 'name' => (
   required => 1,
-  is     => 'ro',
-  isa    => Str,
-  writer => 'set_name',
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_name',
+);
+
+has 'route' => (
+  ## If this is a remote Peer, route() is the name of the local Peer.
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_route',
+  predicate => 'has_route',
+  clearer   => 'clear_route',
 );
 
 1;

@@ -31,6 +31,21 @@ sub add {
   $peer
 }
 
+sub as_array {
+  my ($self) = @_;
+
+  [ map { $self->_peers->{$_}->name } keys %{ $self->_peers } ]
+}
+
+sub by_name {
+  my ($self, $s_name) = @_;
+
+  confess "by_name() called with no server specified"
+    unless defined $s_name;
+
+  $self->_peers->{ lc($s_name) }
+}
+
 sub del {
   my ($self, $s_name) = @_;
 
@@ -38,12 +53,6 @@ sub del {
     unless defined $s_name;
 
   delete $self->_peers->{ lc($s_name) }
-}
-
-sub as_array {
-  my ($self) = @_;
-
-  [ map { $self->_peers->{$_}->name } keys %{ $self->_peers } ]
 }
 
 1;

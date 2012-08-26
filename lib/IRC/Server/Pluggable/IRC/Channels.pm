@@ -35,6 +35,18 @@ has '_channels' => (
 );
 
 
+sub add {
+  my ($self, $chan) = @_;
+
+  confess "$chan is not a IRC::Server::Pluggable::IRC::Channel"
+    unless is_Object($chan)
+    and $chan->isa('IRC::Server::Pluggable::IRC::Channel');
+
+  $self->_channels->{ $self->lower($chan->name) } = $chan;
+
+  $chan
+}
+
 sub as_array {
   my ($self) = @_;
 
@@ -52,18 +64,6 @@ sub by_name {
   $self->_channels->{ $self->lower($name) }
 }
 
-sub add {
-  my ($self, $chan) = @_;
-
-  confess "$chan is not a IRC::Server::Pluggable::IRC::Channel"
-    unless is_Object($chan)
-    and $chan->isa('IRC::Server::Pluggable::IRC::Channel');
-
-  $self->_channels->{ $self->lower($chan->name) } = $chan;
-
-  $chan
-}
-
 sub del {
   my ($self, $name) = @_;
 
@@ -73,16 +73,7 @@ sub del {
   delete $self->_channels->{ $self->lower($name) }
 }
 
-
-q{
- <Capn_Refsmmat> Gilded: Have you considered employment as a cheap
-   punster?
-  <Gilded> Pun good - make many pun is good for brain, also
-   then make better English in future times
-  <Gilded> I also take slight offense at "cheap" considering all my puns
-   are solid gold
-};
-
+1;
 
 =pod
 

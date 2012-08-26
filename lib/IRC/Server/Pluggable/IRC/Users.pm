@@ -30,18 +30,6 @@ has '_users' => (
   default => sub { {} },
 );
 
-
-sub by_nick {
-  my ($self, $nick) = @_;
-
-  unless (defined $nick) {
-    carp "by_nick() called with no nickname specified";
-    return
-  }
-
-  $self->_users->{ $self->lower($nick) }
-}
-
 sub add {
   my ($self, $user) = @_;
 
@@ -56,6 +44,23 @@ sub add {
   $user
 }
 
+sub as_array {
+  my ($self) = @_;
+
+  [ map { $self->_users->{$_}->nick } keys %{ $self->_users } ]
+}
+
+sub by_nick {
+  my ($self, $nick) = @_;
+
+  unless (defined $nick) {
+    carp "by_nick() called with no nickname specified";
+    return
+  }
+
+  $self->_users->{ $self->lower($nick) }
+}
+
 sub del {
   my ($self, $nick) = @_;
 
@@ -67,21 +72,8 @@ sub del {
   delete $self->_users->{$nick}
 }
 
-sub as_array {
-  my ($self) = @_;
 
-  [ map { $self->_users->{$_}->nick } keys %{ $self->_users } ]
-}
-
-
-
-q{
- <hypervalent_iodine> The people who irk me the most are the ones who use
-  anecdotal evidence as some sort of unfalsifiable proof
- <Schroedingers_hat> But I used anecdotal evidence once, and it turned
-  out I was right.
-};
-
+1;
 
 =pod
 

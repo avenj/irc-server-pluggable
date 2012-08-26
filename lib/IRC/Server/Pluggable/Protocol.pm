@@ -594,7 +594,8 @@ around '_emitter_default' => sub {
 
 
 ## Routing details:
-##  - track which peer introduced a particular User
+##  - track which peer introduced a particular user
+##   - may need User objects for these?
 ##  - $user->set_server() for the peer that introduced
 ##  - add Peers collection
 ##  - relay to $self->peers->by_name($user->server)->conn->wheel_id

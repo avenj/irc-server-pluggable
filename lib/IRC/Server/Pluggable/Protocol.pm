@@ -210,10 +210,11 @@ has 'states_unknown_cmds' => (
   default => sub {
     my ($self) = @_;
     [ $self => [ qw/
-          irc_ev_unknown_cmd_pass
+          irc_ev_unknown_cmd_error
           irc_ev_unknown_cmd_nick
-          irc_ev_unknown_cmd_user
+          irc_ev_unknown_cmd_pass
           irc_ev_unknown_cmd_server
+          irc_ev_unknown_cmd_user
       / ],
     ],
   },
@@ -242,8 +243,8 @@ has 'states_client_cmds' => (
   default => sub {
     my ($self) = @_;
     [ $self => [ qw/
-          irc_ev_client_cmd_privmsg
           irc_ev_client_cmd_notice
+          irc_ev_client_cmd_privmsg
       / ],
     ],
   },
@@ -329,13 +330,20 @@ sub irc_ev_listener_open {
 
   ## Usually picked up by Plugin::Register, at least.
   $self->emit( 'connection', $conn );
+
+  ## FIXME method to disconnect for host-based auth blocks?
+  ##  not sure where the sanest place to hook that is ...
 }
 
 sub irc_ev_register_complete {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  ## Got hostname / identd.
-  ## FIXME Try to call registration method.
-  ##  Should return if we don't have user, nick, and auth.
+  my ($conn, $hints)  = @_[ARG0, ARG1];
+
+  ## Hints hash has keys 'ident' and 'host'
+  ## Hints hash elements will be undef if not found
+  ## Save to _pending_reg and see if we can register this.
+  $self->_pending_reg->{ $conn->wheel_id }->{authinfo} = $hints;
+  $self->_try_user_reg($conn);
 }
 
 ## unknown_* handlers
@@ -358,9 +366,10 @@ sub irc_ev_unknown_cmd_server {
   ## FIXME
   ##  check auth
   ##  check if peer exists
-  ##  set up Peer obj
+  ##  set up Peer obj / set $conn->is_peer
   ##  check if we should be setting up compressed_link
   ##  burst (event for this we can also trigger on compressed_link ?)
+  ##  clear from _pending_reg
 }
 
 sub irc_ev_unknown_cmd_nick {
@@ -392,15 +401,38 @@ sub irc_ev_unknown_cmd_nick {
 
   ## FIXME truncate if longer than max
 
+  ## NICK/USER may come in indeterminate order
+  ## Set up a $self->_pending_reg->{ $conn->wheel_id } hash entry.
+  ## Call method to check current state.
   $self->_pending_reg->{ $conn->wheel_id }->{nick} = $nick;
+  $self->_try_user_reg($conn);
+}
 
-  ## FIXME
-  ##  NICK/USER may come in indeterminate order
-  ##  Set up a $self->_pending_reg->{ $conn->wheel_id } hash entry.
-  ##  Call attempt_registration method.
-  ##   Should return if we don't have user, nick, and auth.
-  ##   Should set up a User object in ->users and delete pending_reg
-  ##  post-registration, $conn->is_peer/is_client need to be set
+sub _try_user_reg {
+  my ($self, $conn) = @_;
+
+  ## FIXME perhaps should check if this conn still has a wheel ?
+
+  my $pending_ref = $self->_pending_reg->{ $conn->wheel_id } || return;
+
+  return unless defined $pending_ref->{nick}
+         and    defined $pending_ref->{user}
+         ## authinfo has keys 'host', 'ident'
+         ## undef if these lookups were unsuccessful
+         and    $pending_ref->{authinfo};
+
+  ## FIXME auth check methods:
+  ##  - check pass if present
+  ##  - plugin process a preregister event for ban hooks, etc
+
+  ## FIXME factory method in Users to create User objects?
+
+  ## FIXME $conn->is_client ?
+
+  ## FIXME send 001..004 numerics, lusers, motd, default mode if configured
+  ##  dispatch registered event
+
+  delete $self->_pending_reg->{ $conn->wheel_id };
 }
 
 sub irc_ev_unknown_cmd_user {
@@ -424,9 +456,7 @@ sub irc_ev_unknown_cmd_user {
 
   $self->_pending_reg->{ $conn->wheel_id }->{user}  = $username;
   $self->_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';
-
-  ## FIXME
-  ##  Need registration method(s), see notes in _nick
+  $self->_try_user_reg($conn);
 }
 
 sub irc_ev_unknown_cmd_pass {
@@ -496,6 +526,8 @@ sub irc_ev_client_cmd_privmsg {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   ## FIXME
+  ## privmsg/notice will probably share a method
+
   ##  general pattern for cmds:
   ##   - plugin process()
   ##   - return if EAT
@@ -511,8 +543,6 @@ sub irc_ev_client_cmd_notice {
 around '_emitter_default' => sub {
   my $orig = shift;
 
-  ## Override _default method.
-
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($event, $args)  = @_[ARG0, ARG1];
 
@@ -525,6 +555,12 @@ around '_emitter_default' => sub {
   return unless $event =~ /^irc_ev_(?:client|peer)_cmd_/;
 
   my ($conn, $ev) = @$args;
+  unless (is_Object($conn) && is_Object($ev)) {
+    carp "_default expected Backend::Wheel and Backend::Event objects";
+    return
+  }
+
+  ## Already handled:
   return if $ev->handled;
 
   ## FIXME not handled, dispatch unknown cmd

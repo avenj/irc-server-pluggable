@@ -23,6 +23,10 @@ has 'conn' => (
   ## See route() attrib with regards to remote users.
   lazy => 1,
 
+  ## These are also tracked in Backend; they should be destroyed
+  ## from there.
+  weak_ref => 1,
+
   is  => 'ro',
   isa => sub {
     is_Object($_[0])

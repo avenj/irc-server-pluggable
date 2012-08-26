@@ -16,6 +16,9 @@ has 'conn' => (
   ## Our directly-linked peers should have a Backend::Connect
   lazy => 1,
 
+  ## Also tracked in Backend:
+  weak_ref => 1,
+
   is   => 'ro',
   isa  => sub {
     is_Object($_[0])

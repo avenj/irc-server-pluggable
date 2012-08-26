@@ -294,6 +294,8 @@ sub _dispatch {
   ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD
   ## + List of either Backend::Wheel IDs or objs that can give us one
   my ($out, @ids) = $_[ARG0 .. $#_];
+  return unless @ids;
+
   my $idref = [ map { is_Object($_) ? $_->wheel_id : $_ } @ids ];
 
   return

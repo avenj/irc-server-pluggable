@@ -538,13 +538,12 @@ sub irc_ev_peer_numeric {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   my $target_nick  = $ev->params->[0];
-  my $this_user    = $self->users->by_name($target_nick);
 
-  return unless $this_user;
-
-  ## Numeric from peer intended for a client of ours.
-  my $target_wheel = $this_user->conn->wheel_id;
-  $self->dispatcher->dispatch( $ev, $target_wheel )
+  ## Numeric from peer intended for a client
+  $self->dispatcher->dispatch(
+    $ev,
+    $self->route_to_user($target_nick)
+  )
 }
 
 ## client_* handlers
@@ -596,14 +595,10 @@ around '_emitter_default' => sub {
 };
 
 
-## Routing details:
-##  - track which peer introduced a particular user
-##  - add User objects for these
-##  - $user->set_server() for the peer that introduced
-##  - add Peers collection
-##  - relay to $self->peers->by_name($user->server)->conn->wheel_id
-## Routing role to handle user/peer routes?
-## c.f. Protocol::Role::Routing
+## FIXME
+## User/Peer should be created for both local and remote registrations
+## User/Peer should have either a conn() or a route() at construction time
+## A route() should be the name of a local Peer that has_conn()
 
 no warnings 'void';
 q{

@@ -15,20 +15,17 @@ requires qw/
 sub route_to_peer {
   my ($self, $s_name) = @_;
 
-  my $peer = $self->route_to_peer_is_active($s_name) || return;
-
-  $peer->conn->wheel_id
-}
-
-sub route_to_peer_is_active {
-  my ($self, $s_name) = @_;
-
   my $peer = $self->peers->by_name($s_name) || return;
 
-  return unless $peer->has_conn;
-  return unless $peer->conn->has_wheel;
+  if ( $peer->has_conn ) {
+    ## Locally connected peer.
+    return $peer->conn->has_wheel ? $peer->conn->wheel_id : ()
+  }
 
-  $peer
+  ## Remote user; retrieve path (local peer).
+  my $local_peer = $self->peers->by_name( $peer->route ) || return;
+
+  $local_peer->has_conn ? $local_peer->conn->wheel_id : ()
 }
 
 sub route_to_user {
@@ -36,11 +33,12 @@ sub route_to_user {
 
   my $user = $self->users->by_name($nick) || return;
 
-  ## Local user:
-  return $user->conn->wheel_id if $user->has_conn;
+  if ( $user->has_conn ) {
+    return $user->conn->has_wheel ? $user->conn->wheel_id : ()
+  }
 
-  ## Remote user:
-  my $peer = $self->peers->by_name( $user->server ) || return;
+  ## Remote user; retrieve path, similar to above.
+  my $peer = $self->peers->by_name( $user->route ) || return;
 
   $peer->has_conn ? $peer->conn->wheel_id : ()
 }
@@ -51,24 +49,6 @@ sub route_to_user_is_local {
   my $user = $self->users->by_name($nick) || return;
 
   $user->has_conn ? $user : ()
-}
-
-sub route_to_user_is_active {
-  my ($self, $nick) = @_;
-
-  my $user = $self->users->by_name($nick) || return;
-
-  ## Local user:
-  if ( $self->route_to_user_is_local($nick) ) {
-    return $user if $user->has_conn and $user->conn->has_wheel
-    return
-  }
-
-  ## Remote user:
-  my $s_name = $user->server;
-  return $user if $self->route_to_peer_is_active($s_name);
-
-  $user
 }
 
 1;

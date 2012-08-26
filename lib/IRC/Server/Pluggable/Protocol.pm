@@ -71,10 +71,10 @@ has 'channel_types' => (
   writer    => 'set_channel_types',
   predicate => 'has_channel_types',
   default   => sub {
-    ## FIXME map channel prefixes to a IRC::Channel subclass?
+    ## FIXME map channel prefixes to a IRC::Channel subclass
     ##  These can control the behavior of specific channel types.
-    '#' => 'IRC::Server::Pluggable::IRC::Channel::Global',
     '&' => 'IRC::Server::Pluggable::IRC::Channel::Local',
+    '#' => 'IRC::Server::Pluggable::IRC::Channel::Global',
   },
 );
 
@@ -429,6 +429,12 @@ sub irc_ev_unknown_cmd_nick {
 }
 
 sub _try_user_reg {
+  ## FIXME move this crap out to a role?
+  ## FIXME separate method to create User objs?
+  ##  need to accomodate burst here also
+  ##  need to be able to set up objs with route() attribs
+  ##   (name of introducing server)
+  ##  possible we should have a class for _pending_reg items?
   my ($self, $conn) = @_;
 
   my $pending_ref = $self->_pending_reg->{ $conn->wheel_id } || return;

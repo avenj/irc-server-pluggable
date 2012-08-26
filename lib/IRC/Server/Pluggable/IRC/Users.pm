@@ -50,11 +50,11 @@ sub as_array {
   [ map { $self->_users->{$_}->nick } keys %{ $self->_users } ]
 }
 
-sub by_nick {
+sub by_name {
   my ($self, $nick) = @_;
 
   unless (defined $nick) {
-    carp "by_nick() called with no nickname specified";
+    carp "by_name() called with no nickname specified";
     return
   }
 
@@ -96,7 +96,7 @@ IRC::Server::Pluggable::IRC::Users - Base class for User object tracking
   );
 
   ## Retrieve specified nickname's object
-  my $this_user = $users->by_nick( $nickname );
+  my $this_user = $users->by_name( $nickname );
 
   ## Delete specified nickname's object
   $users->del( $nickname );
@@ -130,9 +130,9 @@ rules.
 
 Returns the current list of nicknames as an array reference.
 
-=head3 by_nick
+=head3 by_name
 
-  my $user = $users->by_nick( $nickname );
+  my $user = $users->by_name( $nickname );
 
 Returns the L<IRC::Server::Pluggable::IRC::User> (sub)class instance for 
 the specified nickname. Returns false if the nickname is not known.

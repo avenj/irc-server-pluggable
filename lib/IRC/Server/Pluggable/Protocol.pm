@@ -63,7 +63,6 @@ has 'casemap' => (
   predicate => 'has_casemap',
   default   => sub { 'rfc1459' },
 );
-with 'IRC::Server::Pluggable::Role::CaseMap';
 
 has 'channel_types' => (
   lazy      => 1,
@@ -266,6 +265,10 @@ has 'states_client_cmds' => (
     ],
   },
 );
+
+
+with 'IRC::Server::Pluggable::Role::CaseMap';
+with 'IRC::Server::Pluggable::Role::Routing';
 
 
 sub BUILD {
@@ -535,7 +538,7 @@ sub irc_ev_peer_numeric {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   my $target_nick  = $ev->params->[0];
-  my $this_user    = $self->users->by_nick($target_nick);
+  my $this_user    = $self->users->by_name($target_nick);
 
   return unless $this_user;
 
@@ -595,10 +598,12 @@ around '_emitter_default' => sub {
 
 ## Routing details:
 ##  - track which peer introduced a particular user
-##   - may need User objects for these?
+##  - add User objects for these
 ##  - $user->set_server() for the peer that introduced
 ##  - add Peers collection
 ##  - relay to $self->peers->by_name($user->server)->conn->wheel_id
+## Routing role to handle user/peer routes?
+## c.f. Protocol::Role::Routing
 
 no warnings 'void';
 q{

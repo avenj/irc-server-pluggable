@@ -11,10 +11,10 @@ use strict; use warnings FATAL => 'all';
 }
 
 BEGIN {
-  use_ok( 'IRC::Server::Pluggable::Backend::Wheel' );
+  use_ok( 'IRC::Server::Pluggable::Backend::Connect' );
 }
 
-my $obj = new_ok( 'IRC::Server::Pluggable::Backend::Wheel' => [
+my $obj = new_ok( 'IRC::Server::Pluggable::Backend::Connect' => [
     protocol => 4,
     peeraddr => '127.0.0.1',
     peerport => 6667,

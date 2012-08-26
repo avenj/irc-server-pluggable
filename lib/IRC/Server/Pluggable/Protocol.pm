@@ -173,7 +173,7 @@ has 'peers' => (
 
 has 'users' => (
   ## Map nicknames to objects
-  ## (IRC::Users objects have conn() attribs containing the Backend::Wheel)
+  ## (IRC::Users objects have conn() attribs containing the Backend::Connect)
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_users',
@@ -583,7 +583,7 @@ around '_emitter_default' => sub {
 
   my ($conn, $ev) = @$args;
   unless (is_Object($conn) && is_Object($ev)) {
-    carp "_default expected Backend::Wheel and Backend::Event objects";
+    carp "_default expected Backend::Connect and Backend::Event objects";
     return
   }
 

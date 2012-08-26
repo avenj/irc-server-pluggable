@@ -8,10 +8,10 @@ use Carp;
 use Moo;
 
 use IRC::Server::Pluggable qw/
+  Backend::Connect
   Backend::Connector
   Backend::Event
   Backend::Listener
-  Backend::Wheel
 
   Types
   Utils
@@ -127,7 +127,7 @@ has 'connectors' => (
   clearer => 1,
 );
 
-## IRC::Server::Pluggable::Backend::Wheel objs
+## IRC::Server::Pluggable::Backend::Connect objs
 ## These are our connected wheels.
 has 'wheels' => (
   is  => 'rwp',
@@ -140,7 +140,7 @@ has 'wheels' => (
 ## Constants. These class names are long and I am very lazy.
 sub ListenerClass  () { 'IRC::Server::Pluggable::Backend::Listener' }
 sub ConnectorClass () { 'IRC::Server::Pluggable::Backend::Connector' }
-sub WheelClass     () { 'IRC::Server::Pluggable::Backend::Wheel' }
+sub ConnectClass   () { 'IRC::Server::Pluggable::Backend::Connect' }
 
 
 sub spawn {
@@ -300,7 +300,7 @@ sub _accept_conn {
 
   my $w_id = $wheel->ID;
 
-  my $this_conn = WheelClass->new(
+  my $this_conn = ConnectClass->new(
     protocol => $protocol,
     wheel    => $wheel,
 
@@ -607,7 +607,7 @@ sub _connector_up {
   my ($protocol, $sockaddr, $sockport)
     = get_unpacked_addr($sock_packed);
 
-  my $this_conn = WheelClass->new(
+  my $this_conn = ConnectClass->new(
     protocol => $protocol,
     wheel    => $wheel,
     peeraddr => $peeraddr,
@@ -646,7 +646,7 @@ sub _ircsock_input {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($input, $w_id)  = @_[ARG0, ARG1];
 
-  ## Retrieve Backend::Wheel
+  ## Retrieve Backend::Connect
   my $this_conn = $self->wheels->{$w_id};
 
   ## Adjust last seen and idle alarm
@@ -856,9 +856,9 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
     ## See POE::Component::SSLify (SSLify_Options):
     ssl_opts => [ ARRAY ],
   );
-  
+
   $poe_kernel->post( $backend->session_id, 'register' );
-  
+
   $backend->create_listener(
     bindaddr => ADDR,
     port     => PORT,
@@ -866,7 +866,7 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
     ipv6     => BOOLEAN,
     ssl      => BOOLEAN,
   );
-  
+
   $backend->create_connector(
     remoteaddr => ADDR,
     remoteport => PORT,
@@ -879,13 +879,13 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
   ## Handle and dispatch incoming IRC events.
   sub ircsock_input {
     my ($kernel, $self) = @_[KERNEL, OBJECT];
-    
-    ## IRC::Server::Pluggable::Backend::Wheel obj:
+
+    ## IRC::Server::Pluggable::Backend::Connect obj:
     my $this_conn = $_[ARG0];
-    
+
     ## IRC::Server::Pluggable::Backend::Event obj:
     my $input_obj = $_[ARG1];
-    
+
     my $cmd = $input_obj->command;
 
     ## ... dispatch, etc ...
@@ -1035,14 +1035,16 @@ These events are dispatched to the controller session; see L</register>.
 
 Dispatched when a connection wheel has had a compression filter added.
 
-C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
+C<$_[ARG0]> is the connection's 
+L<IRC::Server::Pluggable::Backend::Connect>
 
 =head3 ircsock_connection_idle
 
 Dispatched when a connection wheel has had no input for longer than 
 specified idle time (see L</create_listener> regarding idle times).
 
-C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
+C<$_[ARG0]> is the connection's 
+L<IRC::Server::Pluggable::Backend::Connect>
 
 =head3 ircsock_connector_failure
 
@@ -1058,14 +1060,14 @@ L<POE::Wheel::SocketFactory>; operation, errno, and errstr, respectively.
 
 Dispatched when a Connector has established a connection to a peer.
 
-C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Wheel> for the 
+C<$_[ARG0]> is the L<IRC::Server::Pluggable::Backend::Connect> for the 
 connection.
 
 =head3 ircsock_disconnect
 
 Dispatched when a connection wheel has been cleared.
 
-C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel> 
+C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Connect> 
 with wheel() cleared.
 
 =head3 ircsock_input
@@ -1073,7 +1075,7 @@ with wheel() cleared.
 Dispatched when there is some IRC input from a connection wheel.
 
 C<$_[ARG0]> is the connection's 
-L<IRC::Server::Pluggable::Backend::Wheel>.
+L<IRC::Server::Pluggable::Backend::Connect>.
 
 C<$_[ARG1]> is a L<IRC::Server::Pluggable::Backend::Event>.
 
@@ -1099,7 +1101,7 @@ L<POE::Wheel::SocketFactory>; operation, errno, and errstr, respectively.
 
 Dispatched when a listener accepts a connection.
 
-C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Wheel>
+C<$_[ARG0]> is the connection's L<IRC::Server::Pluggable::Backend::Connect>
 
 =head3 ircsock_listener_removed
 

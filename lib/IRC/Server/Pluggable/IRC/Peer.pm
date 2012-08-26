@@ -13,14 +13,14 @@ use IRC::Server::Pluggable qw/
 /;
 
 has 'conn' => (
-  ## Our directly-linked peers should have a Backend::Wheel
+  ## Our directly-linked peers should have a Backend::Connect
   lazy => 1,
 
   is   => 'ro',
   isa  => sub {
     is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::Backend::Wheel')
-      or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Wheel"
+      and $_[0]->isa('IRC::Server::Pluggable::Backend::Connect')
+      or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Connect"
   },
 
   predicate => 'has_conn',

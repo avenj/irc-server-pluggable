@@ -19,15 +19,15 @@ use IRC::Server::Pluggable qw/
 /;
 
 has 'conn' => (
-  ## Backend::Wheel conn obj for a local user.
+  ## Backend::Connect conn obj for a local user.
   ## See route() attrib with regards to remote users.
   lazy => 1,
 
   is  => 'ro',
   isa => sub {
     is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::Backend::Wheel')
-      or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Wheel"
+      and $_[0]->isa('IRC::Server::Pluggable::Backend::Connect')
+      or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Connect"
   },
 
   predicate => 'has_conn',

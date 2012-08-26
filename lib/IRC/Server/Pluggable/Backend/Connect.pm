@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Backend::Wheel;
+package IRC::Server::Pluggable::Backend::Connect;
 
 use 5.12.1;
 use strictures 1;
@@ -94,7 +94,7 @@ has 'protocol' => (
 
 
 has 'seen' => (
-  ## TS of last activity on this wheel.
+  ## TS of last activity on this Connect.
   lazy    => 1,
   isa     => Num,
   is      => 'rw',
@@ -147,7 +147,7 @@ has 'wheel' => (
 
 =head1 NAME
 
-IRC::Server::Pluggable::Backend::Wheel - Connected Wheel details
+IRC::Server::Pluggable::Backend::Connect - Connected Wheel details
 
 =head1 SYNOPSIS
 
@@ -176,7 +176,7 @@ Idle time used for connection check alarms.
 
 =head2 is_disconnecting
 
-Boolean false if the Wheel is not in a disconnecting state; if it is 
+Boolean false if the Connect is not in a disconnecting state; if it is 
 true, it is the disconnect message:
 
   $obj->is_disconnecting("Client quit")
@@ -205,7 +205,7 @@ The remote peer port.
 
 =head2 seen
 
-Timestamp; should be updated when traffic is seen from this Wheel:
+Timestamp; should be updated when traffic is seen from this Connect:
 
   ## In an input handler
   $obj->seen( time )

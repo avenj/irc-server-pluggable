@@ -24,11 +24,11 @@ my $type_definitions = [
     message => sub { "$_[0] is not a POE::Filter" },
   },
 
-  ## Our classes  
+  ## Our classes
   {
     name => 'BackendClass',
-    test => sub { 
-      blessed($_[0]) 
+    test => sub {
+      blessed($_[0])
       && $_[0]->isa('IRC::Server::Pluggable::Backend')
     },
     message => sub { "$_[0] is not a IRC::Server::Pluggable::Backend" },

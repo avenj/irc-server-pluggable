@@ -386,7 +386,7 @@ sub irc_ev_unknown_cmd_server {
   ## FIXME
   ##  check auth
   ##  check if peer exists
-  ##  set up Peer obj / set $conn->is_peer
+  ##  set up Peer obj / set $conn->is_peer or route()
   ##  check if we should be setting up compressed_link
   ##  burst (event for this we can also trigger on compressed_link ?)
   ##  clear from _pending_reg
@@ -431,7 +431,7 @@ sub irc_ev_unknown_cmd_nick {
 sub _try_user_reg {
   ## FIXME move this crap out to a role?
   ## FIXME separate method to create User objs?
-  ##  need to accomodate burst here also
+  ##  need to accomodate burst somewhere, not here because this takes a $conn
   ##  need to be able to set up objs with route() attribs
   ##   (name of introducing server)
   ##  possible we should have a class for _pending_reg items?
@@ -589,7 +589,8 @@ around '_emitter_default' => sub {
 
   my ($conn, $ev) = @$args;
   unless (is_Object($conn) && is_Object($ev)) {
-    carp "_default expected Backend::Connect and Backend::Event objects";
+    carp "_default expected Backend::Connect and Backend::Event objects",
+         "got $conn and $ev";
     return
   }
 

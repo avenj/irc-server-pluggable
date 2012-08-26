@@ -32,3 +32,26 @@ sub import {
 }
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable - POE IRC server building blocks
+
+=head1 SYNOPSIS
+
+FIXME
+
+=head1 DESCRIPTION
+
+A pluggable, extensible IRCd stack using L<Moo>, L<POE>, and 
+L<Object::Pluggable>.
+
+FIXME
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

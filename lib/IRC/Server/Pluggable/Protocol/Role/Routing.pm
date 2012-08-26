@@ -87,6 +87,30 @@ consumer's B<users> and B<peers> attributes (which should be
 L<IRC::Server::Pluggable::IRC::Users> and 
 L<IRC::Server::Pluggable::IRC::Peers> instances, respectively).
 
+=head2 Routing fundamentals
+
+=over
+
+=item *
+
+Routes are acyclic; a message to a single user travels in one direction, 
+possibly across multiple servers but using the shortest possible path.
+
+=item *
+
+A message to multiple targets is dispatched individually in one direction 
+to each target.
+
+=item *
+
+A message to a channel is relayed to any local users present on the 
+channel. Messages are relayed to any peers responsible for 
+introducing users present on the channel; the receiving peer 
+dispatches to its local clients and to its own peers as-needed until the 
+message has been propogated to all clients present.
+
+=back
+
 =head2 Peers
 
 B<route_to_peer> checks if the peer is local to our server; if so, the 

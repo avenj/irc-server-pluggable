@@ -137,6 +137,41 @@ has 'version_string' => (
 
 
 ### Collections.
+has 'channels' => (
+  lazy    => 1,
+  is      => 'ro',
+  writer  => 'set_channels',
+  isa     => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::IRC::Channels')
+      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Channels"
+  },
+  default => sub {
+    my ($self) = @_;
+
+    IRC::Server::Pluggable::IRC::Channels->new(
+      casemap => $self->casemap,
+    )
+  },
+);
+
+has 'peers' => (
+  lazy   => 1,
+  is     => 'ro',
+  writer => 'set_peers',
+  isa    => sub {
+    is_Object($_[0])
+      and $_[0]->isa('IRC::Server::Pluggable::IRC::Peers')
+      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Peers"
+  },
+  default => sub {
+    my ($self) = @_;
+
+    IRC::Server::Pluggable::IRC::Peers->new(
+    );
+  }
+);
+
 has 'users' => (
   ## Map nicknames to objects
   ## (IRC::Users objects have conn() attribs containing the Backend::Wheel)
@@ -152,24 +187,6 @@ has 'users' => (
     my ($self) = @_;
 
     IRC::Server::Pluggable::IRC::Users->new(
-      casemap => $self->casemap,
-    )
-  },
-);
-
-has 'channels' => (
-  lazy    => 1,
-  is      => 'ro',
-  writer  => 'set_channels',
-  isa     => sub {
-    is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::IRC::Channels')
-      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Channels"
-  },
-  default => sub {
-    my ($self) = @_;
-
-    IRC::Server::Pluggable::IRC::Channels->new(
       casemap => $self->casemap,
     )
   },
@@ -411,23 +428,31 @@ sub irc_ev_unknown_cmd_nick {
 sub _try_user_reg {
   my ($self, $conn) = @_;
 
-  ## FIXME perhaps should check if this conn still has a wheel ?
-
   my $pending_ref = $self->_pending_reg->{ $conn->wheel_id } || return;
 
+  unless ($conn->has_wheel) {
+    delete $self->_pending_reg->{ $conn->wheel_id };
+    return
+  }
+
+  ## Jump out if registration is incomplete.
   return unless defined $pending_ref->{nick}
          and    defined $pending_ref->{user}
          ## authinfo has keys 'host', 'ident'
          ## undef if these lookups were unsuccessful
          and    $pending_ref->{authinfo};
 
+  $conn->is_client(1);
+
   ## FIXME auth check methods:
   ##  - check pass if present
   ##  - plugin process a preregister event for ban hooks, etc
+  ## FIXME need a sane disconnect/clear method
 
-  ## FIXME factory method in Users to create User objects?
-
-  ## FIXME $conn->is_client ?
+  ## FIXME create User obj
+  ##  - use {authinfo}->{ident} and {host} if available
+  ##  - use _pending_reg->{user} if ident not avail
+  ##  - use peeraddr if host not available
 
   ## FIXME send 001..004 numerics, lusers, motd, default mode if configured
   ##  dispatch registered event
@@ -566,6 +591,13 @@ around '_emitter_default' => sub {
   ## FIXME not handled, dispatch unknown cmd
   ## FIXME  ... do servers need anything special?
 };
+
+
+## Routing details:
+##  - track which peer introduced a particular User
+##  - $user->set_server() for the peer that introduced
+##  - add Peers collection
+##  - relay to $self->peers->by_name($user->server)->conn->wheel_id
 
 no warnings 'void';
 q{

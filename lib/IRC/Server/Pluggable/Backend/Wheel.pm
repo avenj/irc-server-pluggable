@@ -11,152 +11,131 @@ use IRC::Server::Pluggable::Types;
 
 has 'alarm_id' => (
   ## Idle alarm ID.
-  lazy => 1,
-
-  isa => Defined,
-  is  => 'rw',
-
+  lazy      => 1,
+  isa       => Defined,
+  is        => 'rw',
   predicate => 'has_alarm_id',
-
-  default => sub { 0 },
+  default   => sub { 0 },
 );
 
 
 has 'compressed' => (
   ## zlib filter added.
-  lazy => 1,
-
-  is  => 'rwp',
-  isa => Bool,
-
-  writer => 'set_compressed',
-
+  lazy    => 1,
+  is      => 'rwp',
+  isa     => Bool,
+  writer  => 'set_compressed',
   default => sub { 0 },
 );
 
 
 has 'idle' => (
   ## Idle delay.
-  lazy => 1,
-
-  is  => 'rwp',
-  isa => Num,
-
+  lazy    => 1,
+  is      => 'rwp',
+  isa     => Num,
   default => sub { 180 },
 );
 
 
 has 'is_client' => (
-  is  => 'rw',
-  isa => Bool,
+  lazy    => 1,
+  is      => 'rw',
+  isa     => Bool,
   default => sub { 0 },
 );
 
 
 has 'is_peer' => (
-  is => 'rw',
-  isa => Bool,
+  lazy    => 1,
+  is      => 'rw',
+  isa     => Bool,
   default => sub { 0 },
 );
 
 
 has 'is_disconnecting' => (
   ## Bool or string (disconnect message)
-  is  => 'rw',
+  is      => 'rw',
   default => sub { 0 },
 );
 
 
 has 'is_pending_compress' => (
   ## Wheel needs zlib filter after a socket flush.
-  isa => Bool,
-  is  => 'rw',
+  isa     => Bool,
+  is      => 'rw',
   default => sub { 0 },
 );
 
 
 has 'peeraddr' => (
   required => 1,
-
-  isa => Str,
-  is  => 'ro',
-
-  writer => 'set_peeraddr',
+  isa      => Str,
+  is       => 'ro',
+  writer   => 'set_peeraddr',
 );
 
 
 has 'peerport' => (
   required => 1,
-
-  isa => Int,
-  is  => 'ro',
-
-  writer => 'set_peerport',
+  isa      => Int,
+  is       => 'ro',
+  writer   => 'set_peerport',
 );
 
 
 has 'protocol' => (
   ## 4 or 6.
   required => 1,
-
-  isa => InetProtocol,
-  is  => 'ro',
+  isa      => InetProtocol,
+  is       => 'ro',
 );
 
 
 has 'seen' => (
   ## TS of last activity on this wheel.
-  lazy => 1,
-
-  isa => Num,
-  is  => 'rw',
-
+  lazy    => 1,
+  isa     => Num,
+  is      => 'rw',
   default => sub { 0 },
 );
 
 
 has 'sockaddr' => (
   required => 1,
-
-  isa => Str,
-  is  => 'ro',
-
-  writer => 'set_sockaddr',
+  isa      => Str,
+  is       => 'ro',
+  writer   => 'set_sockaddr',
 );
 
 
 has 'sockport' => (
   required => 1,
-
-  isa => Int,
-  is  => 'ro',
-
-  writer => 'set_sockport',
+  isa      => Int,
+  is       => 'ro',
+  writer   => 'set_sockport',
 );
 
 
 has 'wheel_id' => (
   ## Actual POE wheel ID.
-  lazy => 1,
-
-  isa => Defined,
-  is  => 'ro',
-
-  writer => 'set_wheel_id',
+  lazy      => 1,
+  isa       => Defined,
+  is        => 'ro',
+  writer    => 'set_wheel_id',
+  predicate => 'has_wheel_id',
 );
 
 
 has 'wheel' => (
   ## Actual POE::Wheel
   required => 1,
-
-  isa => Wheel,
-  is  => 'ro',
-
-  clearer => 'clear_wheel',
-  writer  => 'set_wheel',
-
-  trigger => sub {
+  isa      => Wheel,
+  is       => 'ro',
+  clearer  => 'clear_wheel',
+  writer   => 'set_wheel',
+  trigger  => sub {
     my ($self, $wheel) = @_;
     $self->set_wheel_id( $wheel->ID )
   },

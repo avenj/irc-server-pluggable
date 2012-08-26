@@ -291,13 +291,15 @@ sub dispatch_now {
 sub _dispatch {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD :
+  ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD
+  ## + List of either Backend::Wheel IDs or objs that can give us one
   my ($out, @ids) = $_[ARG0 .. $#_];
+  my $idref = [ map { is_Object($_) ? $_->wheel_id : $_ } @ids ];
 
   return
-    if $self->process( 'message_dispatch', $out, \@ids ) == EAT_ALL;
+    if $self->process( 'message_dispatch', $out, $idref ) == EAT_ALL;
 
-  $self->backend->send( $out, @ids )
+  $self->backend->send( $out, @$idref )
 }
 
 no warnings 'void';

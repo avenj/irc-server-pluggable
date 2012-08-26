@@ -10,7 +10,6 @@ use Moo;
 
 use IRC::Server::Pluggable qw/
   Types
-  Utils
 /;
 
 
@@ -70,7 +69,7 @@ sub del {
 
 sub as_array {
   my ($self) = @_;
-  
+
   [ map { $self->_users->{$_}->nick } keys %{ $self->_users } ]
 }
 

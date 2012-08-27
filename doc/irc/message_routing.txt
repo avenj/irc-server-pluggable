@@ -1,0 +1,14 @@
+Per the RFC:
+
+ * Routes are acyclic; a message to a single user travels in one
+   direction, possibly across multiple servers but using the
+   shortest possible path.
+
+ * A message to multiple targets is dispatched individually in one
+   direction to each target.
+
+ * A message to a channel is relayed to any local users present on the
+   channel. Messages are relayed to any peers responsible for
+   introducing users present on the channel; the receiving peer
+   dispatches to its local clients and to its own peers as-needed until
+   the message has been propogated to all clients present.

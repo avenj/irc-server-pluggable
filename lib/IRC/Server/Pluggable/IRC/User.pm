@@ -44,6 +44,7 @@ has 'nick' => (
   is       => 'ro',
   isa      => Str,
   writer   => 'set_nick',
+  trigger  =>  '_reset_full',
 );
 
 has 'user' => (
@@ -51,6 +52,7 @@ has 'user' => (
   is       => 'ro',
   isa      => Str,
   writer   => 'set_user',
+  trigger  =>  '_reset_full',
 );
 
 has 'host' => (
@@ -58,7 +60,28 @@ has 'host' => (
   is       => 'ro',
   isa      => Str,
   writer   => 'set_host',
+  trigger  =>  '_reset_full',
 );
+
+has 'full' => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_full',
+  predicate => 'has_full',
+  builder   => '_build_full',
+);
+
+sub _build_full {
+  my ($self) = @_;
+  $self->nick .'!'. $self->user .'@'. $self->host
+}
+
+sub _reset_full {
+  my ($self) = @_;
+  $self->set_full( $self->_build_full )
+    if $self->has_full
+}
 
 has 'server' => (
   required => 1,
@@ -108,11 +131,6 @@ sub BUILD {
   }
 }
 
-
-sub full {
-  my ($self) = @_;
-  $self->nick .'!'. $self->user .'@'. $self->host
-}
 
 sub set_modes {
   my ($self, $data) = @_;

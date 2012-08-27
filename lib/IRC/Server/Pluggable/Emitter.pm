@@ -135,7 +135,6 @@ sub _start_emitter {
       },
 
       $self => [ qw/
-
         _dispatch_notify
 
         _emitter_sigdie
@@ -152,8 +151,7 @@ sub _start_emitter {
   $self
 }
 
-
-## From our super:
+## From Object::Pluggable:
 around '_pluggable_event' => sub {
   my ($orig, $self) = splice @_, 0, 2;
 
@@ -165,7 +163,43 @@ around '_pluggable_event' => sub {
 
 ### Methods.
 
-## TODO alarm/delay frontends, perhaps?
+## FIXME
+sub timer {
+  my ($self, $time, $event, @args) = @_;
+
+  confess "timer() expected at least a time and event name"
+    unless defined $time
+    and defined $event;
+
+  my $alarm_id = $poe_kernel->delay_set($event, $time, @args);
+
+  $self->emit( $self->event_prefix . 'timer_set',
+    $alarm_id,
+    $event,
+    @args
+  ) if $alarm_id;
+
+  $alarm_id
+}
+
+sub timer_del {
+  my ($self, $alarm_id) = @_;
+
+  confess "timer_del() expects an alarm ID"
+    unless defined $alarm_id;
+
+  if ( my @deleted = $poe_kernel->alarm_remove($alarm_id) ) {
+    my ($event, undef, $params) = @deleted;
+    $self->emit( $self->event_prefix . 'timer_deleted',
+      $alarm_id,
+      $event,
+      @{$params||[]}
+    );
+    return $params
+  }
+
+  return
+}
 
 ## yield/call provide post()/call() frontends.
 sub yield {
@@ -659,6 +693,14 @@ L</emit>.
 
 B<process()> calls registered plugin handlers for L</"PROCESS events">
 immediately; these are not dispatched to sessions.
+
+=head3 timer
+
+FIXME
+
+=head3 timer_del
+
+FIXME
 
 =head1 AUTHOR
 

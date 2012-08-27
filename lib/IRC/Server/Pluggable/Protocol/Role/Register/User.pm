@@ -6,12 +6,20 @@ use Carp;
 use Moo::Role;
 use strictures 1;
 
+use IRC::Server::Pluggable qw/
+  Constants
+
+  IRC::User
+/;
+
 requires qw/
   config
 
   users
   peers
   _pending_reg
+
+  numeric
 
   process
   emit
@@ -30,14 +38,43 @@ sub register_user_local {
 
   $conn->is_client(1);
 
-  ## FIXME
-  ##  -> auth check:
-  ##    - check pass if present
-  ##  -> ban check:
-  ##    -> process() pre-registration event
-  ##  -> __register_user_create_obj()
+  ## Auth check.
+  if (defined $pending_ref->{pass}) {
+    ## FIXME
+    ##  figure out ->config attribs for local user auth config
+  }
+
+  my $username = $pending_ref->{authinfo}->{ident}
+                 || '~' . $pending_ref->{user};
+
+  my $hostname = $pending_ref->{authinfo}->{host}
+                 || $conn->peeraddr;
+
+  my $user = $self->__register_user_create_obj(
+    conn => $conn,
+
+    nick => $pending_ref->{nick},
+    user => $username,
+    host => $hostname,
+    realname => $pending_ref->{gecos},
+
+    server => ## FIXME own servername
+    ## FIXME could set default modes() here
+    ##  then just relay $user->modes() after lusers/motd, below
+  );
+
+  ## Ban-type plugins can grab P_user_registering
+  ## Banned users should be disconnected at the backend and the
+  ## event should be eaten.
+  return if
+    $self->process( 'user_registering', $user ) == EAT_ALL;
+
+  ## FIXME add User obj to ->users
   ##  -> dispatch 001 .. 004 numerics, lusers, motd, default mode
-  ##  -> emit registered event
+
+  $self->emit( 'user_registered', $user );
+
+  $user
 }
 
 sub __register_user_ready {
@@ -72,8 +109,11 @@ sub register_user_remote {
 }
 
 sub __register_user_create_obj {
-  ## IRC::User Factory
-  ## FIXME need to figure out sane usage for this
+  my ($self, %params) = @_;
+
+  ## Override me to change the class constructed for a User.
+
+  IRC::Server::Pluggable::IRC::User->new(%params)
 }
 
 

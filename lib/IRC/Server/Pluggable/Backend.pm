@@ -354,10 +354,8 @@ sub _accept_fail {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($op, $errnum, $errstr, $listener_id) = @_[ARG0 .. ARG3];
 
-  ## TODO Hmm .. is clearing the listener the right thing to do?
-  ##   PoCo::Server::IRC::Backend does it this way ...
-
   my $listener = delete $self->listeners->{$listener_id};
+
   if ($listener) {
     $listener->clear_wheel;
 
@@ -455,7 +453,7 @@ sub remove_listener {
 
 sub _remove_listener {
   ## Delete listeners by ID or by port.
-  ## TODO delete by addr+port combo ?
+  ## FIXME delete by addr+port combo ?
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my %args = @_[ARG0 .. $#_];
 
@@ -653,8 +651,8 @@ sub _ircsock_input {
   $this_conn->seen( time );
   $kernel->delay_adjust( $this_conn->alarm_id, $this_conn->idle );
 
-  ## TODO raw events?
-  ## TODO anti-flood code or should that be higher up ... ?
+  ## FIXME configurable raw events?
+  ## FIXME anti-flood code or should that be higher up ... ?
 
   ## Create obj from HASH from POE::Filter::IRCD
   my $obj = IRC::Server::Pluggable::Backend::Event->new(

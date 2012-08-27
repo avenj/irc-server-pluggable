@@ -335,11 +335,13 @@ sub irc_ev_peer_connected {
 sub irc_ev_peer_compressed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
+  ## Peer that needed compression is burstable.
 }
 
 sub irc_ev_listener_created {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
+  ## Not sure we actually care ourselves, but emit() it
 }
 
 sub irc_ev_listener_open {
@@ -359,9 +361,11 @@ sub irc_ev_register_complete {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $hints)  = @_[ARG0, ARG1];
 
+  ## Emitted from Plugin::Register when ident + host lookups finish.
+
   ## Hints hash has keys 'ident' and 'host'
-  ## Hints hash elements will be undef if not found
-  ## Save to _pending_reg and see if we can register this.
+  ##  (values will be undef if not found)
+  ## Save to _pending_reg and see if we can register a User.
   $self->_pending_reg->{ $conn->wheel_id }->{authinfo} = $hints;
   $self->register_user_local($conn);
 }
@@ -508,11 +512,8 @@ sub irc_ev_peer_numeric {
   my $target_nick  = $ev->params->[0];
   my $target_user  = $self->users->by_name($target_nick);
 
-  ## Numeric from peer intended for a client
-  $self->dispatcher->dispatch(
-    $ev,
-    $target_user->route
-  )
+  ## Numeric from peer intended for a client; route it.
+  $self->dispatcher->dispatch( $ev, $target_user->route );
 }
 
 ## client_* handlers
@@ -522,7 +523,7 @@ sub irc_ev_client_cmd_privmsg {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   ## FIXME
-  ## privmsg/notice will probably share a method
+  ## privmsg/notice will probably share a method/role
 
   ##  general pattern for cmds:
   ##   - plugin process()

@@ -312,6 +312,8 @@ sub _emitter_started {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   ## Load Protocol::Plugin::Register
+
+  ## FIXME separate overridable method to load core plugins
   $self->plugin_add( 'Register',
     IRC::Server::Pluggable::Protocol::Plugin::Register->new
   );

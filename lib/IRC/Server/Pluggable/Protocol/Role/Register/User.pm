@@ -12,6 +12,7 @@ use IRC::Server::Pluggable qw/
   IRC::User
 /;
 
+
 requires qw/
   config
 
@@ -25,6 +26,14 @@ requires qw/
   emit
   emit_now
 /;
+
+
+sub _register_user_create_obj {
+  my ($self, %params) = @_;
+  ## Define me in consuming (sub)class to change the class constructed
+  ## for a User.
+  IRC::Server::Pluggable::IRC::User->new(%params)
+}
 
 
 sub register_user_local {
@@ -54,7 +63,7 @@ sub register_user_local {
 
   my $server = $self->config->server_name;
 
-  my $user = $self->__register_user_create_obj(
+  my $user = $self->_register_user_create_obj(
     conn     => $conn,
     nick     => $nickname,
     user     => $username,
@@ -148,14 +157,6 @@ sub register_user_remote {
   ## FIXME remote User objs need a route() specifying wheel_id for
   ## next-hop peer; i.e., the peer that introduced the user to us
   ##  take next-hop Peer/conn obj as arg, pull wheel_id
-}
-
-sub __register_user_create_obj {
-  my ($self, %params) = @_;
-
-  ## Override me to change the class constructed for a User.
-
-  IRC::Server::Pluggable::IRC::User->new(%params)
 }
 
 

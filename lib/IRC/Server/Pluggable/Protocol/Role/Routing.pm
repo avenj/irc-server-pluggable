@@ -1,5 +1,8 @@
 package IRC::Server::Pluggable::Protocol::Role::Routing;
 
+## FIXME made redundant by changes in ->route attribs
+## These should be set to the next-hop wheel_id at construction time
+
 use 5.12.1;
 use strictures 1;
 
@@ -10,6 +13,10 @@ requires qw/
   peers
   users
 /;
+
+## FIXME
+##  Unnecessary performance hit to do this every time.
+##  We should likely attach route_ids directly to objects.
 
 sub route_to_peer {
   my ($self, $s_name) = @_;

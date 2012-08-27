@@ -268,7 +268,7 @@ has 'states_client_cmds' => (
 
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
-with 'IRC::Server::Pluggable::Role::Routing';
+with 'IRC::Server::Pluggable::Role::Register::User';
 
 
 sub BUILD {
@@ -363,7 +363,7 @@ sub irc_ev_register_complete {
   ## Hints hash elements will be undef if not found
   ## Save to _pending_reg and see if we can register this.
   $self->_pending_reg->{ $conn->wheel_id }->{authinfo} = $hints;
-  $self->_try_user_reg($conn);
+  $self->register_user_local($conn);
 }
 
 ## unknown_* handlers
@@ -386,10 +386,13 @@ sub irc_ev_unknown_cmd_server {
   ## FIXME
   ##  check auth
   ##  check if peer exists
-  ##  set up Peer obj / set $conn->is_peer or route()
+  ##  set $conn->is_peer
+  ##  set up Peer obj, route() can default to wheel_id
   ##  check if we should be setting up compressed_link
   ##  burst (event for this we can also trigger on compressed_link ?)
   ##  clear from _pending_reg
+
+  ## FIXME should a server care if Plugin::Register isn't done?
 }
 
 sub irc_ev_unknown_cmd_nick {
@@ -425,48 +428,7 @@ sub irc_ev_unknown_cmd_nick {
   ## Set up a $self->_pending_reg->{ $conn->wheel_id } hash entry.
   ## Call method to check current state.
   $self->_pending_reg->{ $conn->wheel_id }->{nick} = $nick;
-  $self->_try_user_reg($conn);
-}
-
-sub _try_user_reg {
-  ## FIXME move this crap out to a role?
-  ## FIXME separate method to create User objs?
-  ##  need to accomodate burst somewhere, not here because this takes a $conn
-  ##  need to be able to set up objs with route() attribs
-  ##   (name of introducing server)
-  ##  possible we should have a class for _pending_reg items?
-  my ($self, $conn) = @_;
-
-  my $pending_ref = $self->_pending_reg->{ $conn->wheel_id } || return;
-
-  unless ($conn->has_wheel) {
-    delete $self->_pending_reg->{ $conn->wheel_id };
-    return
-  }
-
-  ## Jump out if registration is incomplete.
-  return unless defined $pending_ref->{nick}
-         and    defined $pending_ref->{user}
-         ## authinfo has keys 'host', 'ident'
-         ## undef if these lookups were unsuccessful
-         and    $pending_ref->{authinfo};
-
-  $conn->is_client(1);
-
-  ## FIXME auth check methods:
-  ##  - check pass if present
-  ##  - plugin process a preregister event for ban hooks, etc
-  ## FIXME need a sane disconnect/clear method
-
-  ## FIXME create User obj
-  ##  - use {authinfo}->{ident} and {host} if available
-  ##  - use _pending_reg->{user} if ident not avail
-  ##  - use peeraddr if host not available
-
-  ## FIXME send 001..004 numerics, lusers, motd, default mode if configured
-  ##  dispatch registered event
-
-  delete $self->_pending_reg->{ $conn->wheel_id };
+  $self->register_user_local($conn);
 }
 
 sub irc_ev_unknown_cmd_user {
@@ -490,7 +452,7 @@ sub irc_ev_unknown_cmd_user {
 
   $self->_pending_reg->{ $conn->wheel_id }->{user}  = $username;
   $self->_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';
-  $self->_try_user_reg($conn);
+  $self->register_user_local($conn);
 }
 
 sub irc_ev_unknown_cmd_pass {
@@ -544,11 +506,12 @@ sub irc_ev_peer_numeric {
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
   my $target_nick  = $ev->params->[0];
+  my $target_user  = $self->users->by_name($target_nick);
 
   ## Numeric from peer intended for a client
   $self->dispatcher->dispatch(
     $ev,
-    $self->route_to_user($target_nick)
+    $target_user->route
   )
 }
 
@@ -600,12 +563,6 @@ around '_emitter_default' => sub {
   ## FIXME not handled, dispatch unknown cmd
   ## FIXME  ... do servers need anything special?
 };
-
-
-## FIXME
-## User/Peer should be created for both local and remote registrations
-## User/Peer should have either a conn() or a route() at construction time
-## A route() should be the name of a local Peer that has_conn()
 
 no warnings 'void';
 q{

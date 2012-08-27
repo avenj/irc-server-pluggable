@@ -75,14 +75,21 @@ has 'realname' => (
 );
 
 has 'route' => (
-  ## A non-local user has a route() naming a Peer.
+  ## Either our conn's wheel_id or the ID of the next hop peer
+  ## (ie, the peer that relayed user registration)
   lazy      => 1,
   is        => 'ro',
   isa       => Str,
   writer    => 'set_route',
   predicate => 'has_route',
   clearer   => 'clear_route',
-  default   => sub { '' },
+  default   => sub {
+    my ($self) = @_;
+    ## If we have a conn() we can get a route.
+    ## If we don't we should've had a route specified at construction
+    ## or died in BUILD.
+    $self->conn->wheel_id
+  },
 );
 
 has 'modes' => (

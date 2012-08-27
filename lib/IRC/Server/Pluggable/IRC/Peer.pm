@@ -39,13 +39,26 @@ has 'name' => (
 );
 
 has 'route' => (
-  ## If this is a remote Peer, route() is the name of the local Peer.
+  ## Either our Connect's wheel_id or the wheel_id of the next hop peer.
   lazy      => 1,
   is        => 'ro',
   isa       => Str,
   writer    => 'set_route',
   predicate => 'has_route',
   clearer   => 'clear_route',
+  default   => sub {
+    my ($self) = @_;
+    $self->conn->wheel_id,
+  },
 );
+
+sub BUILD {
+  my ($self) = @_;
+
+  unless ($self->has_conn || $self->has_route) {
+    confess
+      "A Peer needs either a conn() or a route() at construction time"
+  }
+}
 
 1;

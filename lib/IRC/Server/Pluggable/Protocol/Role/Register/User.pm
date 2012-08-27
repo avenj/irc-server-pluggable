@@ -44,21 +44,23 @@ sub register_user_local {
     ##  figure out ->config attribs for local user auth config
   }
 
+  my $nickname = $pending_ref->{nick};
+  my $realname = $pending_ref->{gecos};
   my $username = $pending_ref->{authinfo}->{ident}
                  || '~' . $pending_ref->{user};
 
   my $hostname = $pending_ref->{authinfo}->{host}
                  || $conn->peeraddr;
 
+  my $server = $self->config->server_name;
+
   my $user = $self->__register_user_create_obj(
-    conn => $conn,
-
-    nick => $pending_ref->{nick},
-    user => $username,
-    host => $hostname,
-    realname => $pending_ref->{gecos},
-
-    server => ## FIXME own servername
+    conn     => $conn,
+    nick     => $nickname,
+    user     => $username,
+    host     => $hostname,
+    realname => $realname,
+    server   => $server,
     ## FIXME could set default modes() here
     ##  then just relay $user->modes() after lusers/motd, below
   );
@@ -69,8 +71,47 @@ sub register_user_local {
   return if
     $self->process( 'user_registering', $user ) == EAT_ALL;
 
-  ## FIXME add User obj to ->users
+  ## Add to our IRC::Users collection:
+  $self->users->add( $user );
+
+  ## FIXME
   ##  -> dispatch 001 .. 004 numerics, lusers, motd, default mode
+
+  my $net_name = $self->config->network_name;
+
+  $self->dispatcher->dispatch(
+    {
+      prefix  => $server,
+      command => '001',
+      params  => [
+        $nickname,
+        "Welcome to the $net_name Internet Relay Chat network $nick"
+      ],
+    },
+    $conn->wheel_id
+  );
+
+  $self->dispatcher->dispatch(
+    {
+      prefix  => $server,
+      command => '003',
+      params  => [
+        $nickname,
+        $server,
+        $self->version_string,
+        ## FIXME build mode lists to send
+      ],
+    },
+    $conn->wheel_id
+  );
+
+  ## FIXME ISUPPORT [005] (dispatch cmd handler event)
+
+  ## FIXME LUSERS (dispatch cmd handler event)
+
+  ## FIXME MOTD   (dispatch cmd handler event)
+
+  ## FIXME see notes about default modes in object creation above
 
   $self->emit( 'user_registered', $user );
 
@@ -80,8 +121,8 @@ sub register_user_local {
 sub __register_user_ready {
   my ($self, $conn) = @_;
 
-  ## Should be called if a local user may be ready to complete
-  ## registration; in other words, NICK, USER, and identd/hostname
+  ## Called if a local user may be ready to complete registration.
+  ## Returns the pending user hash if NICK, USER, and identd/hostname
   ## have all been retrieved.
 
   my $pending_ref = $self->_pending_reg->{ $conn->wheel_id } || return;
@@ -105,7 +146,8 @@ sub register_user_remote {
   ## FIXME figure out sane args for this; these are bursted users
 
   ## FIXME remote User objs need a route() specifying wheel_id for
-  ## next-hop peer
+  ## next-hop peer; i.e., the peer that introduced the user to us
+  ##  take next-hop Peer/conn obj as arg, pull wheel_id
 }
 
 sub __register_user_create_obj {

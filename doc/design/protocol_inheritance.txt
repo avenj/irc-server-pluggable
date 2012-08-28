@@ -1,0 +1,19 @@
+## Protocol:: class inheritance white board. :)
+
+IRC::Pluggable::Protocol (TS3)
+
+  * Protocol::TS5 isa Protocol
+     * Protocol::TS6 isa Protocol::TS5
+
+  * Protocol::P10
+
+IRC::Pluggable::IRC::
+
+  * Protocol::TS6::Users isa IRC::Users
+    (-> UIDs are primary keys)
+
+  * Protocol::TS6::User isa IRC::User
+    (-> has 'uid')
+
+  * Protocol::TS6::Peer isa IRC::Peer
+    (-> has 'sid')

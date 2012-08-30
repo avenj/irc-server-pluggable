@@ -20,3 +20,23 @@ IRC::Pluggable::IRC::
 
   * Protocol::TS6::Peer isa IRC::Peer
     (-> has 'sid')
+
+
+Role composition / plugin layout:
+
+  - Class wins over role
+  - Roles can compose roles and override methods
+  - Subclass can override or compose roles that override
+
+  * IRC::Pluggable::Protocol
+
+    > with Protocol::Role::Clients
+      -> with Protocol::Role::Clients::Commands
+          (handle commands from users)
+          (how much of this should be in plugins?)
+      -> with Protocol::Role::Clients::Ping
+
+    > with Protocol::Role::Peers
+      -> with Protocol::Role::Peers::Sync
+          (specifies burst behavior)
+

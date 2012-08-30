@@ -236,6 +236,25 @@ has '_pending_reg' => (
 
 
 ### Helpers.
+has 'autoloaded_plugins' => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => ArrayRef,
+  writer  => 'set_autoloaded_plugins',
+  builder => '_build_autoloaded_plugins',
+);
+
+sub _build_autoloaded_plugins {
+  ## Build array-of-arrays specifiny
+  my $prefix = 'IRC::Server::Pluggable::';
+  [
+    ## [ NAME, CLASS, CONSTRUCTOR OPTS ], . . .
+
+    [ 'Register', $prefix.'Protocol::Plugin::Register' ],
+  ],
+}
+
+
 has 'numeric' => (
   ## Numeric parser.
   lazy    => 1,
@@ -343,9 +362,9 @@ sub BUILD {
       / ],
 
       ## Command handlers:
-      ( @{ $self->states_unknown_cmds } ),
-      ( @{ $self->states_peer_cmds    } ),
-      ( @{ $self->states_client_cmds  } ),
+      @{ $self->states_client_cmds  },
+      @{ $self->states_peer_cmds    },
+      @{ $self->states_unknown_cmds },
 
       ## May have other object_states specified at construction time:
       (
@@ -357,18 +376,46 @@ sub BUILD {
   $self->_start_emitter;
 }
 
+sub _load_core_plugins {
+  my ($self) = @_;
+
+  ## Array-of-arrays:
+  ##  [ [ $alias, $class, @args ], [ $alias, $class, @args ] ]
+  for my $plugin_arr (@{ $self->autoloaded_plugins }) {
+
+    unless (ref $plugin_arr eq 'ARRAY') {
+      carp "autoloaded_plugins element not an ARRAY: $plugin_arr";
+      next
+    }
+    unless (@$plugin_arr >= 2) {
+      carp "autoloaded_plugins elements should have at least 2 values";
+      next
+    }
+
+    my ($alias, $class, @params) = @$plugin_arr;
+    $self->plugin_add( $alias,
+      $class->new(@params)
+    );
+  }
+
+}
+
 sub _emitter_started {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  ## Load Protocol::Plugin::Register
-
-  ## FIXME separate overridable method to load core plugins
-  $self->plugin_add( 'Register',
-    IRC::Server::Pluggable::Protocol::Plugin::Register->new
-  );
+  ## Load core plugins.
+  ## (If your Protocol handles clients, you at least want
+  ##  Protocol::Plugin::Register)
+  $self->_load_core_plugins;
 
   ## Register with Dispatcher.
   $kernel->post( $self->dispatcher->session_id, 'register' );
+
+  ## FIXME possible we should tell Dispatcher to spawn a Backend
+  ## from here unless we have a Dispatcher?
+  ##  Dispatcher should only spawn Backend if it doesn't have one
+  ##  as-is, so we should be able to just carry opts downward
+  ##  if we haven't been tied together by a controller
 }
 
 

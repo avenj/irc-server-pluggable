@@ -213,7 +213,9 @@ sub p_got_host {
 
   for my $ans (@answers) {
     my $hostname = $ans->rdatastr();
-    chop $hostname if $hostname =~ /\.$/;
+
+    ## Kill trailing '.' if present
+    $hostname =~ s/\.$//;
 
     my $h_resp = $self->resolver->resolve(
       event => 'p_got_ipaddr',

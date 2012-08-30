@@ -1,4 +1,5 @@
 package IRC::Server::Pluggable::Protocol;
+our $VERSION = 0;
 
 ## Base class for Protocol sessions.
 
@@ -29,7 +30,8 @@ extends 'IRC::Server::Pluggable::Emitter';
 ## FIXME need either:
 ##  - a Controller to tie a Protocol to a Dispatcher
 ##    (probably a bin/ frontend could just do this)
-##  - a spawn method carrying backend_opts to Dispatcher
+##  - a build method carrying backend_opts to Dispatcher -> Backend
+## http://eris.cobaltirc.org/dev/bugs/?do=details&task_id=14&project=1
 has 'dispatcher' => (
   required  => 1,
   is        => 'ro',
@@ -61,8 +63,11 @@ has 'casemap' => (
   isa       => CaseMap,
   writer    => 'set_casemap',
   predicate => 'has_casemap',
-  default   => sub { 'rfc1459' },
+  builder   => 'build_casemap',
 );
+
+sub build_casemap {  'rfc1459'  }
+
 
 has 'channel_types' => (
   lazy      => 1,
@@ -70,13 +75,18 @@ has 'channel_types' => (
   isa       => HashRef,
   writer    => 'set_channel_types',
   predicate => 'has_channel_types',
-  default   => sub {
-    ## FIXME map channel prefixes to a IRC::Channel subclass
-    ##  These can control the behavior of specific channel types.
+  builder   => 'build_channel_types',
+);
+
+sub build_channel_types {
+  ## Map channel prefixes to a IRC::Channel subclass.
+  ## These can control the behavior of specific channel types.
+  {
     '&' => 'IRC::Server::Pluggable::IRC::Channel::Local',
     '#' => 'IRC::Server::Pluggable::IRC::Channel::Global',
-  },
-);
+  }
+}
+
 
 has 'prefix_map' => (
   lazy      => 1,
@@ -84,15 +94,18 @@ has 'prefix_map' => (
   is        => 'ro',
   predicate => 'has_prefix_map',
   writer    => 'set_prefix_map',
-  default   => sub {
+  builder   => 'build_prefix_map',
+);
+
+sub build_prefix_map {
   ## Map PREFIX= to channel mode characters.
   ## (These also compose the valid status mode list)
-    {
-      '@' => 'o',
-      '+' => 'v',
-    },
-  },
-);
+  {
+    '@' => 'o',
+    '+' => 'v',
+  }
+}
+
 
 has 'valid_channel_modes' => (
   lazy      => 1,
@@ -100,7 +113,10 @@ has 'valid_channel_modes' => (
   is        => 'ro',
   predicate => 'has_valid_channel_modes',
   writer    => 'set_valid_channel_modes',
-  default   => sub {
+  builder   => 'build_valid_channel_modes',
+);
+
+sub build_valid_channel_modes {
     ## ISUPPORT CHANMODES=1,2,3,4
     ## Channel modes fit in four categories:
     ##  'LIST'     -> Modes that manipulate list values
@@ -112,9 +128,9 @@ has 'valid_channel_modes' => (
       PARAM    => [ 'k' ],
       SETPARAM => [ 'l' ],
       SINGLE   => [ split '', 'imnpst' ],
-    },
-  },
-);
+    }
+}
+
 
 has 'valid_user_modes' => (
   lazy      => 1,
@@ -122,8 +138,14 @@ has 'valid_user_modes' => (
   is        => 'ro',
   predicate => 'has_valid_user_modes',
   writer    => 'set_valid_user_modes',
-  default   => sub { [ split '', 'iaow' ] },
+  builder   => 'build_valid_user_modes',
 );
+
+sub build_valid_user_modes {
+  ## Override to add valid user modes.
+  [ split '', 'iaow' ]
+}
+
 
 has 'version_string' => (
   lazy       => 1,
@@ -131,8 +153,13 @@ has 'version_string' => (
   is         => 'ro',
   predicate  => 'has_version_string',
   writer     => 'set_version_string',
-  default    => sub { ref $_[0] },
+  builder    => 'build_version_string',
 );
+
+sub build_version_string {
+  my ($self) = @_;
+  ref $self .'-'. $VERSION
+}
 
 
 ### Collections.
@@ -140,56 +167,62 @@ has 'channels' => (
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_channels',
+  builder => 'build_channels',
   isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Channels')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Channels"
   },
-  default => sub {
-    my ($self) = @_;
-
-    IRC::Server::Pluggable::IRC::Channels->new(
-      casemap => $self->casemap,
-    )
-  },
 );
 
+sub build_channels {
+  my ($self) = @_;
+
+  IRC::Server::Pluggable::IRC::Channels->new(
+      casemap => $self->casemap,
+  )
+}
+
+
 has 'peers' => (
-  lazy   => 1,
-  is     => 'ro',
-  writer => 'set_peers',
-  isa    => sub {
+  ## Map server names to Peer instances
+  lazy    => 1,
+  is      => 'ro',
+  writer  => 'set_peers',
+  builder => 'build_peers',
+  isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Peers')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Peers"
   },
-  default => sub {
-    my ($self) = @_;
-
-    IRC::Server::Pluggable::IRC::Peers->new(
-    );
-  }
 );
 
+sub build_peers {
+  IRC::Server::Pluggable::IRC::Peers->new
+}
+
+
 has 'users' => (
-  ## Map nicknames to objects
-  ## (IRC::Users objects have conn() attribs containing the Backend::Connect)
+  ## Map nicknames to User instances
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_users',
+  builder => 'build_users',
   isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Users')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Users"
   },
-  default => sub {
-    my ($self) = @_;
-
-    IRC::Server::Pluggable::IRC::Users->new(
-      casemap => $self->casemap,
-    )
-  },
 );
+
+sub build_users {
+  my ($self) = @_;
+
+  IRC::Server::Pluggable::IRC::Users->new(
+      casemap => $self->casemap,
+  )
+}
+
 
 has '_pending_reg' => (
   ## Keyed on $conn->wheel_id
@@ -200,21 +233,26 @@ has '_pending_reg' => (
   default => sub { {} },
 );
 
+
+
 ### Helpers.
 has 'numeric' => (
   ## Numeric parser.
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_numeric',
+  builder => 'build_numeric',
   isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Numerics')
       or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Numerics"
   },
-  default => sub {
-    IRC::Server::Pluggable::IRC::Numerics->new()
-  },
 );
+
+sub build_numeric {
+    IRC::Server::Pluggable::IRC::Numerics->new
+}
+
 
 
 ### States.
@@ -223,48 +261,59 @@ has 'states_unknown_cmds' => (
   is      => 'ro',
   isa     => ArrayRef,
   writer  => 'set_states_unknown_cmds',
-  default => sub {
-    my ($self) = @_;
-    [ $self => [ qw/
+  builder => 'build_states_unknown_cmds',
+);
+
+sub build_states_unknown_cmds {
+  my ($self) = @_;
+  [ $self =>
+      [ qw/
           irc_ev_unknown_cmd_error
           irc_ev_unknown_cmd_nick
           irc_ev_unknown_cmd_pass
           irc_ev_unknown_cmd_server
           irc_ev_unknown_cmd_user
       / ],
-    ],
-  },
-);
+  ]
+}
+
 
 has 'states_peer_cmds' => (
   lazy    => 1,
   is      => 'ro',
   isa     => ArrayRef,
   writer  => 'set_states_peer_cmds',
-  default => sub {
-    my ($self) = @_;
-    [ $self => [ qw/
+  builder => 'build_states_peer_cmds',
+);
+
+sub build_states_peer_cmds {
+  my ($self) = @_;
+  [ $self =>
+      [ qw/
           irc_ev_peer_cmd_server
           irc_ev_peer_cmd_squit
       / ],
-    ],
-  },
-);
+  ],
+}
+
 
 has 'states_client_cmds' => (
   lazy    => 1,
   is      => 'ro',
   isa     => ArrayRef,
   writer  => 'set_states_client_cmds',
-  default => sub {
-    my ($self) = @_;
-    [ $self => [ qw/
+  builder => 'build_states_client_cmds',
+);
+
+sub build_states_client_cmds {
+  my ($self) = @_;
+  [ $self =>
+      [ qw/
           irc_ev_client_cmd_notice
           irc_ev_client_cmd_privmsg
       / ],
-    ],
-  },
-);
+  ],
+}
 
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
@@ -358,6 +407,10 @@ sub irc_ev_listener_open {
   ## FIXME method to disconnect for host-based auth blocks?
   ##  not sure where the sanest place to hook that is ...
 }
+
+## FIXME
+##  Spec out which of the handlers below actually belong in a
+##  Role. Try to keep this file small.
 
 sub irc_ev_register_complete {
   my ($kernel, $self) = @_[KERNEL, OBJECT];

@@ -64,6 +64,12 @@ has 'host' => (
 );
 
 has 'full' => (
+  ## To avoid doing string operations every time we need a user
+  ## prefix, build and preserve the full nick!user@host
+  ## The tradeoff, though, is that trigger for 'nick' 'user' and 'host'
+  ## attribs will fire at construction time (for each respective attrib).
+  ## The _reset_full trigger below will return unless has_full, so it
+  #  is a fairly acceptable sacrifice...
   lazy      => 1,
   is        => 'ro',
   isa       => Str,

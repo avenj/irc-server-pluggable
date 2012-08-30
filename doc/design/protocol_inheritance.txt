@@ -1,6 +1,9 @@
 ## Protocol:: class inheritance white board. :)
 
-IRC::Pluggable::Protocol (TS3)
+# Methods from consumed Protocol::Role:: roles can be 
+# overriden in the class.
+
+IRC::Pluggable::Protocol (TS3-ish ?)
 
   * Protocol::TS5 isa Protocol
      * Protocol::TS6 isa Protocol::TS5

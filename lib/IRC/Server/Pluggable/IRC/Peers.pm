@@ -11,9 +11,9 @@ use IRC::Server::Pluggable qw/
 /;
 
 has '_peers' => (
-  lazy => 1,
-  is   => 'ro',
-  isa  => HashRef,
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
   default => sub { {} },
 );
 

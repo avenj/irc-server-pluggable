@@ -11,9 +11,9 @@ use Moo;
 use IRC::Server::Pluggable::Types;
 
 has 'rpl_map' => (
-  lazy => 1,
-  is   => 'ro',
-  isa  => HashRef,
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
   writer  => 'set_rpl_map',
   builder => '_build_rpl_map',
 );

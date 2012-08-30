@@ -16,21 +16,18 @@ use IRC::Server::Pluggable qw/
 
 has 'casemap' => (
   required => 1,
-  is  => 'ro',
-  isa => CaseMap,
+  is       => 'ro',
+  isa      => CaseMap,
 );
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
 
-
 has '_channels' => (
   ## Map (lowercased) channel names to Channel objects.
-  lazy => 1,
-
-  is  => 'ro',
-  isa => HashRef,
-
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
   default => sub { {} },
 );
 

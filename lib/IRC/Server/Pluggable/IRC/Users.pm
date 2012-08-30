@@ -15,8 +15,8 @@ use IRC::Server::Pluggable qw/
 
 has 'casemap' => (
   required => 1,
-  is  => 'ro',
-  isa => CaseMap,
+  is       => 'ro',
+  isa      => CaseMap,
 );
 
 with 'IRC::Server::Pluggable::Role::CaseMap';

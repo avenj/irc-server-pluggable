@@ -14,21 +14,18 @@ use IRC::Server::Pluggable qw/
 
 has 'conn' => (
   ## Our directly-linked peers should have a Backend::Connect
-  lazy => 1,
-
+  lazy      => 1,
   ## Also tracked in Backend:
-  weak_ref => 1,
-
-  is   => 'ro',
-  isa  => sub {
+  weak_ref  => 1,
+  is        => 'ro',
+  predicate => 'has_conn',
+  writer    => 'set_conn',
+  clearer   => 'clear_conn',
+  isa       => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::Backend::Connect')
       or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Connect"
   },
-
-  predicate => 'has_conn',
-  writer    => 'set_conn',
-  clearer   => 'clear_conn',
 );
 
 has 'name' => (

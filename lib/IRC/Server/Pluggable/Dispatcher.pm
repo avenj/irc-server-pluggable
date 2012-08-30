@@ -18,10 +18,12 @@ extends 'IRC::Server::Pluggable::Emitter';
 
 
 has 'backend_opts' => (
-  required => 1,
-  isa => HashRef,
-  is  => 'ro',
-  writer => 'set_backend_opts',
+  required  => 1,
+  isa       => HashRef,
+  is        => 'ro',
+  writer    => 'set_backend_opts',
+  predicate => 'has_backend_opts',
+  clearer   => 'clear_backend_opts',
 );
 
 has '_backend_class' => (
@@ -29,8 +31,10 @@ has '_backend_class' => (
   is   => 'ro',
   isa  => Str,
   writer  => '_set_backend_class',
-  default => sub { "IRC::Server::Pluggable::Backend" },
+  builder => '_build_backend_class',
 );
+
+sub _build_backend_class { "IRC::Server::Pluggable::Backend" }
 
 
 has 'backend' => (
@@ -41,20 +45,24 @@ has 'backend' => (
 
   predicate => 'has_backend',
   writer    => 'set_backend',
+  builder   => '_build_backend',
+);
 
-  default => sub {
-    my ($self) = @_;
+sub _build_backend {
+  my ($self) = @_;
 
-    my $b_class = $self->_backend_class;
+  my $b_class = $self->_backend_class;
 
-    { local $@;
+  { local $@;
       eval "require $b_class";
       confess "Could not load $b_class : $@" if $@;
-    }
+  }
 
-    $b_class->spawn( %{ $self->backend_opts } )
-  },
-);
+  my $obj = $b_class->spawn( %{ $self->backend_opts } );
+  $self->clear_backend_opts;
+
+  $obj
+}
 
 
 sub BUILD {

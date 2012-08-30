@@ -48,6 +48,12 @@ has 'route' => (
   clearer   => 'clear_route',
   default   => sub {
     my ($self) = @_;
+
+    unless ($self->has_conn) {
+      carp "No route() and no conn() available, using empty route"
+      return ''
+    }
+
     $self->conn->wheel_id,
   },
 );

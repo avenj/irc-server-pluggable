@@ -20,18 +20,16 @@ use IRC::Server::Pluggable qw/
 
 has 'name' => (
   required => 1,
-  is  => 'ro',
-  isa => Str,
+  is       => 'ro',
+  isa      => Str,
 );
 
 has 'nicknames' => (
   lazy => 1,
-
-  is  => 'ro',
-  isa => HashRef[ArrayRef],
-
-  default => sub { {} },
+  is      => 'ro',
+  isa     => HashRef[ArrayRef],
   writer  => 'set_nicknames',
+  default => sub { {} },
 );
 
 has 'modes' => (
@@ -39,61 +37,55 @@ has 'modes' => (
   ##  Relies on ->prefix_map() and ->valid_channel_modes() from Protocol
   ##  to find out what modes actually are/do, so this all has to be
   ##  outside of these per-channel objects
-  lazy => 1,
-
-  is  => 'ro',
-  isa => HashRef,
-
-  default => sub { {} },
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
   writer  => 'set_modes',
+  default => sub { {} },
 );
 
 
 has '_list_classes' => (
   ## Map list keys to classes
-  lazy => 1,
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
+  writer  => '_set_list_classes',
+  builder => '_build_list_classes',
 
-  is  => 'ro',
-  isa => HashRef,
-
-  default => sub {
-    my $base = "IRC::Server::Pluggable::IRC::Channel::List::";
-
-    {
+sub _build_list_classes {
+  my $base = "IRC::Server::Pluggable::IRC::Channel::List::";
+  {
       bans => $base . "Bans",
-    },
-  },
-
-  writer => '_set_list_classes',
-);
+  }
+}
 
 
 has 'lists' => (
   ## Ban lists, etc
-  lazy => 1,
-
-  is  => 'ro',
-  isa => HashRef,
-
-  default => sub {
-    ## Construct from _list_classes
-    my ($self) = @_;
-
-    my $listref = {};
-
-    for my $key (keys %{ $self->_list_classes }) {
-      my $class = $self->_list_classes->{$key};
-
-      require $class;
-
-      $listref->{$key} = $class->new;
-    }
-
-    $listref
-  },
-
-  writer => 'set_lists',
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
+  writer  => 'set_lists',
+  builder => 'build_lists',
 );
+
+sub build_lists {
+  ## Construct from _list_classes
+  my ($self) = @_;
+
+  my $listref = {};
+
+  for my $key (keys %{ $self->_list_classes }) {
+    my $class = $self->_list_classes->{$key};
+
+    require $class;
+
+    $listref->{$key} = $class->new;
+  }
+
+  $listref
+}
 
 
 ## IMPORTANT: These functions all currently expect a higher

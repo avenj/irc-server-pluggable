@@ -63,10 +63,10 @@ has 'casemap' => (
   isa       => CaseMap,
   writer    => 'set_casemap',
   predicate => 'has_casemap',
-  builder   => 'build_casemap',
+  builder   => '_build_casemap',
 );
 
-sub build_casemap {  'rfc1459'  }
+sub _build_casemap {  'rfc1459'  }
 
 
 has 'channel_types' => (
@@ -75,10 +75,10 @@ has 'channel_types' => (
   isa       => HashRef,
   writer    => 'set_channel_types',
   predicate => 'has_channel_types',
-  builder   => 'build_channel_types',
+  builder   => '_build_channel_types',
 );
 
-sub build_channel_types {
+sub _build_channel_types {
   ## Map channel prefixes to a IRC::Channel subclass.
   ## These can control the behavior of specific channel types.
   {
@@ -94,10 +94,10 @@ has 'prefix_map' => (
   is        => 'ro',
   predicate => 'has_prefix_map',
   writer    => 'set_prefix_map',
-  builder   => 'build_prefix_map',
+  builder   => '_build_prefix_map',
 );
 
-sub build_prefix_map {
+sub _build_prefix_map {
   ## Map PREFIX= to channel mode characters.
   ## (These also compose the valid status mode list)
   {
@@ -113,10 +113,10 @@ has 'valid_channel_modes' => (
   is        => 'ro',
   predicate => 'has_valid_channel_modes',
   writer    => 'set_valid_channel_modes',
-  builder   => 'build_valid_channel_modes',
+  builder   => '_build_valid_channel_modes',
 );
 
-sub build_valid_channel_modes {
+sub _build_valid_channel_modes {
     ## ISUPPORT CHANMODES=1,2,3,4
     ## Channel modes fit in four categories:
     ##  'LIST'     -> Modes that manipulate list values
@@ -138,10 +138,10 @@ has 'valid_user_modes' => (
   is        => 'ro',
   predicate => 'has_valid_user_modes',
   writer    => 'set_valid_user_modes',
-  builder   => 'build_valid_user_modes',
+  builder   => '_build_valid_user_modes',
 );
 
-sub build_valid_user_modes {
+sub _build_valid_user_modes {
   ## Override to add valid user modes.
   [ split '', 'iaow' ]
 }
@@ -153,10 +153,10 @@ has 'version_string' => (
   is         => 'ro',
   predicate  => 'has_version_string',
   writer     => 'set_version_string',
-  builder    => 'build_version_string',
+  builder    => '_build_version_string',
 );
 
-sub build_version_string {
+sub _build_version_string {
   my ($self) = @_;
   ref $self .'-'. $VERSION
 }
@@ -167,7 +167,7 @@ has 'channels' => (
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_channels',
-  builder => 'build_channels',
+  builder => '_build_channels',
   isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Channels')
@@ -175,7 +175,7 @@ has 'channels' => (
   },
 );
 
-sub build_channels {
+sub _build_channels {
   my ($self) = @_;
 
   IRC::Server::Pluggable::IRC::Channels->new(
@@ -189,7 +189,7 @@ has 'peers' => (
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_peers',
-  builder => 'build_peers',
+  builder => '_build_peers',
   isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Peers')
@@ -197,7 +197,7 @@ has 'peers' => (
   },
 );
 
-sub build_peers {
+sub _build_peers {
   IRC::Server::Pluggable::IRC::Peers->new
 }
 
@@ -207,7 +207,7 @@ has 'users' => (
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_users',
-  builder => 'build_users',
+  builder => '_build_users',
   isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Users')
@@ -215,7 +215,7 @@ has 'users' => (
   },
 );
 
-sub build_users {
+sub _build_users {
   my ($self) = @_;
 
   IRC::Server::Pluggable::IRC::Users->new(
@@ -241,7 +241,7 @@ has 'numeric' => (
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_numeric',
-  builder => 'build_numeric',
+  builder => '_build_numeric',
   isa     => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::IRC::Numerics')
@@ -249,7 +249,7 @@ has 'numeric' => (
   },
 );
 
-sub build_numeric {
+sub _build_numeric {
     IRC::Server::Pluggable::IRC::Numerics->new
 }
 
@@ -261,10 +261,10 @@ has 'states_unknown_cmds' => (
   is      => 'ro',
   isa     => ArrayRef,
   writer  => 'set_states_unknown_cmds',
-  builder => 'build_states_unknown_cmds',
+  builder => '_build_states_unknown_cmds',
 );
 
-sub build_states_unknown_cmds {
+sub _build_states_unknown_cmds {
   my ($self) = @_;
   [ $self =>
       [ qw/
@@ -283,10 +283,10 @@ has 'states_peer_cmds' => (
   is      => 'ro',
   isa     => ArrayRef,
   writer  => 'set_states_peer_cmds',
-  builder => 'build_states_peer_cmds',
+  builder => '_build_states_peer_cmds',
 );
 
-sub build_states_peer_cmds {
+sub _build_states_peer_cmds {
   my ($self) = @_;
   [ $self =>
       [ qw/
@@ -302,10 +302,10 @@ has 'states_client_cmds' => (
   is      => 'ro',
   isa     => ArrayRef,
   writer  => 'set_states_client_cmds',
-  builder => 'build_states_client_cmds',
+  builder => '_build_states_client_cmds',
 );
 
-sub build_states_client_cmds {
+sub _build_states_client_cmds {
   my ($self) = @_;
   [ $self =>
       [ qw/

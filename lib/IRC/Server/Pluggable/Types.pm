@@ -67,6 +67,16 @@ my $type_definitions = [
     },
     message => sub { "$_[0] is not a valid IRC nickname" },
   },
+  {
+    name => 'IRC_Username',
+    test => \&test_valid_name,
+    message => sub { "$_[0] is not a valid IRC username" },
+  },
+  {
+    name => 'IRC_Hostname',
+    test => \&test_valid_hostname,
+    message => sub { "$_[0] is not a valid IRC hostname" },
+  },
 
 
   ## Misc
@@ -76,6 +86,35 @@ my $type_definitions = [
     message => sub { "$_[0] is not inet protocol 4 or 6" },
   },
 ];
+
+sub test_valid_username {
+  my ($str) = @_;
+
+  return unless defined $str and length $str;
+
+  ## Skip leading ~
+  substr($str, 0, 1, '') if index($str, '~') == 0;
+
+  ## Must start with alphanumeric
+  ## Valid: A-Z 0-9 . - $ [ ] \ ^ _ ` { } ~ |
+  return unless $str =~ /^[A-Za-z0-9][A-Za-z0-9.\-\$\[\]\\^_`\|\{}~]+$/;
+
+  1
+}
+
+sub test_valid_hostname {
+  my ($str) = @_;
+
+  return unless defined $str and length $str;
+
+  ## FIXME
+  ## OK, so { } aren't standard.
+  ## ... but oftc-hybrid/bc6 allows them for user cloaks.
+  ## Whether that's a good idea or not . . . well.
+  return unless $str =~ /^[A-Za-z0-9\|\-.\/:^\{}]+$/;
+
+  1
+}
 
 MooX::Types::MooseLike::register_types(
   $type_definitions, __PACKAGE__

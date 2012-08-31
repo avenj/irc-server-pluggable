@@ -22,7 +22,7 @@ has '_list' => (
 
 sub add {
   my ($self, $item, $value) = @_;
-  
+
   $self->_list->{$item} = $value;
 }
 
@@ -40,7 +40,7 @@ sub get {
 
 sub keys {
   my ($self) = @_;
-  
+
   wantarray ? (keys %{ $self->_list }) : [ keys %{ $self->_list } ]
 }
 

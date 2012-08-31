@@ -250,7 +250,8 @@ sub _build_autoloaded_plugins {
   [
     ## [ NAME, CLASS, CONSTRUCTOR OPTS ], . . .
 
-    [ 'Register', $prefix.'Protocol::Plugin::Register' ],
+    ## If you're handling clients, you at least want Register:
+    [ 'Register', $prefix . 'Protocol::Plugin::Register' ],
   ],
 }
 
@@ -381,8 +382,8 @@ sub _load_core_plugins {
 
   ## Array-of-arrays:
   ##  [ [ $alias, $class, @args ], [ $alias, $class, @args ] ]
+  ## See autoloaded_plugins attrib
   for my $plugin_arr (@{ $self->autoloaded_plugins }) {
-
     unless (ref $plugin_arr eq 'ARRAY') {
       carp "autoloaded_plugins element not an ARRAY: $plugin_arr";
       next
@@ -397,7 +398,6 @@ sub _load_core_plugins {
       $class->new(@params)
     );
   }
-
 }
 
 sub _emitter_started {

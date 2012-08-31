@@ -8,7 +8,7 @@ IRC::Pluggable::Protocol (TS3-ish ?)
   * Protocol::TS5 isa Protocol
      * Protocol::TS6 isa Protocol::TS5
 
-  * Protocol::P10
+  * Protocol::P10 isa Protocol
 
 IRC::Pluggable::IRC::
 
@@ -29,11 +29,10 @@ Role composition / plugin layout:
   - Subclass can override or compose roles that override
 
   * IRC::Pluggable::Protocol
-
     > with Protocol::Role::Clients
       -> with Protocol::Role::Clients::Commands
           (handle commands from users)
-          (how much of this should be in plugins?)
+          (how much of this should be in plugins? likely most)
       -> with Protocol::Role::Clients::Ping
 
     > with Protocol::Role::Peers

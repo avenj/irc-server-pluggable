@@ -128,6 +128,15 @@ has 'modes' => (
   default => sub { {} },
 );
 
+has 'flags' => (
+  ## FIXME we need IRC::User::Flags ?
+  lazy => 1,
+  is   => 'ro',
+  isa  => HashRef,
+  default => sub { {} },
+);
+
+
 sub BUILD {
   my ($self) = @_;
 

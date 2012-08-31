@@ -85,22 +85,34 @@ sub user_can_join {
   ## Could hook a godmode check here, for example.
   return 1 if $user->is_flagged_as('SERVICE');
 
+  ## Banned check.
+  ## This one allows invite-past-ban.
   if ( $self->user_is_banned($user, $chan_name) ) {
     unless ( $self->user_is_invited($user, $chan_name) ) {
-      ## FIXME
-      ##  Send BANNEDFROMCHAN and return unless user_is_invited
+      my $output = $self->protocol->numeric->to_hash( 474,
+        prefix => $self->protocol->config->server_name,
+        target => $user->nick,
+        params => [ $chan_name ],
+      );
+      $self->protocol->dispatcher->dispatch( $output, $user->route );
       return
     }
   }
 
-  ## FIXME +i invite-only check, send numeric back
+  ## Invite-only check.
   if ( $self->channel_has_mode($chan_name, 'i') ) {
     unless ( $self->user_is_invited($user, $chan_name) ) {
-      ## FIXME send numeric and return
+      my $output = $self->protocol->numeric->to_hash( 473,
+        prefix => $self->protocol->config->server_name,
+        target => $user->nick,
+        params => [ $chan_name ],
+      );
+      $self->protocol->dispatcher->dispatch( $output, $user->route );
       return
     }
   }
 
+  ## FIXME ..invite doesn't override key, does it?
   if ( $opts{key} ) {
     ## FIXME user specified key check against +k mode args
     ##  send numeric and return
@@ -137,10 +149,9 @@ sub user_can_send {
   ## User is returned not moderated if they have status modes
   return if $self->user_is_moderated($user, $chan_name);
 
-  ## Let banned users with status speak
-  if ( $self->user_is_banned($user, $chan_name) ) {
-    return unless $self->get_status_char($user, $chan_name);
-  }
+  ## If they're present, banned, and have status, we return 1 above
+  ## Return here if they're banned and don't have status / not present
+  return if $self->user_is_banned($user, $chan_name);
 
   1
 
@@ -153,7 +164,13 @@ sub user_is_banned {
 
   my $chan = $self->by_name($chan_name) || return;
   my $cmap = $self->protocol->casemap;
-  ## FIXME consult List:: object, matches_mask
+
+  ## Consult Channel::List obj
+  for my $ban ( $chan->lists->{bans}->keys ) {
+    return $ban if matches_mask( $ban, $user->full, $cmap )
+  }
+
+  return
 }
 
 sub user_is_invited {
@@ -218,6 +235,7 @@ sub get_status_char {
   my ($self, $user, $chan_name) = @_;
 
   ## Override to add prefixes.
+  ## TODO; some newer ircds seem to send '@+' ... worth looking into
 
   return '@' if $self->user_has_status($user, $chan_name, 'o');
   return '+' if $self->user_has_status($user, $chan_name, 'v');
@@ -228,9 +246,13 @@ sub get_status_char {
 sub get_status_modes {
   my ($self, $user, $chan_name) = @_;
 
-  ## FIXME
-  ## Return arrayref of status modes for this user
-  ## (Sort by priority?)
+  my @resultset;
+  for my $mode (qw/ o v /) {
+    push(@resultset, $mode)
+      if $self->user_has_status($user, $chan_name, $mode)
+  }
+
+  \@resultset
 }
 
 sub channel_has_mode {

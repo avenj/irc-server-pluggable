@@ -21,7 +21,7 @@ around 'add' => sub {
   confess "add() given insufficient arguments"
     unless $mask && $setter && defined $ts;
 
-  $self->$orig( $mask, [ $setter, $ts] )
+  $self->$orig( $mask, [ $setter, $ts ] )
 };
 
 

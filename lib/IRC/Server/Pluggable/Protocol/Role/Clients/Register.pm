@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::Register::User;
+package IRC::Server::Pluggable::Protocol::Role::Clients::Register;
 
 use 5.12.1;
 use Carp;
@@ -154,6 +154,7 @@ sub __register_user_ready {
 sub register_user_remote {
   ## FIXME figure out sane args for this; these are bursted users
 
+  ## Figure out what belongs in Burst role
   ## FIXME remote User objs need a route() specifying wheel_id for
   ## next-hop peer; i.e., the peer that introduced the user to us
   ##  take next-hop Peer/conn obj as arg, pull wheel_id

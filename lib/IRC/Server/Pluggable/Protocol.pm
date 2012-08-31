@@ -328,7 +328,7 @@ sub _build_states_client_cmds {
 
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
-with 'IRC::Server::Pluggable::Role::Register::User';
+with 'IRC::Server::Pluggable::Role::Clients';
 
 
 sub BUILD {

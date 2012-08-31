@@ -33,7 +33,9 @@ has 'nicknames' => (
 );
 
 has 'modes' => (
+  ##  Channel control modes
   ##  Status modes are handled via nicknames hash and chg_status()
+  ##  List modes are handled via ->lists
   lazy    => 1,
   is      => 'ro',
   isa     => HashRef,

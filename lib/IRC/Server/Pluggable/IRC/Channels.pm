@@ -76,50 +76,74 @@ sub user_can_join {
   ## FIXME should validation live here or add_user_to_channel?
   ##  or higher up?
 
-  unless ( $self->by_name($chan_name) ) {
+  my $chan_obj = $self->by_name($chan_name);
+  unless ( $chan_obj ) {
     ## FIXME
     ## Channel should have been created and added already.
     ## Need to figure out the sanest entrypoint for that.
+    confess "FIXME"
   }
 
   ## Could hook a godmode check here, for example.
   return 1 if $user->is_flagged_as('SERVICE');
 
-  ## Banned check.
+  ## Banned (+b) check
   ## This one allows invite-past-ban.
-  if ( $self->user_is_banned($user, $chan_name) ) {
-    unless ( $self->user_is_invited($user, $chan_name) ) {
-      my $output = $self->protocol->numeric->to_hash( 474,
+  if ( $self->user_is_banned($user, $chan_name)
+    && !$self->user_is_invited($user, $chan_name) ) {
+
+    my $output = $self->protocol->numeric->to_hash(  474,
+      prefix => $self->protocol->config->server_name,
+      target => $user->nick,
+      params => [ $chan_name ],
+    );
+
+    $self->protocol->dispatcher->dispatch( $output, $user->route );
+    return
+  }
+
+  ## Invite-only (+i) check
+  if ( $self->channel_has_mode($chan_name, 'i')
+    && !$self->user_is_invited($user, $chan_name) ) {
+
+    my $output = $self->protocol->numeric->to_hash(  473,
+      prefix => $self->protocol->config->server_name,
+      target => $user->nick,
+      params => [ $chan_name ],
+    );
+
+    $self->protocol->dispatcher->dispatch( $output, $user->route );
+    return
+  }
+
+  ## Key (+k) check
+  if ( $opts{key} && my $ckey = $chan_obj->channel_has_mode('k') ) {
+    ## channel_has_mode() returns the ->modes entry.
+    unless ($opts{key} eq $ckey) {
+      my $output = $self->protocol->numeric->to_hash(  475,
         prefix => $self->protocol->config->server_name,
         target => $user->nick,
         params => [ $chan_name ],
       );
+
       $self->protocol->dispatcher->dispatch( $output, $user->route );
       return
     }
   }
 
-  ## Invite-only check.
-  if ( $self->channel_has_mode($chan_name, 'i') ) {
-    unless ( $self->user_is_invited($user, $chan_name) ) {
-      my $output = $self->protocol->numeric->to_hash( 473,
+  ## Limit (+l) check
+  if ( my $limit = $chan_obj->channel_has_mode('l') ) {
+    if ( keys( %{ $chan_obj->nicknames } ) >= $limit ) {
+      my $output = $self->protocol->numeric->to_hash(  471,
         prefix => $self->protocol->config->server_name,
         target => $user->nick,
         params => [ $chan_name ],
       );
+
       $self->protocol->dispatcher->dispatch( $output, $user->route );
       return
     }
   }
-
-  ## FIXME ..invite doesn't override key, does it?
-  if ( $opts{key} ) {
-    ## FIXME user specified key check against +k mode args
-    ##  send numeric and return
-  }
-
-  ## FIXME +l limit check, send user CHANNELISFULL if +l
-  ##  and the $chan->nicknames key count is too high
 
   ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
   ## In a subclass:

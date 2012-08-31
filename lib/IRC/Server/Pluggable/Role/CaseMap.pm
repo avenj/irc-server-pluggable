@@ -5,7 +5,14 @@ use Carp;
 
 use Moo::Role;
 
-requires 'casemap';
+use IRC::Server::Pluggable::Utils qw/lc_irc uc_irc/;
+
+sub __r_casemap_get_cmap {
+  my ($self) = @_;
+  $self->can('casemap') ? $self->casemap
+    : $self->can('protocol') ? $self->protocol->casemap
+    : 'rfc1459'
+}
 
 sub lower {
   my ($self, $name) = @_;
@@ -15,7 +22,7 @@ sub lower {
     return
   }
 
-  lc_irc( $name, $self->casemap )
+  lc_irc( $name, $self->__r_casemap_get_cmap )
 }
 
 sub upper {
@@ -26,7 +33,7 @@ sub upper {
     return
   }
 
-  uc_irc( $name, $self->casemap )
+  uc_irc( $name, $self->__r_casemap_get_cmap )
 }
 
 sub equal {
@@ -73,10 +80,12 @@ IRC::Server::Pluggable::Role::CaseMap - IRC casemap-aware lc/uc
 A L<Moo::Role> providing casemap-related functions that are aware of the 
 B<casemap()> attribute belonging to the consuming class.
 
+If the consuming class lacks casemap() but has protocol(),
+->protocol->casemap is used. If neither is available, falls back to 
+RFC1459 rules.
+
 See L<IRC::Server::Pluggable::Utils/"lc_irc"> for details on IRC case 
 sensitivity issues.
-
-C<requires> attribute B<casemap>.
 
 =head2 lower
 

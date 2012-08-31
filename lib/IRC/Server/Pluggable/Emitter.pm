@@ -163,7 +163,6 @@ around '_pluggable_event' => sub {
 
 ### Methods.
 
-## FIXME
 sub timer {
   my ($self, $time, $event, @args) = @_;
 

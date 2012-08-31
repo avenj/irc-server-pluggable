@@ -13,7 +13,6 @@ use IRC::Server::Pluggable qw/
   Utils
 /;
 
-
 has 'casemap' => (
   required => 1,
   is       => 'ro',

@@ -554,7 +554,11 @@ sub irc_ev_unknown_cmd_user {
   ## USERNAME HOSTNAME SERVERNAME REALNAME
   my ($username, undef, $servername, $gecos) = @{$ev->params};
 
-  ## FIXME username validation?
+  unless ( is_IRC_Username($username) ) {
+    ## FIXME username validation
+    ##  Reject/disconnect this user
+    ##  (Need a rejection method perhaps)
+  }
 
   $self->_pending_reg->{ $conn->wheel_id }->{user}  = $username;
   $self->_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';

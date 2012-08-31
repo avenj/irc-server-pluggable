@@ -97,6 +97,7 @@ sub test_valid_username {
 
   ## Must start with alphanumeric
   ## Valid: A-Z 0-9 . - $ [ ] \ ^ _ ` { } ~ |
+  ## This is a pretty loose definition matching oftc-hybrid-1.6.7
   return unless $str =~ /^[A-Za-z0-9][A-Za-z0-9.\-\$\[\]\\^_`\|\{}~]+$/;
 
   1
@@ -107,7 +108,6 @@ sub test_valid_hostname {
 
   return unless defined $str and length $str;
 
-  ## FIXME
   ## OK, so { } aren't standard.
   ## ... but oftc-hybrid/bc6 allows them for user cloaks.
   ## Whether that's a good idea or not . . . well.

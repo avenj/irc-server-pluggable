@@ -129,7 +129,8 @@ has 'modes' => (
 );
 
 has 'flags' => (
-  ## FIXME we need IRC::User::Flags ?
+  ## FIXME document flags:
+  ##  - SERVICE
   lazy => 1,
   is   => 'ro',
   isa  => HashRef,
@@ -146,6 +147,19 @@ sub BUILD {
   }
 }
 
+
+sub is_flagged_as {
+  my ($self, @flags) = @_;
+
+  my @resultset;
+
+  for my $to_check (@flags) {
+    push(@resultset, $to_check)
+      if $self->flags->{$to_check}
+  }
+
+  @resultset
+}
 
 sub set_modes {
   my ($self, $data) = @_;

@@ -23,20 +23,23 @@ IRC::Pluggable::IRC::
 
 
 Role composition / plugin layout:
+http://eris.cobaltirc.org/bug/1/13
 
   - Class wins over role
   - Roles can compose roles and override methods
-  - Subclass can override or compose roles that override
+  - Subclass can override or compose roles that override superclass roles
 
   * IRC::Pluggable::Protocol
-    > with Protocol::Role::Channels
-       
     > with Protocol::Role::Clients
       -> with Protocol::Role::Clients::Commands
           (how much of this should be in plugins? likely most)
-      -> with Protocol::Role::Clients::Ping
+
+    > with Protocol::Role::Ping
 
     > with Protocol::Role::Peers
-      -> with Protocol::Role::Peers::Sync
+      -> linking behavior
+          (how much of this should be in IRC::Peer(s)?)
+          (how much of this should be in plugins?)
+    > with Protocol::Role::Burst
           (specifies burst behavior)
 

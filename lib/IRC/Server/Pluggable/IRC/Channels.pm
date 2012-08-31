@@ -81,6 +81,8 @@ sub user_can_join {
     ## FIXME
     ## Channel should have been created and added already.
     ## Need to figure out the sanest entrypoint for that.
+    ## Possibly in add_user_to_channel, possibly in a Role.
+    ## May make sense in Protocol::Role::Burst
     confess "FIXME"
   }
 

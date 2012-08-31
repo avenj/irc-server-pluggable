@@ -158,7 +158,7 @@ sub ircsock_input {
   my $event_name = join '_', $from_type, 'cmd', $cmd ;
 
   if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
-    ## Numerics from peers are headed to client wheels.
+    ## Numerics from peers being routed somewhere.
 
     ## P_peer_numeric
     ## irc_ev_peer_numeric / N_peer_numeric
@@ -257,6 +257,25 @@ sub ircsock_listener_failure {
   my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
 
   ## FIXME
+  ## Could not listen on a particular port.
+  ## This should at least be logged...
+  ## Possibly announced to IRC on a rehash, f.ex.
+  ## ... haven't quite worked out logging yet.
+  my $event_name = 'listener_failure';
+  return
+    if $self->process( $event_name,
+      $listener,
+      $op,
+      $errno,
+      $errstr
+    ) == EAT_ALL;
+
+  $self->emit_now( $event_name,
+    $listener,
+    $op,
+    $errno,
+    $errstr
+  )
 }
 
 sub ircsock_listener_open {

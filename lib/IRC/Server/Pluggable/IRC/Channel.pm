@@ -36,8 +36,7 @@ has 'modes' => (
   ##  Status modes are handled via nicknames hash and chg_status()
   ##  FIXME Relies on ->prefix_map() and ->valid_channel_modes() from
   ##  Protocol to find out what modes actually are/do, so this all has to be
-  ##  outside of these per-channel objects or we need weak_refs back
-  ##  Probably belongs in a Role.
+  ##  handled by Channels.pm, really
   lazy    => 1,
   is      => 'ro',
   isa     => HashRef,
@@ -121,8 +120,12 @@ sub _build_lists {
 
 ### Users
 
-sub add_user {
+sub add_nickname {
   my ($self, $nickname, $data) = @_;
+
+  ## Map a nickname to an array of status modes.
+  ## Note that User manip should be handled out of a Channels collection
+  ## and lowercasing should happen there.
 
   confess "add_user called with no nickname specified"
     unless defined $nickname;
@@ -135,7 +138,7 @@ sub add_user {
   $self->nicknames->{$nickname} = $data // []
 }
 
-sub del_user {
+sub del_nickname {
   my ($self, $nickname) = @_;
 
   delete $self->nicknames->{$nickname}
@@ -154,85 +157,34 @@ sub _param_isa_user_obj {
   1
 }
 
-## FIXME it's possible all of this should move up a level
-## to Channels; we're probably going to need a weak_ref to
-## our Protocol instance, and it'd be more efficient to
-## keep just the one-per-Protocol in Channels.
+sub nickname_has_mode {
+  my ($self, $nickname, $modechr) = @_;
 
-sub user_is_banned {
-  my ($self, $user) = @_;
+  my @modes = @{ $self->nicknames->{$nickname} || return };
 
-  confess "user_is_banned got $user, expected ::IRC::User"
-    unless $self->_param_isa_user_obj($user);
+  return unless grep { $_ eq $modechr } @modes;
 
-  ## FIXME consult List:: objects
-  ##  Return true if matches_mask
-  ##  This means we need to know our casemap.
+  1
 }
 
-sub user_can_send {
-  my ($self, $user) = @_;
+sub channel_has_mode {
+  my ($self, $modechr) = @_;
+  confess "channel_has_mode expects a mode character"
+    unless defined $modechr;
 
-  confess "user_can_send got $user, expected ::IRC::User"
-    unless $self->_param_isa_user_obj($user);
-
-  ## FIXME
-  ## Need some smart methods to check moderated, status modes, etc
-  ## Need to be able to flexibly allow users with status modes to
-  ## talk through moderated/banned
-  ## Need to handle external messages (cmode +n)
-  ## Needs to be easily overridable for subclass modes like +q, +R, +M
-  ## No-go if disallowed by check methods
-  ## Not sure if base Channel class should let opers override
+  $self->modes->{$modechr}
 }
 
-sub user_can_join {
-  ## FIXME check user_is_banned, check +k / +l
-  ## (Subclasses can deal with exemptions, sslonly etc)
-}
+sub channel_has_nickname {
+  my ($self, $nickname) = @_
+  confess "channel_has_user expects a lowercased nickname"
+    unless defined $nickname;
 
-### Invites
-
-sub add_invite {
-  ## FIXME
-}
-
-sub del_invite {
-  ## FIXME
+  $self->nicknames->{$nickname}
 }
 
 
 ### Modes
-
-sub get_pub_or_secret_char {
-  my ($self) = @_;
-  ## FIXME
-  ## Return '=' if public
-  ##        '@' if secret
-  ##        '*' if private
-  ## see hybrid7/src/channel.c channel_pub_or_secret()
-}
-
-sub get_status_char {
-  ## FIXME return status char for User
-  ##  These are prioritized in Protocol; we may need refs
-  ##  back to Protocol.. not really sane.
-  ##  Possible the Protocol attribs for cmodes should just move?
-  ##  Keeping copies everywhere sucks too.
-  ##  Maybe a weak_ref back to the original attrib.
-  ### ...maybe a weak_ref back to Protocol.
-  my ($self, $user) = @_;
-  confess "get_status_char got $user, expected ::IRC::User"
-    unless $self->_param_isa_user_obj($user);
-}
-
-sub get_status_modes {
-  ## FIXME get array of current status modes for User
-  ## See notes in get_status_char.
-  my ($self, $user) = @_;
-  confess "get_status_modes got $user, expected ::IRC::User"
-    unless $self->_param_isa_user_obj($user);
-}
 
 sub chg_status {
   ## ->chg_status( $nickname, $mode_to_add, $excluded_modes )
@@ -267,10 +219,7 @@ sub chg_status {
 sub chg_modes {
   ## FIXME take a hash from mode_to_hash
   ## Modes may have certain side-effects in a Protocol,
-  ## some of them may be handle-able from here.
-  ## We should at least be able to map a mode change to
-  ## method dispatch (via ->can('"hg_mode_$mode") or so)
-  ## or to a coderef invoked against $self perhaps
+  ## Channels should probably bridge
 }
 
 1;

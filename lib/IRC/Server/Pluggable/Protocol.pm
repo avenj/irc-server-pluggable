@@ -96,26 +96,7 @@ sub _build_channel_types {
   }
 }
 
-
-has 'prefix_map' => (
-  lazy      => 1,
-  isa       => HashRef,
-  is        => 'ro',
-  predicate => 'has_prefix_map',
-  writer    => 'set_prefix_map',
-  builder   => '_build_prefix_map',
-);
-
-sub _build_prefix_map {
-  ## Map PREFIX= to channel mode characters.
-  ## (These also compose the valid status mode list)
-  {
-    '@' => 'o',
-    '+' => 'v',
-  }
-}
-
-
+## FIXME valid_channel_modes should maybe move to Channels.pm?
 has 'valid_channel_modes' => (
   lazy      => 1,
   isa       => HashRef,
@@ -188,7 +169,7 @@ sub _build_channels {
   my ($self) = @_;
 
   IRC::Server::Pluggable::IRC::Channels->new(
-      casemap => $self->casemap,
+    protocol => $self,
   )
 }
 
@@ -321,6 +302,7 @@ sub _build_states_peer_cmds {
       [ qw/
           irc_ev_peer_cmd_server
           irc_ev_peer_cmd_squit
+          irc_ev_peer_numeric
       / ],
   ],
 }

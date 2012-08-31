@@ -1,6 +1,10 @@
 package IRC::Server::Pluggable::IRC::Channels;
 
+## Base Channels class.
 ## Maintain a collection of Channel objects.
+##
+## Most channel-specific behavior can be overriden in a Channels
+## subclass.
 
 use 5.12.1;
 use strictures 1;
@@ -56,102 +60,128 @@ sub _param_isa_chan_obj {
   1
 }
 
+sub add_user_to_channel {
+  my ($self, $user, $chan_name) = @_;
+  ## FIXME
+}
+
+sub del_user_from_channel {
+  ## FIXME
+}
+
 sub user_can_join {
   ## user_can_join( $user_obj, $chan_name, key => $key, ... )
   my ($self, $user, $chan_name, %opts) = @_;
-  confess "Invalid arguments to user_cannot_join"
-    unless $self->_param_isa_user_obj($user)
-    and defined $chan_name;
 
-  ## FIXME should validation live here or higher up?
+  ## FIXME should validation live here or add_user_to_channel?
+  ##  or higher up?
 
-  ## FIXME how much behavorial stuff should live here?
-  ## Probably just shove it all in this class?
-
-  $chan_name = $self->lower($chan_name);
-
-  unless ( $self->_channels->{$chan_name} ) {
-    ## New channel, perhaps?
-    ## FIXME higher-level should handle creation, probably
+  unless ( $self->by_name($chan_name) ) {
+    ## FIXME
+    ## Channel should have been created and added already.
+    ## Need to figure out the sanest entrypoint for that.
   }
 
-  ## FIXME +i check?
-  ## FIXME borrow order-of-operations from hyb
+  ## Could hook a godmode check here, for example.
+  return 1 if $user->is_flagged_as('SERVICE');
 
   if ( $self->user_is_banned($user, $chan_name) ) {
-    ## FIXME
+    unless ( $self->user_is_invited($user, $chan_name) ) {
+      ## FIXME
+      ##  Send BANNEDFROMCHAN and return unless user_is_invited
+      return
+    }
+  }
+
+  ## FIXME +i invite-only check, send numeric back
+  if ( $self->channel_has_mode($chan_name, 'i') ) {
+    unless ( $self->user_is_invited($user, $chan_name) ) {
+      ## FIXME send numeric and return
+      return
+    }
   }
 
   if ( $opts{key} ) {
-    ## FIXME user specified key check
+    ## FIXME user specified key check against +k mode args
+    ##  send numeric and return
   }
 
-  ## FIXME +l limit check
+  ## FIXME +l limit check, send user CHANNELISFULL if +l
+  ##  and the $chan->nicknames key count is too high
 
-  ## FIXME
-  ## Need overridable methods to check:
-  ##  - Key
-  ##  - Limit
-  ##  - user_is_banned
-  ## Subclasses can override to implement joinflood checks etc
+  ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
+  ## In a subclass:
+  ##  around 'user_can_join' => sub {
+  ##    my ($orig, $self, $user, $chan_name, %opts) = @_;
+  ##    ## Check if super (here) would allow this user:
+  ##    return unless $self->$orig($user, $chan_name, %opts);
+  ##    . . . extra checks here . . .
+  ##  };
 }
 
 sub user_can_send {
   my ($self, $user, $chan_name) = @_;
 
+  return 1 if $user->is_flagged_as('SERVICE');
+
   if ( $self->user_is_present($user, $chan_name) ) {
-      ## FIXME user is present; if they have status modes,
-      ## return 1 to let message pass
+    ## User is present; if they have status modes,
+    ## return 1 to let message pass
+    return 1 if $self->get_status_char($user, $chan_name)
   } else {
-      ## FIXME user not present, check +n
-      ## return empty list if +n is set
-      ## else continue to moderated/banned/etc checks
+    ## User not present; check for +n
+    ## If +n is set, message should be dropped
+    return if $self->channel_has_mode($chan_name, 'n');
   }
 
-  if ( $self->user_is_moderated($user, $chan_name) ) {
-      ## FIXME user is moderated, return unless status modes
-  }
+  ## User is returned not moderated if they have status modes
+  return if $self->user_is_moderated($user, $chan_name);
 
+  ## Let banned users with status speak
   if ( $self->user_is_banned($user, $chan_name) ) {
-      ## FIXME user is banned, return unless status modes
+    return unless $self->get_status_char($user, $chan_name);
   }
 
   1
 
   ## FIXME
-  ## Need overridable methods to check:
-  ##  - Moderated (user_is_moderated)
-  ##  - Banned  (user_is_banned)
-  ##  - External user and cmode +n (user_is_present)
-  ##  - Need to be able to easily subclass to add stuff like:
-  ##     +q, +R, +M  (override this method))
-  ##  - Status modes can talk (user_has_status)
   ##  - Configurable oper override?
 }
 
 sub user_is_banned {
   my ($self, $user, $chan_name) = @_;
+
+  my $chan = $self->by_name($chan_name) || return;
+  my $cmap = $self->protocol->casemap;
   ## FIXME consult List:: object, matches_mask
 }
 
 sub user_is_invited {
   my ($self, $user, $chan_name) = @_;
+
+  my $chan = $self->by_name($chan_name) || return;
   ## FIXME consult List:: object
 }
 
 sub user_is_moderated {
   my ($self, $user, $chan_name) = @_;
-  ## for use by user_can_send, mostly
-  ## FIXME
-  ##  check $self->channel_has_mode 'm'
-  ##  let user speak if $self->get_status_char is boolean true
+
+  ## User is_moderated is true on a +m channel, unless the user
+  ## has status modes.
+  ##
+  ## Subclasses could override to implement +q, if they liked.
+
+  my $chan = $self->by_name($chan_name) || return;
+
+  return unless $self->channel_has_mode($chan_name, 'm');
+
+  return unless $self->get_status_char($user, $chan_name);
+
+  1
 }
 
 sub user_is_present {
   my ($self, $user, $chan_name) = @_;
-  confess "user_is_present expects IRC::User and chan name"
-    unless $self->_param_isa_user_obj($user)
-    and    defined $chan_name;
 
   my $chan = $self->by_name($chan_name) || return;
 
@@ -162,10 +192,6 @@ sub user_is_present {
 
 sub user_has_status {
   my ($self, $user, $chan_name, $modechr) = @_;
-  confess "user_has_status expects IRC::User, chan name, mode char"
-    unless $self->_param_isa_user_obj($user)
-    and    defined $chan_name
-    and    defined $modechr;
 
   my $chan = $self->by_name($chan_name) || return;
 
@@ -177,8 +203,6 @@ sub user_has_status {
 
 sub get_pub_or_secret_char {
   my ($self, $chan_name) = @_;
-  confess "Expected a channel name"
-    unless defined $chan_name;
 
   ## Ref. hybrid7/src/channel.c channel_pub_or_secret()
   ##  '=' if public
@@ -204,7 +228,6 @@ sub get_status_char {
 sub get_status_modes {
   my ($self, $user, $chan_name) = @_;
 
-  $chan_name = $self->lower( $chan_name );
   ## FIXME
   ## Return arrayref of status modes for this user
   ## (Sort by priority?)
@@ -213,8 +236,6 @@ sub get_status_modes {
 sub channel_has_mode {
   ## Proxy method to Channel->channel_has_mode()
   my ($self, $chan_name, $modechr) = @_;
-  confess "Expected a channel name and mode char"
-    unless defined $chan_name and defined $modechr;
 
   my $chan = $self->by_name($chan_name) || return;
   $chan->channel_has_mode($modechr)

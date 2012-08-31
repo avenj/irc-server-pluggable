@@ -34,9 +34,6 @@ has 'nicknames' => (
 
 has 'modes' => (
   ##  Status modes are handled via nicknames hash and chg_status()
-  ##  FIXME Relies on ->prefix_map() and ->valid_channel_modes() from
-  ##  Protocol to find out what modes actually are/do, so this all has to be
-  ##  handled by Channels.pm, really
   lazy    => 1,
   is      => 'ro',
   isa     => HashRef,

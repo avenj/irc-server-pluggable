@@ -27,9 +27,9 @@ has 'backend_opts' => (
 );
 
 has '_backend_class' => (
-  lazy => 1,
-  is   => 'ro',
-  isa  => Str,
+  lazy    => 1,
+  is      => 'ro',
+  isa     => Str,
   writer  => '_set_backend_class',
   builder => '_build_backend_class',
 );
@@ -38,11 +38,9 @@ sub _build_backend_class { "IRC::Server::Pluggable::Backend" }
 
 
 has 'backend' => (
-  lazy => 1,
-
-  isa => BackendClass,
-  is  => 'ro',
-
+  lazy      => 1,
+  isa       => BackendClass,
+  is        => 'ro',
   predicate => 'has_backend',
   writer    => 'set_backend',
   builder   => '_build_backend',

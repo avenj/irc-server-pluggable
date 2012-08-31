@@ -6,9 +6,7 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable qw/
-  Types
-/;
+use IRC::Server::Pluggable::Types;
 
 has '_peers' => (
   lazy    => 1,

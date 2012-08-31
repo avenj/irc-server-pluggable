@@ -27,21 +27,30 @@ extends 'IRC::Server::Pluggable::Emitter';
 
 ### Core bits.
 ## A Dispatcher instance to register with.
-## FIXME need either:
-##  - a Controller to tie a Protocol to a Dispatcher
-##    (probably a bin/ frontend could just do this)
-##  - a build method carrying backend_opts to Dispatcher -> Backend
 ## http://eris.cobaltirc.org/dev/bugs/?do=details&task_id=14&project=1
 has 'dispatcher' => (
-  required  => 1,
+  lazy      => 1,
   is        => 'ro',
   writer    => 'set_dispatcher',
+  predicate => 'has_dispatcher',
+  builder   => '_build_dispatcher',
   isa       => sub {
     is_Object($_[0])
       and $_[0]->isa('IRC::Server::Pluggable::Dispatcher')
       or confess "$_[0] is not a IRC::Server::Pluggable::Dispatcher"
   },
 );
+
+sub _build_dispatcher {
+  my ($self) = @_;
+
+  require IRC::Server::Pluggable::Dispatcher;
+
+  IRC::Server::Pluggable::Dispatcher->new(
+    ## FIXME construct backend_opts from $self->config
+  );
+}
+
 
 ## A IRC::Config object passed in.
 has 'config' => (
@@ -408,14 +417,11 @@ sub _emitter_started {
   ##  Protocol::Plugin::Register)
   $self->_load_core_plugins;
 
-  ## Register with Dispatcher.
-  $kernel->post( $self->dispatcher->session_id, 'register' );
+  ## If a Dispatcher wasn't passed in, we should force a _build:
+  my $dispatcher = $self->dispatcher;
 
-  ## FIXME possible we should tell Dispatcher to spawn a Backend
-  ## from here unless we have a Dispatcher?
-  ##  Dispatcher should only spawn Backend if it doesn't have one
-  ##  as-is, so we should be able to just carry opts downward
-  ##  if we haven't been tied together by a controller
+  ## Register with Dispatcher.
+  $kernel->post( $dispatcher->session_id, 'register' );
 }
 
 

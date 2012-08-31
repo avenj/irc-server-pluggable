@@ -30,7 +30,7 @@ sub to_hash {
 
   confess "to_hash() needs a numeric and a params hash with prefix/target"
     unless defined $params{prefix}
-    and defined $params{target};
+    and    defined $params{target};
 
   my $this_rpl = $self->rpl_map->{$numeric};
   confess "to_hash() called for unknown numeric $numeric"
@@ -39,7 +39,7 @@ sub to_hash {
   my %input = (
     command => $numeric,
     prefix  => $params{prefix},
-    ## First param is always the target.
+    ## First specified param is always the target.
     params  => [ $params{target} ],
   );
 
@@ -129,7 +129,7 @@ sub _build_rpl_map {
 
 no warnings 'void';
 q{
- <Gilded> Has he done this before? 
+ <Gilded> Has he done this before?
  <Gilded> Is vandalizing AT&T boxes his... calling?
  <Gilded> I'll show myself out.
 };

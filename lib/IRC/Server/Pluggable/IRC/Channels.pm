@@ -79,7 +79,7 @@ sub user_can_join {
   ## FIXME borrow order-of-operations from hyb
 
   if ( $self->user_is_banned($user, $chan_name) ) {
-    ## FIXME check ident etc also
+    ## FIXME
   }
 
   if ( $opts{key} ) {
@@ -131,11 +131,12 @@ sub user_can_send {
 
 sub user_is_banned {
   my ($self, $user, $chan_name) = @_;
-  ## FIXME consult List:: objects, matches_mask
+  ## FIXME consult List:: object, matches_mask
 }
 
 sub user_is_invited {
   my ($self, $user, $chan_name) = @_;
+  ## FIXME consult List:: object
 }
 
 sub user_is_moderated {
@@ -152,7 +153,7 @@ sub user_is_present {
     unless $self->_param_isa_user_obj($user)
     and    defined $chan_name;
 
-  my $chan = $self->_channels->{ $self->lower($chan_name) } || return;
+  my $chan = $self->by_name($chan_name) || return;
 
   $chan->channel_has_nickname(
     $self->lower( $user->nick )
@@ -166,7 +167,7 @@ sub user_has_status {
     and    defined $chan_name
     and    defined $modechr;
 
-  my $chan = $self->_channels->{ $self->lower($chan_name) } || return;
+  my $chan = $self->by_name($chan_name) || return;
 
   $chan->nickname_has_mode(
     $self->lower( $user->nick ),
@@ -215,12 +216,12 @@ sub channel_has_mode {
   confess "Expected a channel name and mode char"
     unless defined $chan_name and defined $modechr;
 
-  my $chan = $self->_channels->{ $self->lower($chan_name) } || return;
+  my $chan = $self->by_name($chan_name) || return;
   $chan->channel_has_mode($modechr)
 }
 
 ## FIXME overridable factory method to create a Channel obj?
-
+## May make it easier to subclass a Channel.
 
 ### Add/clear/retrieve methods:
 sub add {

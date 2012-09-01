@@ -2,6 +2,41 @@ package IRC::Server::Pluggable::Protocol;
 our $VERSION = 0;
 
 ## Base class for Protocol sessions.
+## has =>
+##   autoloaded_plugins    ArrayRef
+##                          Map plugin aliases to class names:
+##                          [ $alias, $class ]
+##
+##   casemap               CaseMap
+##                          rfc1459 || strict-rfc1459 || ascii
+##
+##   channels              ::IRC::Channels
+##
+##   channel_types         HashRef
+##                          Map channel prefixes to classes defining
+##                          channel behavior:
+##                           '#' => $global_channel_class,
+##
+##   config                ::IRC::Config
+##
+##   dispatcher            ::Dispatcher
+##
+##   numeric               ::IRC::Numerics
+##
+##   peers                 ::IRC::Peers
+##
+##   states_client_cmds    ArrayRef (POE state map)
+##   states_peer_cmds      ArrayRef (POE state map)
+##   states_unknown_cmds   ArrayRef (POE state map)
+##
+##   users                 ::IRC::Users
+##
+##   valid_channel_modes   HashRef
+##                          See _build_valid_channel_modes
+##
+##   version_string        Str
+##
+## Consumes Protocol::Role:: roles.
 
 use 5.12.1;
 use strictures 1;
@@ -27,7 +62,7 @@ extends 'IRC::Server::Pluggable::Emitter';
 
 ### Core bits.
 ## A Dispatcher instance to register with.
-## http://eris.cobaltirc.org/dev/bugs/?do=details&task_id=14&project=1
+## http://eris.cobaltirc.org/bug/1/14
 has 'dispatcher' => (
   lazy      => 1,
   is        => 'ro',
@@ -273,6 +308,7 @@ sub _build_states_unknown_cmds {
           irc_ev_unknown_cmd_pass
           irc_ev_unknown_cmd_server
           irc_ev_unknown_cmd_user
+          irc_ev_register_complete
         /,
       ],
   ]
@@ -292,11 +328,20 @@ sub _build_states_peer_cmds {
   [ $self =>
 
       [
-        ## Handled here:
-        ## FIXME
-        qw/irc_ev_peer_numeric/,
+        ## Protocol::Role::Messages:
+        qw/
+          irc_ev_peer_cmd_privmsg
+          irc_ev_peer_cmd_notice
+        /,
 
-        ## Handled in Protocol::Role::Ping:
+        ## Protocol::Role::Peers:
+        qw/
+          irc_ev_peer_numeric
+          irc_ev_peer_cmd_server
+          irc_ev_peer_cmd_squit
+        /,
+
+        ## Protocol::Role::Ping:
         qw/
           irc_ev_peer_cmd_ping
           irc_ev_peer_cmd_pong
@@ -318,7 +363,13 @@ sub _build_states_client_cmds {
   my ($self) = @_;
   [ $self =>
       [
-        ## Handled in Protocol::Role::Ping:
+        ## Protocol::Role::Messages:
+        qw/
+          irc_ev_client_cmd_privmsg
+          irc_ev_client_cmd_notice
+        /,
+
+        ## Protocol::Role::Ping:
         qw/
           irc_ev_client_cmd_ping
           irc_ev_client_cmd_pong
@@ -337,6 +388,7 @@ sub PROTO_ROLE_PREFIX () {
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
 with PROTO_ROLE_PREFIX . 'Send'     ;
+with PROTO_ROLE_PREFIX . 'Messages' ;
 with PROTO_ROLE_PREFIX . 'Register' ;
 with PROTO_ROLE_PREFIX . 'Clients'  ;
 with PROTO_ROLE_PREFIX . 'Peers'    ;
@@ -363,8 +415,6 @@ sub BUILD {
 
           irc_ev_listener_created
           irc_ev_listener_open
-
-          irc_ev_register_complete
       / ],
 
       ## Command handlers:
@@ -468,47 +518,6 @@ sub irc_ev_unknown_cmd_error {
 }
 
 
-## peer_* handlers
-
-sub irc_ev_peer_cmd_server {
-  ## FIXME move to peer role
-}
-
-sub irc_ev_peer_cmd_squit {
-  ## FIXME move to peer role
-}
-
-sub irc_ev_peer_numeric {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
-
-  my $target_nick  = $ev->params->[0];
-  my $target_user  = $self->users->by_name($target_nick);
-
-  ## Numeric from peer intended for a client; route it.
-  $self->send_to_route( $ev, $target_user->route );
-}
-
-## client_* handlers
-
-sub irc_ev_client_cmd_privmsg {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
-
-  ## FIXME
-  ## privmsg/notice will probably share a method/role
-
-  ##  general pattern for cmds:
-  ##   - plugin process()
-  ##   - return if EAT
-  ##   - execute our own normal actions
-  ##   - emit() notification? depending on cmd
-}
-
-sub irc_ev_client_cmd_notice {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
-}
 
 around '_emitter_default' => sub {
   my $orig = shift;

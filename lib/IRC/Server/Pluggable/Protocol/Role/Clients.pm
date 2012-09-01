@@ -12,6 +12,7 @@ sub ROLES () {
 
 with ROLES . 'Register';
 
-
+## FIXME figure out 'core' user command bits that belong in Roles
+##  Figure out modular or potentially reloadable bits that belong in Plugins
 
 1;

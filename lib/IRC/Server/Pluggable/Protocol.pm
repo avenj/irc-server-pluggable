@@ -326,10 +326,17 @@ sub _build_states_client_cmds {
   ],
 }
 
+sub PROTO_ROLE_PREFIX () {
+  'IRC::Server::Pluggable::Protocol::Role::
+}
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
-with 'IRC::Server::Pluggable::Role::Clients';
 
+
+with PROTO_ROLE_PREFIX . 'Clients' ;
+with PROTO_ROLE_PREFIX . 'Peers'   ;
+with PROTO_ROLE_PREFIX . 'Ping'    ;
+with PROTO_ROLE_PREFIX . 'Send'    ;
 
 sub BUILD {
   my ($self) = @_;
@@ -473,7 +480,7 @@ sub irc_ev_unknown_cmd_server {
       target => '*',
       params => [ 'SERVER' ],
     );
-    $self->dispatcher->dispatch( $output, $conn->wheel_id );
+    $self->send_to_route( $output, $conn->wheel_id );
     return
   }
 
@@ -499,7 +506,7 @@ sub irc_ev_unknown_cmd_nick {
       target => '*',
       params => [ 'NICK' ],
     );
-    $self->dispatcher->dispatch( $output, $conn->wheel_id );
+    $self->send_to_route( $output, $conn->wheel_id );
     return
   }
 
@@ -510,7 +517,7 @@ sub irc_ev_unknown_cmd_nick {
       target => '*',
       params => [ $nick ],
     );
-    $self->dispatcher->dispatch( $output, $conn->wheel_id );
+    $self->send_to_route( $output, $conn->wheel_id );
     return
   }
 
@@ -535,7 +542,7 @@ sub irc_ev_unknown_cmd_user {
       target => '*',
       params => [ 'USER' ],
     );
-    $self->dispatcher->dispatch( $output, $conn->wheel_id );
+    $self->send_to_route( $output, $conn->wheel_id );
     return
   }
 
@@ -607,7 +614,7 @@ sub irc_ev_peer_numeric {
   my $target_user  = $self->users->by_name($target_nick);
 
   ## Numeric from peer intended for a client; route it.
-  $self->dispatcher->dispatch( $ev, $target_user->route );
+  $self->send_to_route( $ev, $target_user->route );
 }
 
 ## client_* handlers

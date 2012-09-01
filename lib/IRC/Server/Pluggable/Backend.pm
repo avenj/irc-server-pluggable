@@ -617,6 +617,12 @@ sub _connector_up {
     ##  otherwise defaults to 180 ...
   );
 
+  ## FIXME?
+  ##  Doesn't currently spawn an idle alarm for this conn
+  ##  (Presumably a remote server)
+  ##  No big deal for connect-time since the Connector will time-out
+  ##  However, no idle event is sent so higher levels won't ping out . . .
+
   $self->wheels->{$w_id} = $this_conn;
 
   $kernel->post( $self->controller,
@@ -649,7 +655,8 @@ sub _ircsock_input {
 
   ## Adjust last seen and idle alarm
   $this_conn->seen( time );
-  $kernel->delay_adjust( $this_conn->alarm_id, $this_conn->idle );
+  $kernel->delay_adjust( $this_conn->alarm_id, $this_conn->idle )
+    if $this_conn->has_alarm_id;
 
   ## FIXME configurable raw events?
   ## FIXME anti-flood code or should that be higher up ... ?
@@ -760,7 +767,8 @@ sub _disconnected {
   my $this_conn = delete $self->wheels->{$w_id};
 
   ## Idle timer cleanup
-  $poe_kernel->alarm_remove( $this_conn->alarm_id );
+  $poe_kernel->alarm_remove( $this_conn->alarm_id )
+    if $this_conn->has_alarm_id;
 
   if ($^O =~ /(cygwin|MSWin32)/) {
     $this_conn->wheel->shutdown_input;

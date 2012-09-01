@@ -169,7 +169,7 @@ sub _build_channels {
   my ($self) = @_;
 
   IRC::Server::Pluggable::IRC::Channels->new(
-    protocol => $self,
+    casemap => $self->casemap,
   )
 }
 
@@ -584,9 +584,10 @@ sub irc_ev_unknown_cmd_pass {
 sub irc_ev_unknown_cmd_error {
   ## FIXME
   ## Received ERROR from the remote end
-  ##  if this is a peer we were trying to connect to,
-  ## call a handler event.
-  ##  (may want/need notification)
+  ## if this isn't a conn in process of registering as a peer
+  ##  we should do nothing
+  ## needs to hook in with SERVER registration
+  ## may belong in the same Role as SERVER registration bits
 }
 
 

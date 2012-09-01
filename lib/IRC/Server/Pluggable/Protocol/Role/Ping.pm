@@ -10,7 +10,7 @@ sub irc_ev_connection_idle {
   ## A connection is idle.
   ## Might be unknown, user, or peer.
   ## If the conn is not registered yet:
-  ##  disconnect with Connection timeout
+  ##  took too long to register, disconnect with Connection timeout
   ## If the conn has a pending ping already:
   ##  exceeded round-trip time, Ping timeout
   ## Send ping to conn
@@ -19,6 +19,7 @@ sub irc_ev_connection_idle {
   ##  (ev_peer_cmd_pong or ev_client_cmd_pong intended for us)
 }
 
+## Handlers should relay, pong, or reset ping status appropriately.
 sub irc_ev_peer_cmd_ping {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 

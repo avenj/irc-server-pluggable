@@ -221,4 +221,7 @@ sub chg_modes {
   ## Channels should probably bridge
 }
 
+## FIXME topic methods
+
+
 1;

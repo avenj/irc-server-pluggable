@@ -33,6 +33,78 @@ requires qw/
 # sub irc_ev_peer_cmd_join {}
 # sub irc_ev_peer_cmd_sjoin {}
 
+sub _r_channels_chk_user_banned {
+  my ($self, $channels, $chan_name, $user_obj) = @_;
+
+  ## This +b check allows invite-past-ban.
+  ## Split out to be easily overriden.
+  return 1 if not $channels->user_is_invited($user_obj, $chan_name)
+    and $channels->user_is_banned($user_obj, $chan_name);
+
+  return
+}
+
+sub _r_channels_send_user_banned {
+  my ($self, $user_obj, $chan_name) = @_;
+
+  my $output = $self->__r_channels_get_numeric(
+    474, $user_obj->nick, $chan_name
+  );
+
+  $self->send_to_routes( $output, $user_obj->route )
+}
+
+sub _r_channels_chk_invite_only {
+  my ($self, $channels, $chan_name, $user_obj) = @_;
+
+  ## +i check
+
+  return 1 if not $channels->user_is_invited($user_obj, $chan_name)
+           and $channels->channel_has_mode($chan_name, 'i');
+
+  return
+}
+
+sub r_channels_send_invite_only {
+  my ($self, $user_obj, $chan_name) = @_;
+
+  my $output = $self->__r_channels_get_numeric(
+    473, $user_obj->nick, $chan_name
+  );
+
+  $self->send_to_routes( $output, $user_obj->route )
+}
+
+sub _r_channels_chk_over_limit {
+  my ($self, $chan_obj) = @_;
+
+  my $limit = $chan_obj->channel_has_mode('l') || return;
+
+  return 1 if keys %{ $chan_obj->nicknames } >= $limit;
+
+  return
+}
+
+sub _r_channels_send_over_limit {
+  my ($self, $user_obj, $chan_name) = @_;
+
+  my $output = $self->__r_channels_get_numeric(
+    471, $user_obj->nick, $chan_name
+  );
+
+  $self->send_to_routes( $output, $user_obj->route )
+}
+
+sub _r_channels_send_bad_key {
+  my ($self, $user_obj, $chan_name) = @_;
+
+  my $output = $self->__r_channels_get_numeric(
+    475, $user_obj->nick, $chan_name
+  );
+
+  $self->send_to_routes( $output, $user_obj->route )
+}
+
 sub chan_user_can_join {
   ## chan_user_can_join( $user_obj, $chan_name, key => $key, . . . )
   my ($self, $user_obj, $chan_name, %opts) = @_;
@@ -49,56 +121,36 @@ sub chan_user_can_join {
   ## Services can always join.
   return 1 if $user_obj->is_flagged_as('SERVICE');
 
-  ## This +b check allows invite-past-ban.
-  if ( $channels->user_is_banned($user_obj, $chan_name)
-    && !$channels->user_is_invited($user_obj, $chan_name) ) {
-
-    my $output = $self->__r_channels_get_numeric(
-       474, $user_obj->nick, $chan_name
-    );
-
-    $self->send_to_routes( $output, $user_obj->route );
+  ## Banned (+b) check
+  if
+  ($self->_r_channels_chk_user_banned($channels, $chan_name, $user_obj)) {
+    $self->_r_channels_send_user_banned( $user_obj, $chan_name );
     return
   }
 
   ## Invite-only (+i) check
-  if ( $channels->channel_has_mode($chan_name, 'i')
-    && !$channels->user_is_invited($user_obj, $chan_name) ) {
-
-    my $output = $self->__r_channels_get_numeric(
-      473, $user_obj->nick, $chan_name
-    );
-
-    $self->send_to_routes( $output, $user_obj->route );
+  if
+  ($self->_r_channels_chk_invite_only($channels, $chan_name, $user_obj)) {
+    $self->_r_channels_send_invite_only( $user_obj, $chan_name );
     return
   }
 
   ## Key (+k) check
   ## Key should be passed along in params, see docs
   if ( $opts{key} && my $ckey = $chan_obj->channel_has_mode('k') ) {
-
     unless ( $opts{key} eq $ckey ) {
-      my $output = $self->__r_channels_get_numeric(
-        475, $user_obj->nick, $chan_name
+      $self->_r_channels_send_bad_key(
+        $user_obj, $chan_name
       );
-
-      $self->send_to_routes( $output, $user_obj->route );
       return
     }
-
   }
 
   ## Limit +l check
-  if ( my $limit = $chan_obj->channel_has_mode('l') ) {
-    if ( keys(%{ $chan_obj->nicknames }) >= $limit ) {
-
-      my $output = $self->__r_channels_get_numeric(
-        471, $user_obj->nick, $chan_name
-      );
-
-      $self->send_to_routes( $output, $user_obj->route );
-      return
-    }
+  if ( $self->_r_channels_chk_over_limit( $chan_obj ) ) {
+    $self->_r_channels_send_over_limit(
+      $user_obj, $chan_name
+    );
   }
 
   ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
@@ -110,7 +162,7 @@ sub chan_user_can_join {
   ##    . . . extra checks here . . .
   ##  };
 
-  1
+  return 1
 }
 
 sub chan_user_can_send {
@@ -140,7 +192,7 @@ sub chan_user_can_send {
   return if $channels->user_is_banned($user_obj, $chan_name);
 
   ## User can send to channel.
-  1
+  return 1
 }
 
 

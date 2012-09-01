@@ -2,6 +2,10 @@ package IRC::Server::Pluggable::Protocol;
 our $VERSION = 0;
 
 ## Base class for Protocol sessions.
+## Should primarily define attributes and start an Emitter.
+##
+## Most of these have overridable _build methods:
+##
 ## has =>
 ##   autoloaded_plugins    ArrayRef
 ##                          Map plugin aliases to class names:
@@ -168,7 +172,7 @@ has 'valid_user_modes' => (
 
 sub _build_valid_user_modes {
   ## Override to add valid user modes.
-  [ split '', 'iaow' ]
+  [ split '', 'iaows' ]
 }
 
 
@@ -475,6 +479,8 @@ sub irc_ev_peer_connected {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   ## FIXME
+  ## A Connector is open.
+  ## Try to register with the remote end.
 }
 
 sub irc_ev_peer_compressed {

@@ -35,6 +35,17 @@ has 'name' => (
   writer   => 'set_name',
 );
 
+has 'peers'  => (
+  ## A Peer can have its own Peers
+  ## FIXME
+  lazy      => 1,
+  is        => 'ro',
+  writer    =>
+  predicate =>
+  clearer   =>
+  isa       =>
+);
+
 has 'route' => (
   ## Either our Connect's wheel_id or the wheel_id of the next hop peer.
   lazy      => 1,

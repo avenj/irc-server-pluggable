@@ -310,5 +310,9 @@ sub irc_ev_unknown_cmd_pass {
 ## FIXME call burst methods to sync up after registration?
 ##  or call() burst handlers via Protocol?
 
+## FIXME an idle timer in Ping should issue a disconnect
+##  if the user takes longer than max idle time to register
+##  we need to be able to catch the disconnect and clear the pending_reg
+
 
 1;

@@ -100,7 +100,7 @@ sub user_can_join {
       params => [ $chan_name ],
     );
 
-    $self->protocol->dispatcher->dispatch( $output, $user->route );
+    $self->protocol->send_to_routes( $output, $user->route );
     return
   }
 
@@ -114,7 +114,7 @@ sub user_can_join {
       params => [ $chan_name ],
     );
 
-    $self->protocol->dispatcher->dispatch( $output, $user->route );
+    $self->protocol->send_to_routes( $output, $user->route );
     return
   }
 
@@ -128,7 +128,7 @@ sub user_can_join {
         params => [ $chan_name ],
       );
 
-      $self->protocol->dispatcher->dispatch( $output, $user->route );
+      $self->protocol->send_to_routes( $output, $user->route );
       return
     }
   }
@@ -142,7 +142,7 @@ sub user_can_join {
         params => [ $chan_name ],
       );
 
-      $self->protocol->dispatcher->dispatch( $output, $user->route );
+      $self->protocol->send_to_routes( $output, $user->route );
       return
     }
   }

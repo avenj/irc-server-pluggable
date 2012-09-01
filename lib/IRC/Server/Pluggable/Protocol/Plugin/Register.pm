@@ -85,7 +85,7 @@ sub N_connection {
   my ($self, $proto) = splice @_, 0, 2;
   my $conn = ${ $_[0] };
 
-  $proto->dispatcher->dispatch(
+  $proto->send_to_routes(
     {
       command => 'NOTICE',
       params  => [ 'AUTH', '*** Checking Ident' ],
@@ -93,7 +93,7 @@ sub N_connection {
     $conn->wheel_id
   );
 
-  $proto->dispatcher->dispatch(
+  $proto->send_to_routes(
     {
       command => 'NOTICE',
       params  => [ 'AUTH', '*** Looking up your hostname...' ],
@@ -103,7 +103,7 @@ sub N_connection {
 
   if ($peeraddr =~ /^127\./ || $peeraddr eq '::1') {
     ## Connection from localhost.
-    $proto->dispatcher->dispatch(
+    $proto->send_to_routes(
       {
         command => 'NOTICE',
         params  => [ 'AUTH', '*** Found your hostname' ],
@@ -192,7 +192,7 @@ sub p_got_host {
 
   my $fail = sub {
     ## No PTR.
-    $self->proto->dispatcher->dispatch(
+    $self->proto->send_to_routes(
       {
         command => 'NOTICE',
         params  => [ 'AUTH', "*** Couldn't look up your hostname" ],
@@ -241,7 +241,7 @@ sub p_got_ipaddr {
   return unless $conn->has_wheel and $conn->wheel;
 
   my $fail = sub {
-    $self->proto->dispatcher->dispatch(
+    $self->proto->send_to_routes(
       {
         command => 'NOTICE',
         params  => [ 'AUTH', "*** Couldn't look up your hostname" ],
@@ -261,7 +261,7 @@ sub p_got_ipaddr {
 
   for my $ans (@answers) {
     if ($ans->rdatastr() eq $peeraddr) {
-      $self->proto->dispatcher->dispatch(
+      $self->proto->send_to_routes(
         {
           command => 'NOTICE',
           params  => [ 'AUTH', '*** Found your hostname' ],
@@ -277,7 +277,7 @@ sub p_got_ipaddr {
   }
 
   ## No matching answer.
-  $self->proto->dispatcher->dispatch(
+  $self->proto->send_to_routes(
     {
       command => 'NOTICE',
       params  => [
@@ -317,7 +317,7 @@ sub ident_agent_reply {
 
   my $ident = uc $opsys eq 'OTHER' ? '' : $other ;
 
-  $self->proto->dispatcher->dispatch(
+  $self->proto->send_to_routes(
     {
       command => 'NOTICE',
       params  => [ 'AUTH', "*** Got Ident response" ],
@@ -337,7 +337,7 @@ sub ident_agent_error {
 
   return unless $conn->has_wheel and $conn->wheel;
 
-  $self->proto->dispatcher->dispatch(
+  $self->proto->send_to_routes(
     {
       command => 'NOTICE',
       params  => [ 'AUTH', '*** No Ident response' ],

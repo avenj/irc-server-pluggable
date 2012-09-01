@@ -13,6 +13,13 @@ requires qw/
   numeric
 /;
 
+### FIXME should sendq management live here... ?
+
+### FIXME truncate outgoing strings to 510 chars?
+### ->send_to_route( $ref, $id )
+### ->send_to_routes( $ref, @ids )
+###    These take either a Backend::Event or a POE::Filter::IRCD hash.
+###    Check args and bridge dispatcher.
 
 sub send_to_route {
   my ($self, $output, $id) = @_;
@@ -34,7 +41,17 @@ sub send_to_routes {
   $self->dispatcher->dispatch( $output, @ids )
 }
 
-
 ## FIXME
+##  methods for:
+
+##   - send to remote channel
+##   - send to channel except for origin
+##   - send to users on local server who share channel with user
+
+##   - send to users with certain modes on a channel?
+
+##   - send to mask-matched peers?
+
+##   - send to users with specified flags or modes?
 
 1;

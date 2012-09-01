@@ -347,7 +347,8 @@ sub BUILD {
         'emitter_started' => '_emitter_started',
       },
 
-      ## Connectors and listeners:
+      ## Connectors and listeners
+      ## These are dispatched from here.
       $self => [ qw/
           irc_ev_connection_idle
 
@@ -423,17 +424,20 @@ sub irc_ev_connection_idle {
 sub irc_ev_peer_connected {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
+  ## FIXME
 }
 
 sub irc_ev_peer_compressed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
+  ## FIXME
   ## Peer that needed compression is burstable.
 }
 
 sub irc_ev_listener_created {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
+  ## FIXME
   ## Not sure we actually care ourselves, but emit() it
 }
 

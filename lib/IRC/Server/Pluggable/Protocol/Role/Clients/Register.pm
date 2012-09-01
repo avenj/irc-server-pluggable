@@ -88,7 +88,7 @@ sub register_user_local {
 
   my $net_name = $self->config->network_name;
 
-  $self->dispatcher->dispatch(
+  $self->send_to_routes(
     {
       prefix  => $server,
       command => '001',
@@ -100,7 +100,7 @@ sub register_user_local {
     $conn->wheel_id
   );
 
-  $self->dispatcher->dispatch(
+  $self->send_to_routes(
     {
       prefix  => $server,
       command => '003',

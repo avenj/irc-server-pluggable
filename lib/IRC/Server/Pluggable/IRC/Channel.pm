@@ -32,26 +32,27 @@ has 'nicknames' => (
   default => sub { {} },
 );
 
-has 'modes' => (
+has '_modes' => (
   ##  Channel control modes
   ##  Status modes are handled via nicknames hash and chg_status()
   ##  List modes are handled via ->lists
-  lazy    => 1,
-  is      => 'ro',
-  isa     => HashRef,
-  writer  => 'set_modes',
-  default => sub { {} },
+  lazy      => 1,
+  is        => 'ro',
+  isa       => HashRef,
+  writer    => '_set_modes',
+  predicate => '_has_modes',
+  default   => sub { {} },
 );
 
-has 'topic' => (
+has '_topic' => (
   ## Array of topic details
   ##  [ string, setter, TS ]
   lazy      => 1,
   is        => 'ro',
-  isa       => Array,
-  writer    => 'set_topic',
-  predicate => 'has_topic',
-  clearer   => 'clear_topic',
+  isa       => ArrayRef,
+  writer    => '_set_topic',
+  predicate => '_has_topic',
+  clearer   => '_clear_topic',
   default   => sub { [ ] },
 );
 
@@ -117,8 +118,6 @@ sub _build_lists {
 ##  May reconsider this later ...
 
 
-### Users
-
 sub add_nickname {
   my ($self, $nickname, $data) = @_;
 
@@ -171,7 +170,7 @@ sub channel_has_mode {
   confess "channel_has_mode expects a mode character"
     unless defined $modechr;
 
-  $self->modes->{$modechr}
+  $self->_modes->{$modechr}
 }
 
 sub channel_has_nickname {
@@ -181,9 +180,6 @@ sub channel_has_nickname {
 
   $self->nicknames->{$nickname}
 }
-
-
-### Modes
 
 sub chg_status {
   ## ->chg_status( $nickname, $mode_to_add, $excluded_modes )
@@ -204,24 +200,53 @@ sub chg_status {
     return
   }
 
-  if (defined $exclude && (my @splitex = split //, $exclude) ) {
-   ## FIXME
-   ##  smart-match needs to go and this is probably stupid.
-    $final = [ grep { !($_ ~~ @splitex) } @$final ]
-  }
-
   push @$final, split //, $modestr;
 
-  $self->nicknames->{$nickname} = [ sort @$final ];
+  if (defined $exclude && (my @splitex = split //, $exclude) ) {
+    for my $ex (@splitex) {
+      ## Remove excluded modes.
+      ## Inefficient, but these are typically very short lists.
+      $final = [ grep { !($_ ne $ex } @$final ];
+    }
+  }
+
+  ## Return arrayref consisting of final modes.
+  ## These will have to be sorted upstream from here.
+  $self->nicknames->{$nickname} = [ @$final ]
 }
 
 sub chg_modes {
   ## FIXME take a hash from mode_to_hash
   ## Modes may have certain side-effects in a Protocol,
-  ## Channels should probably bridge
+  ##  Role::Channels should probably bridge
+  ## Normalize here and modify ->modes, lists, chg_status
 }
 
-## FIXME topic methods
+## Topic proxy methods
+sub set_topic {
+  my ($self, $topic, $setter_str) = @_;
+  $setter_str //= '';
+  $self->_set_topic( [ $topic, $setter_str, time ] )
+}
 
+sub set_topic_ts {
+  my ($self, $ts) = @_;
+  $self->_topic->[2] = $ts // time
+}
+
+sub topic_string {
+  my ($self) = @_;
+  $self->_topic->[0]
+}
+
+sub topic_setter {
+  my ($self) = @_;
+  $self->_topic->[1]
+}
+
+sub topic_ts {
+  my ($self) = @_;
+  $self->_topic->[2]
+}
 
 1;

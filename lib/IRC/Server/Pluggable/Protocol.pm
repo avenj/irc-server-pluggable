@@ -214,17 +214,6 @@ sub _build_users {
 }
 
 
-has '_pending_reg' => (
-  ## Keyed on $conn->wheel_id
-  ## Values are hashes with keys 'nick', 'user', 'pass'
-  lazy => 1,
-  is   => 'ro',
-  isa  => HashRef,
-  default => sub { {} },
-);
-
-
-
 ### Helpers.
 has 'autoloaded_plugins' => (
   lazy    => 1,
@@ -277,11 +266,15 @@ has 'states_unknown_cmds' => (
 sub _build_states_unknown_cmds {
   my ($self) = @_;
   [ $self =>
-      [ qw/
+      [
+        ## Handled in Protocol::Role::Register:
+        qw/
           irc_ev_unknown_cmd_nick
           irc_ev_unknown_cmd_pass
+          irc_ev_unknown_cmd_server
           irc_ev_unknown_cmd_user
-      / ],
+        /,
+      ],
   ]
 }
 
@@ -297,11 +290,18 @@ has 'states_peer_cmds' => (
 sub _build_states_peer_cmds {
   my ($self) = @_;
   [ $self =>
-      [ qw/
+
+      [
+        ## Handled here:
+        ## FIXME
+        qw/irc_ev_peer_numeric/,
+
+        ## Handled in Protocol::Role::Ping:
+        qw/
           irc_ev_peer_cmd_ping
           irc_ev_peer_cmd_pong
-          irc_ev_peer_numeric
-      / ],
+        /,
+      ],
   ],
 }
 
@@ -317,12 +317,18 @@ has 'states_client_cmds' => (
 sub _build_states_client_cmds {
   my ($self) = @_;
   [ $self =>
-      [ qw/
-        irc_ev_client_cmd_ping
-        irc_ev_client_cmd_pong
-      / ],
+      [
+        ## Handled in Protocol::Role::Ping:
+        qw/
+          irc_ev_client_cmd_ping
+          irc_ev_client_cmd_pong
+        /,
+      ],
   ],
 }
+
+
+### Roles, composed in order.
 
 sub PROTO_ROLE_PREFIX () {
   'IRC::Server::Pluggable::Protocol::Role::
@@ -330,11 +336,13 @@ sub PROTO_ROLE_PREFIX () {
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
+with PROTO_ROLE_PREFIX . 'Send'     ;
+with PROTO_ROLE_PREFIX . 'Register' ;
+with PROTO_ROLE_PREFIX . 'Clients'  ;
+with PROTO_ROLE_PREFIX . 'Peers'    ;
+with PROTO_ROLE_PREFIX . 'Ping'     ;
+with PROTO_ROLE_PREFIX . 'Burst'    ;
 
-with PROTO_ROLE_PREFIX . 'Clients' ;
-with PROTO_ROLE_PREFIX . 'Peers'   ;
-with PROTO_ROLE_PREFIX . 'Ping'    ;
-with PROTO_ROLE_PREFIX . 'Send'    ;
 
 sub BUILD {
   my ($self) = @_;
@@ -449,137 +457,6 @@ sub irc_ev_listener_open {
 ## FIXME
 ##  Spec out which of the handlers below actually belong in a
 ##  Role. Try to keep this file small.
-
-sub irc_ev_register_complete {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $hints)  = @_[ARG0, ARG1];
-
-  ## Emitted from Plugin::Register when ident + host lookups finish.
-
-  ## Hints hash has keys 'ident' and 'host'
-  ##  (values will be undef if not found)
-  ## Save to _pending_reg and see if we can register a User.
-  $self->_pending_reg->{ $conn->wheel_id }->{authinfo} = $hints;
-  $self->register_user_local($conn);
-}
-
-## unknown_* handlers
-## These primarily deal with registration.
-
-sub irc_ev_unknown_cmd_server {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
-
-  unless (@{$ev->params}) {
-    my $output = $self->numeric->to_hash( 461,
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ 'SERVER' ],
-    );
-    $self->send_to_route( $output, $conn->wheel_id );
-    return
-  }
-
-  ## FIXME
-  ##  check auth
-  ##  check if peer exists
-  ##  set $conn->is_peer
-  ##  set up Peer obj, route() can default to wheel_id
-  ##  check if we should be setting up compressed_link
-  ##  burst (event for this we can also trigger on compressed_link ?)
-  ##  clear from _pending_reg
-
-  ## FIXME should a server care if Plugin::Register isn't done?
-}
-
-sub irc_ev_unknown_cmd_nick {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
-
-  unless (@{$ev->params}) {
-    my $output = $self->numeric->to_hash( 461,
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ 'NICK' ],
-    );
-    $self->send_to_route( $output, $conn->wheel_id );
-    return
-  }
-
-  my $nick = $ev->params->[0];
-  unless ( is_IRC_Nickname($nick) ) {
-    my $output = $self->numeric->to_hash( 432,
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ $nick ],
-    );
-    $self->send_to_route( $output, $conn->wheel_id );
-    return
-  }
-
-  ## FIXME 433 if we have this nickname in state
-
-  ## FIXME truncate if longer than max
-
-  ## NICK/USER may come in indeterminate order
-  ## Set up a $self->_pending_reg->{ $conn->wheel_id } hash entry.
-  ## Call method to check current state.
-  $self->_pending_reg->{ $conn->wheel_id }->{nick} = $nick;
-  $self->register_user_local($conn);
-}
-
-sub irc_ev_unknown_cmd_user {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
-
-  unless (@{$ev->params} && @{$ev->params} < 4) {
-    my $output = $self->numeric->to_hash(
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ 'USER' ],
-    );
-    $self->send_to_route( $output, $conn->wheel_id );
-    return
-  }
-
-  ## USERNAME HOSTNAME SERVERNAME REALNAME
-  my ($username, undef, $servername, $gecos) = @{$ev->params};
-
-  unless ( is_IRC_Username($username) ) {
-    ## FIXME username validation
-    ##  Reject/disconnect this user
-    ##  (Need a rejection method)
-    ## http://eris.cobaltirc.org/dev/bugs/?task_id=32&project=1
-  }
-
-  ## FIXME methods to provide interface to pending_reg
-  $self->_pending_reg->{ $conn->wheel_id }->{user}  = $username;
-  $self->_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';
-  $self->register_user_local($conn);
-}
-
-sub irc_ev_unknown_cmd_pass {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
-
-  unless (@{$ev->params}) {
-    my $output = $self->numeric->to_hash(
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ 'PASS' ],
-    );
-  }
-
-  ## RFC:
-  ##   A "PASS" command is not required for either client or server
-  ##   connection to be registered, but it must precede the server
-  ##   message or the latter of the NICK/USER combination.
-  ##
-  ## Preserve PASS for later checking by register_user_local.
-
-  my $pass = $ev->params->[0];
-  $self->_pending_reg->{ $conn->wheel_id }->{pass} = $pass;
-}
 
 sub irc_ev_unknown_cmd_error {
   ## FIXME

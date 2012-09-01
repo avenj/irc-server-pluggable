@@ -15,41 +15,20 @@ requires qw/
   send_to_routes
 /;
 
-## ->chan_user_can_join( $user_obj, $chan_name, %join_opts )
-## ->chan_user_can_send( $user_obj, $chan_name )
+### ->chan_user_can_join( $user_obj, $chan_name, %join_opts )
+### ->chan_user_can_send( $user_obj, $chan_name )
 
 ## FIXME methods for:
-##  - channel creation
-##  - actual protocol join action
+##  - channel creation (+ process / event events)
+##  - actual protocol join action (+ process / emit events)
+##  - dispatched channel modes method?
+##    dispatch out of a Role::Mode or so?
 
-sub __r_channels_check_user_arg {
-  my $self = shift;
-  ## Allow methods to take either a user_obj or an identifier
-  ## Attempt to modify caller's args
-  ## If we can't get either, carp and return
-  ## FIXME it's possible this should live as a role method
-  unless ( Scalar::Utils::blessed($_[0]) ) {
-    $_[0] = $self->users->by_name($_[0]);
-    unless ($_[0]) {
-      my $called = (caller(1))[3];
-      carp "$called nonexistant user specified";
-      return
-    }
-  }
-  $_[0]
-}
-
-sub __r_channels_get_numeric {
-  my ($self, $numeric, $target, @params) = @_;
-
-  ## FIXME possible this should live in a Role method
-
-  $self->numeric->to_hash( $numeric,
-    prefix => $self->config->server_name,
-    target => $target,
-    params => \@params,
-  )
-}
+## FIXME
+## Pass actions/timestamps/args to burst_* methods for verification?
+# sub irc_ev_client_cmd_join {}
+# sub irc_ev_peer_cmd_join {}
+# sub irc_ev_peer_cmd_sjoin {}
 
 sub chan_user_can_join {
   ## chan_user_can_join( $user_obj, $chan_name, key => $key, . . . )
@@ -159,6 +138,38 @@ sub chan_user_can_send {
 
   ## User can send to channel.
   1
+}
+
+
+### Internals.
+
+sub __r_channels_check_user_arg {
+  my $self = shift;
+  ## Allow methods to take either a user_obj or an identifier
+  ## Attempt to modify caller's args
+  ## If we can't get either, carp and return
+  ## FIXME it's possible this should live as a role method
+  unless ( Scalar::Utils::blessed($_[0]) ) {
+    $_[0] = $self->users->by_name($_[0]);
+    unless ($_[0]) {
+      my $called = (caller(1))[3];
+      carp "$called nonexistant user specified";
+      return
+    }
+  }
+  $_[0]
+}
+
+sub __r_channels_get_numeric {
+  my ($self, $numeric, $target, @params) = @_;
+
+  ## FIXME very possible this should live in a Role method
+
+  $self->numeric->to_hash( $numeric,
+    prefix => $self->config->server_name,
+    target => $target,
+    params => \@params,
+  )
 }
 
 1;

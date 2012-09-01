@@ -4,6 +4,10 @@ use strictures 1;
 use Carp;
 use Moo::Role;
 
+requires qw/
+  send_to_routes
+/;
+
 sub irc_ev_connection_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 

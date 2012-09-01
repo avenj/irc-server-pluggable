@@ -278,10 +278,8 @@ sub _build_states_unknown_cmds {
   my ($self) = @_;
   [ $self =>
       [ qw/
-          irc_ev_unknown_cmd_error
           irc_ev_unknown_cmd_nick
           irc_ev_unknown_cmd_pass
-          irc_ev_unknown_cmd_server
           irc_ev_unknown_cmd_user
       / ],
   ]
@@ -300,8 +298,8 @@ sub _build_states_peer_cmds {
   my ($self) = @_;
   [ $self =>
       [ qw/
-          irc_ev_peer_cmd_server
-          irc_ev_peer_cmd_squit
+          irc_ev_peer_cmd_ping
+          irc_ev_peer_cmd_pong
           irc_ev_peer_numeric
       / ],
   ],
@@ -320,8 +318,8 @@ sub _build_states_client_cmds {
   my ($self) = @_;
   [ $self =>
       [ qw/
-          irc_ev_client_cmd_notice
-          irc_ev_client_cmd_privmsg
+        irc_ev_client_cmd_ping
+        irc_ev_client_cmd_pong
       / ],
   ],
 }
@@ -414,12 +412,6 @@ sub _emitter_started {
   $kernel->post( $dispatcher->session_id, 'register' );
 }
 
-
-sub irc_ev_connection_idle {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-
-  ## FIXME handle pings
-}
 
 sub irc_ev_peer_connected {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
@@ -556,9 +548,11 @@ sub irc_ev_unknown_cmd_user {
   unless ( is_IRC_Username($username) ) {
     ## FIXME username validation
     ##  Reject/disconnect this user
-    ##  (Need a rejection method perhaps)
+    ##  (Need a rejection method)
+    ## http://eris.cobaltirc.org/dev/bugs/?task_id=32&project=1
   }
 
+  ## FIXME methods to provide interface to pending_reg
   $self->_pending_reg->{ $conn->wheel_id }->{user}  = $username;
   $self->_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';
   $self->register_user_local($conn);
@@ -577,9 +571,11 @@ sub irc_ev_unknown_cmd_pass {
   }
 
   ## RFC:
-  ## A "PASS" command is not required for either client or server
-  ## connection to be registered, but it must precede the server message
-  ## or the latter of the NICK/USER combination.
+  ##   A "PASS" command is not required for either client or server
+  ##   connection to be registered, but it must precede the server
+  ##   message or the latter of the NICK/USER combination.
+  ##
+  ## Preserve PASS for later checking by register_user_local.
 
   my $pass = $ev->params->[0];
   $self->_pending_reg->{ $conn->wheel_id }->{pass} = $pass;
@@ -587,27 +583,21 @@ sub irc_ev_unknown_cmd_pass {
 
 sub irc_ev_unknown_cmd_error {
   ## FIXME
-  ##  if this is a peer, call a handler event.
+  ## Received ERROR from the remote end
+  ##  if this is a peer we were trying to connect to,
+  ## call a handler event.
   ##  (may want/need notification)
 }
 
 
 ## peer_* handlers
 
-sub irc_ev_peer_cmd_ping {
-
-}
-
-sub irc_ev_peer_cmd_pong {
-
-}
-
 sub irc_ev_peer_cmd_server {
-
+  ## FIXME move to peer role
 }
 
 sub irc_ev_peer_cmd_squit {
-
+  ## FIXME move to peer role
 }
 
 sub irc_ev_peer_numeric {

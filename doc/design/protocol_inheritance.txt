@@ -1,9 +1,16 @@
 ## Protocol:: class inheritance white board. :)
 
-# Methods from consumed Protocol::Role:: roles can be 
-# overriden in the class.
-
 IRC::Pluggable::Protocol (TS3-ish ?)
+
+  -> 'has a' relationship to IRC:: helper classes
+  -> IRC:: Helper classes may maintain weak_refs to Protocol
+      This is useful for reaching ->config
+
+   !! IRC:: Helper classes may NOT change state in Protocol
+      without using an interface defined in a Protocol::Role
+
+      They may modify discrete objects such as Users, Channels, and 
+      Peers.
 
   * Protocol::TS5 isa Protocol
      * Protocol::TS6 isa Protocol::TS5
@@ -12,8 +19,11 @@ IRC::Pluggable::Protocol (TS3-ish ?)
 
 IRC::Pluggable::IRC::
 
+  - Also see notes regarding Protocol interaction, above
+
   * Protocol::TS6::Users isa IRC::Users
-    (-> UIDs are primary keys)
+    (-> Protocol::TS6 can override _build to create)
+    (-> UIDs are primary keys?)
 
   * Protocol::TS6::User isa IRC::User
     (-> has 'uid')

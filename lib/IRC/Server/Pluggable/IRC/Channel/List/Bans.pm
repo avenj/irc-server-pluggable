@@ -6,11 +6,7 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable qw/
-  Types
-  Utils
-/;
-
+use IRC::Server::Pluggable::Utils qw/normalize_mask/;
 
 extends 'IRC::Server::Pluggable::IRC::Channel::List';
 
@@ -19,14 +15,10 @@ around 'add' => sub {
   my ($orig, $self, $mask, $setter, $ts) = @_;
 
   confess "add() given insufficient arguments"
-    unless $mask && $setter && defined $ts;
+    unless $mask and defined $setter and defined $ts;
 
-  $self->$orig( $mask, [ $setter, $ts ] )
+  ## Normalize and add mask.
+  $self->$orig( normalize_mask($mask), [ $setter, $ts ] )
 };
-
-
-## ... it would be nice to provide mask-matching here, but then
-##  we need to propogate casemaps over this way ...
-
 
 1;

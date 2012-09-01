@@ -43,7 +43,9 @@ sub get {
 sub items {
   my ($self) = @_;
 
-  wantarray ? (keys %{ $self->_list }) : [ keys %{ $self->_list } ]
+  wantarray ?
+    ( keys %{ $self->_list } )
+    : [ keys %{ $self->_list } ]
 }
 
 sub keys_matching_regex {
@@ -51,18 +53,21 @@ sub keys_matching_regex {
 
   my @resultset = grep { $_ =~ $regex } keys %{ $self->_list };
 
-  wantarray ? @resultset : \@resultset
+  wantarray ?
+    @resultset : \@resultset
 }
 
 sub keys_matching_ircstr {
   my ($self, $ircstr, $casemap) = @_;
 
+  my $lower = lc_irc($ircstr, $casemap);
   my @resultset =
     grep {
-      lc_irc($_, $casemap) eq lc_irc($ircstr, $casemap)
+      lc_irc($_, $casemap) eq $lower
     } keys %{ $self->_list };
 
-  wantarray ? @resultset : \@resultset
+  wantarray ?
+    @resultset : \@resultset
 }
 
 sub keys_matching_mask {
@@ -73,14 +78,22 @@ sub keys_matching_mask {
   my @resultset = grep {
     matches_mask( $mask, $_, $casemap )
   } keys %{ $self->_list };
+
+  wantarray ?
+    @resultset : \@resultset
 }
 
 sub keys_matching_host {
   my ($self, $host, $casemap) = @_;
 
+  ## Does NOT normalize listed masks
+  ## This is up to the subclass at add-time.
   my @resultset = grep {
-    matches_mask( normalize_mask($_), $host, $casemap )
+    matches_mask( $_, $host, $casemap )
   } keys %{ $self->_list };
+
+  wantarray ?
+    @resultset : \@resultset
 }
 
 1;

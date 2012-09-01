@@ -12,10 +12,12 @@ extends 'IRC::Server::Pluggable::IRC::Channel::List';
 
 
 around 'add' => sub {
-  my ($orig, $self, $mask, $setter, $ts) = @_;
+  my ($orig, $self, $mask, $array_params) = @_;
+
+  my ($setter, $ts) = @{ $array_params // [] };
 
   confess "add() given insufficient arguments"
-    unless $mask and defined $setter and defined $ts;
+    unless defined $mask and defined $setter and defined $ts;
 
   ## Normalize and add mask.
   $self->$orig( normalize_mask($mask), [ $setter, $ts ] )

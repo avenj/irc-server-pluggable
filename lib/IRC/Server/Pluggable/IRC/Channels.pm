@@ -163,20 +163,25 @@ sub user_can_send {
   return 1 if $user->is_flagged_as('SERVICE');
 
   if ( $self->user_is_present($user, $chan_name) ) {
+
     ## User is present; if they have status modes,
     ## return 1 to let message pass
+
     return 1 if $self->get_status_char($user, $chan_name)
   } else {
+
     ## User not present; check for +n
     ## If +n is set, message should be dropped
+
     return if $self->channel_has_mode($chan_name, 'n');
   }
 
-  ## User is returned not moderated if they have status modes
+  ## base class ->user_is_moderated is false if the user has status modes:
   return if $self->user_is_moderated($user, $chan_name);
 
-  ## If they're present, banned, and have status, we return 1 above
-  ## Return here if they're banned and don't have status / not present
+  ## If they're present and have status, we return 1 above
+  ## (regardless of banned status, they can talk)
+  ## Return here if they're banned and ( no status || not present )
   return if $self->user_is_banned($user, $chan_name);
 
   1
@@ -192,9 +197,8 @@ sub user_is_banned {
   my $cmap = $self->protocol->casemap;
 
   ## Consult Channel::List obj
-  for my $ban ( $chan->lists->{bans}->keys ) {
-    return $ban if matches_mask( $ban, $user->full, $cmap )
-  }
+  return 1 if $chan->lists->{bans}
+    and $chan->lists->{bans}->keys_matching_mask($user->full, $cmap);
 
   return
 }
@@ -203,7 +207,12 @@ sub user_is_invited {
   my ($self, $user, $chan_name) = @_;
 
   my $chan = $self->by_name($chan_name) || return;
-  ## FIXME consult List:: object
+  my $cmap = $self->protocol->casemap;
+
+  return 1 if $chan->lists->{invite}
+    and $chan->lists->{invite}->keys_matching_ircstr($user->nick, $cmap);
+
+  return
 }
 
 sub user_is_moderated {

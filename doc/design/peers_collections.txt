@@ -1,0 +1,17 @@
+# IRC::Peer / IRC::Peers / IRC::Users / IRC::User rework
+
+
+An IRC::Peer can have its own Peers collection
+
+A Peers collection should have a method to find a user in the tree under 
+it
+
+A Protocol should have a method to query its top-level ->peers to find a 
+trace to a user or a next-hop route-id
+
+A bursted User or Server should have a next-hop route-id
+
+A bursted Server should belong to a peer of a peer
+
+A split situation should delist all peers of the peer that split and all 
+users of that peer or peers beneath it

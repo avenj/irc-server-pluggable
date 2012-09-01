@@ -7,12 +7,7 @@ use Moo::Role;
 
 use IRC::Server::Pluggable::Utils qw/lc_irc uc_irc/;
 
-sub __r_casemap_get_cmap {
-  my ($self) = @_;
-  $self->can('casemap') ? $self->casemap
-    : $self->can('protocol') ? $self->protocol->casemap
-    : 'rfc1459'
-}
+requires 'casemap';
 
 sub lower {
   my ($self, $name) = @_;
@@ -22,7 +17,7 @@ sub lower {
     return
   }
 
-  lc_irc( $name, $self->__r_casemap_get_cmap )
+  lc_irc( $name, $self->casemap )
 }
 
 sub upper {
@@ -33,7 +28,7 @@ sub upper {
     return
   }
 
-  uc_irc( $name, $self->__r_casemap_get_cmap )
+  uc_irc( $name, $self->casemap )
 }
 
 sub equal {
@@ -80,9 +75,11 @@ IRC::Server::Pluggable::Role::CaseMap - IRC casemap-aware lc/uc
 A L<Moo::Role> providing casemap-related functions that are aware of the 
 B<casemap()> attribute belonging to the consuming class.
 
-If the consuming class lacks casemap() but has protocol(),
-->protocol->casemap is used. If neither is available, falls back to 
-RFC1459 rules.
+Requires attrib 'casemap' which should be one of:
+
+  rfc1459
+  strict-rfc1459
+  ascii
 
 See L<IRC::Server::Pluggable::Utils/"lc_irc"> for details on IRC case 
 sensitivity issues.
@@ -99,9 +96,9 @@ Apply C<lc_irc> to a string using the available B<casemap>.
 
 Reverse of L</"lower">.
 
-=head2 equals
+=head2 equal
 
-  if ( $self->equals($string_one, $string_two) ) {
+  if ( $self->equal($string_one, $string_two) ) {
 
    . . . 
 

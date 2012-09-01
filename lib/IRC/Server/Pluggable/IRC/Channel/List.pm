@@ -8,9 +8,11 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable qw/
-  Types
-  Utils
+use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable::Utils qw/
+  lc_irc
+  matches_mask
+  normalize_mask
 /;
 
 has '_list' => (
@@ -38,13 +40,52 @@ sub get {
   $self->_list->{$item}
 }
 
-sub keys {
+sub items {
   my ($self) = @_;
 
   wantarray ? (keys %{ $self->_list }) : [ keys %{ $self->_list } ]
 }
 
+sub keys_matching_regex {
+  my ($self, $regex) = @_;
+
+  my @resultset = grep { $_ =~ $regex } keys %{ $self->_list };
+
+  wantarray ? @resultset : \@resultset
+}
+
+sub keys_matching_ircstr {
+  my ($self, $ircstr, $casemap) = @_;
+
+  my @resultset =
+    grep {
+      lc_irc($_, $casemap) eq lc_irc($ircstr, $casemap)
+    } keys %{ $self->_list };
+
+  wantarray ? @resultset : \@resultset
+}
+
+sub keys_matching_mask {
+  my ($self, $mask, $casemap) = @_;
+
+  $mask = normalize_mask($mask);
+
+  my @resultset = grep {
+    matches_mask( $mask, $_, $casemap )
+  } keys %{ $self->_list };
+}
+
+sub keys_matching_host {
+  my ($self, $host, $casemap) = @_;
+
+  my @resultset = grep {
+    matches_mask( normalize_mask($_), $host, $casemap )
+  } keys %{ $self->_list };
+}
+
 1;
+
+## FIXME POD is out of date
 
 =pod
 
@@ -76,9 +117,9 @@ L<IRC::Server::Pluggable::IRC::Channel::List::Bans).
 
   my $item = $list->get( $key );
 
-=head3 keys
+=head3 items
 
-  for my $key ( $list->keys ) {
+  for my $key ( $list->items ) {
     . . .
   }
 

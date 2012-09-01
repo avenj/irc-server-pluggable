@@ -56,7 +56,7 @@ sub register_user_local {
   my $pending_ref = $self->__register_user_ready($conn);
   return unless $pending_ref;
 
-  delete $self->_pending_reg->{ $conn->wheel_id };
+  delete $self->_r_pending_reg->{ $conn->wheel_id };
 
   $conn->is_client(1);
 
@@ -147,11 +147,11 @@ sub __register_user_ready {
   ## Returns the pending user hash if NICK, USER, and identd/hostname
   ## have all been retrieved.
 
-  my $pending_ref = $self->_pending_reg->{ $conn->wheel_id } || return;
+  my $pending_ref = $self->_r_pending_reg->{ $conn->wheel_id } || return;
 
   unless ( $conn->has_wheel ) {
     ## Connection's wheel has disappeared.
-    delete $self->_pending_reg->{ $conn->wheel_id };
+    delete $self->_r_pending_reg->{ $conn->wheel_id };
     return
   }
 
@@ -184,8 +184,8 @@ sub irc_ev_register_complete {
 
   ## Hints hash has keys 'ident' and 'host'
   ##  (values will be undef if not found)
-  ## Save to _pending_reg and see if we can register a User.
-  $self->_pending_reg->{ $conn->wheel_id }->{authinfo} = $hints;
+  ## Save to _r_pending_reg and see if we can register a User.
+  $self->_r_pending_reg->{ $conn->wheel_id }->{authinfo} = $hints;
   $self->register_user_local($conn);
 }
 
@@ -211,7 +211,7 @@ sub irc_ev_unknown_cmd_server {
   ##  set up Peer obj, route() can default to wheel_id
   ##  check if we should be setting up compressed_link
   ##  burst (event for this we can also trigger on compressed_link ?)
-  ##  clear from _pending_reg
+  ##  clear from _r_pending_reg
 
   ## FIXME should a server care if Plugin::Register isn't done?
 }
@@ -247,9 +247,9 @@ sub irc_ev_unknown_cmd_nick {
   ## FIXME truncate if longer than max
 
   ## NICK/USER may come in indeterminate order
-  ## Set up a $self->_pending_reg->{ $conn->wheel_id } hash entry.
+  ## Set up a $self->_r_pending_reg->{ $conn->wheel_id } hash entry.
   ## Call method to check current state.
-  $self->_pending_reg->{ $conn->wheel_id }->{nick} = $nick;
+  $self->_r_pending_reg->{ $conn->wheel_id }->{nick} = $nick;
   $self->register_user_local($conn);
 }
 
@@ -279,8 +279,8 @@ sub irc_ev_unknown_cmd_user {
   }
 
   ## FIXME methods to provide interface to pending_reg
-  $self->_pending_reg->{ $conn->wheel_id }->{user}  = $username;
-  $self->_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';
+  $self->_r_pending_reg->{ $conn->wheel_id }->{user}  = $username;
+  $self->_r_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';
   $self->register_user_local($conn);
 }
 
@@ -304,10 +304,11 @@ sub irc_ev_unknown_cmd_pass {
   ## Preserve PASS for later checking by register_user_local.
 
   my $pass = $ev->params->[0];
-  $self->_pending_reg->{ $conn->wheel_id }->{pass} = $pass;
+  $self->_r_pending_reg->{ $conn->wheel_id }->{pass} = $pass;
 }
 
 ## FIXME call burst methods to sync up after registration?
 ##  or call() burst handlers via Protocol?
+
 
 1;

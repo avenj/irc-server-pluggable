@@ -18,6 +18,9 @@ requires qw/
 ### ->chan_user_can_join( $user_obj, $chan_name, %join_opts )
 ### ->chan_user_can_send( $user_obj, $chan_name )
 
+## FIXME join methods, call Channels->add_user_to_channel?
+## FIXME same for part
+
 ## FIXME methods for:
 ##  - channel creation (+ process / event events)
 ##  - actual protocol join action (+ process / emit events)

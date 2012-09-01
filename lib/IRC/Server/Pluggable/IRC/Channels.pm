@@ -39,23 +39,6 @@ has '_channels' => (
 
 
 ### Implementation-specific bits.
-## A subclass looking to change how Channels work will probably
-## want to change the relevant attribs in their Protocol subclass,
-## then possibly write a Protocol::$NAME::Channels subclass that
-## overrides these:
-sub _param_isa_user_obj {
-  my ($self, $obj) = @_;
-  return unless is_Object($user)
-    and $user->isa('IRC::Server::Pluggable::IRC::User');
-  1
-}
-
-sub _param_isa_chan_obj {
-  my ($self, $obj) = @_;
-  return unless is_Object($user)
-    and $user->isa('IRC::Server::Pluggable::IRC::User');
-  1
-}
 
 sub add_user_to_channel {
   my ($self, $user, $chan_name) = @_;

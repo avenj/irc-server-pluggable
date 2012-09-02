@@ -32,21 +32,33 @@ $t->add_node_to_name('hubW', 'leafU');
 
 $t->print_map;
 
-while (1) {
-  print "Give me a name, get a path: ";
-  my $path_to = <STDIN>;
-  chomp($path_to);
+say "Enter method names and params, blank line prints map";
 
-  unless ($path_to) {
-    $t->print_map and next
+my $run = 1;
+while ($run) {
+  print "cmd> ";
+
+  my $input = <STDIN>;
+  chomp($input);
+  unless ($input) {
+    $t->print_map;
+    next
   }
 
-  my $route = $t->path_to_server($path_to);
-  my $hops  = $t->path_to_server_indexes($path_to);
-  if ($route) {
-    print Dumper $route;
-    print " -> (".join(', ', @$hops).")\n";
-  } else {
-    say "No route found"
+  my ($cmd, @params) = split ' ', $input;
+  $cmd = lc($cmd//'');
+
+  if ($cmd eq 'exit' || $cmd eq 'quit') {
+    $run = 0;
+    next
   }
+
+  unless ( $t->can($cmd) ) {
+    $t->print_map;
+    next
+  }
+
+  print(
+    Dumper($t->$cmd(@params))
+  );
 }

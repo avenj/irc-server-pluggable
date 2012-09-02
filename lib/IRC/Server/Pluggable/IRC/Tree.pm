@@ -118,7 +118,7 @@ sub del_node_by_name {
   my $idx_for_name = $idx_for_ref - 1;
 
   my $cur_ref = $parent_ref || $self;
-  while (my $idx = @$index_route) {
+  while (my $idx = shift @$index_route) {
     $cur_ref = $cur_ref->[$idx]
   }
 
@@ -196,9 +196,6 @@ sub trace_indexes {
   my @queue = ( PARENT => ($parent_ref || $self) );
 
   ## Our seen routes.
-  ## Hmm.. we could optionally store routes in $self as we see them,
-  ## then clear them when running del_node_by_name.
-  ## They're indexed by name, so they're easy to manage.
   my %route;
 
   my $parent_idx = 0;
@@ -238,7 +235,15 @@ sub print_map {
   $recurse_print = sub {
     my ($name, $ref) = @_;
     my @nodes = @$ref;
-    print( ' ' x $indent . "` $name\n" );
+
+    if ($indent == 1 || scalar @nodes) {
+      $name = "* $name";
+    } else {
+      $name = "` $name";
+    }
+
+    print( (' ' x $indent) . "$name\n" );
+
     while (my ($next_name, $next_ref) = splice @nodes, 0, 2) {
       $indent += 3;
       $recurse_print->($next_name, $next_ref);
@@ -253,7 +258,7 @@ sub print_map {
     $indent = 1;
   }
 
-  1
+  return
 }
 
 1;
@@ -282,7 +287,8 @@ IRC::Server::Pluggable::IRC::Tree - Represent an IRC network tree
 
 See the DESCRIPTION for a complete method list.
 
-Also see C<eg/irc_tree.pl> in the distribution.
+Also see C<eg/irc_tree.pl> in the distribution for a silly little 
+interactive network simulator of sorts.
 
 =head1 DESCRIPTION
 

@@ -189,6 +189,35 @@ sub path_to_server_indexes {
   return
 }
 
+sub print_map {
+  my ($self, $parent_ref) = @_;
+
+  $parent_ref = $self unless defined $parent_ref;
+
+  my $indent = 1;
+
+  my $recurse_print;
+  $recurse_print = sub {
+    my ($name, $ref) = @_;
+    print( ' ' x $indent . "$name\n" );
+    my @nodes = @$ref;
+    while (my ($next_name, $next_ref) = splice @nodes, 0, 2) {
+      ++$indent;
+      $recurse_print->($next_name, $next_ref)
+    }
+  };
+
+  my @list = @$parent_ref;
+  while (my ($parent_name, $parent_ref) = splice @list, 0, 2) {
+    $recurse_print->($parent_name, $parent_ref);
+    $indent = 1;
+  }
+
+  print "Done\n";
+
+  1
+}
+
 sub __t_add_to_hash {
   my ($parent_hash, $name, $node_ref) = @_;
 

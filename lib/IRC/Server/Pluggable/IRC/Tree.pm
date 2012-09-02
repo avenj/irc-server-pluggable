@@ -1,15 +1,6 @@
 package IRC::Server::Pluggable::IRC::Tree;
 
 ## Array-type object representing a network map.
-## Root node is 'SELF'
-##      'hub1' => [
-##          'leafA' => [],
-##          'leafB' => [],
-##       ],
-##       'hub2' => [
-##              'leafA' => [],
-##              'leafB' => [],
-##       ],
 
 use strictures 1;
 use Carp;
@@ -24,71 +15,18 @@ sub new {
   $self
 }
 
-
-## Fundamentals:
-sub add_node_to_parent_ref {
-  ## add_node_to_parent( $parent_ref, $name )
-  ## add_node_to_parent( $parent_ref, $name, $arrayref )
-  my ($self, $parent_ref, $name, $arrayref) = @_;
-
-  push @$parent_ref, $name, ($arrayref||[])
-}
-
-sub add_node_to_parent {
-  my ($self, $parent_name, $name, $arrayref) = @_;
-  ## FIXME find ref for parent name via path_to_server_array
-  ## add_node_to_parent_ref() for the ref
-}
-
-sub del_node_by_name {
-  ## FIXME
-  ## Find and splice out a node by name.
-}
-
-## Higher-level:
-sub path_to_server {
-  ## FIXME call to path_to_server_array instead
-  ##  then return a list of just the names in the path
-  my ($self, $server_name, $parent_ref) = @_;
-
-  my @queue = ( PARENT => ($parent_ref || $self) );
-  my %route;
-
-  ## Breadth-first search.
-  while (my ($parent_name, $parent_ref) = splice @queue, 0, 2) {
-    ## Iterarate child nodes to find a route.
-    ## The @queue is paths we haven't checked yet.
-
-    return [ ] if $parent_name eq $server_name;
-
-    my @leaf_list = @$parent_ref;
-
-    while (my ($child_name, $child_ref) = splice @leaf_list, 0, 2) {
-      ## If we don't have a route for the name of this node,
-      ## set one up.
-      unless ( $route{$child_name} ) {
-        ## If our parent has a route, prepend it.
-        $route{$child_name} =
-          [ @{ $route{$parent_name}||[] }, $child_name ];
-
-        ## If the child we're checking now is the one we're looking for,
-        ## return an arrayref of names.
-        return \@{$route{$child_name}} if $child_name eq $server_name;
-
-        ## If we didn't hit on our target node yet, queue the child to
-        ## search.
-        push @queue, $child_name, $child_ref if @$child_ref;
-      }
-    }
-
-  }
-
-  return
-}
-
 sub path_to_server_indexes {
-  ## Like above, but return indexes into arrays describing the path
   my ($self, $server_name, $parent_ref) = @_;
+
+  ## Return indexes into arrays describing the path
+  ## Return value is the full list of indexes to get to the array
+  ## belonging to the named server
+  ##  i.e.:
+  ##   1, 3, 1
+  ##   $parent_ref->[1] is a ref belonging to an intermediate hop
+  ##   $parent_ref->[1]->[3] is a ref belonging to an intermediate hop
+  ##   $parent_ref->[1]->[3]->[1] is the ref belonging to the target hop
+  ## Subtracting one from an index will get you the NAME value.
 
   my @queue = ( PARENT => ($parent_ref || $self) );
   my %route;
@@ -122,19 +60,106 @@ sub path_to_server_indexes {
   return
 }
 
-sub child_node_for {
+sub path_to_server {
   my ($self, $server_name, $parent_ref) = @_;
+
   $parent_ref = $self unless defined $parent_ref;
 
+  my $index_route =
+    $self->path_to_server_indexes($server_name, $parent_ref)
+    or return;
 
+  ## Build a list of names for each member of the path
+  my ($cur_ref, @names) = $parent_ref;
+  while (my $idx = shift @$index_route) {
+    push(@names, $cur_ref->{ $idx - 1 });
+    $cur_ref = $cur_ref->{$idx};
+  }
+
+  \@names
 }
 
-sub add_server_to_hub {
+sub child_node_for {
+  my ($self, $server_name, $parent_ref) = @_;
 
+  $parent_ref = $self unless defined $parent_ref;
+
+  my $index_route =
+    $self->path_to_server_indexes($server_name, $parent_ref)
+    or return;
+
+  ## Recurse the list indexes.
+  my $cur_ref = $parent_ref;
+
+  while (my $idx = shift @$index_route) {
+    $cur_ref = $cur_ref->[$idx]
+  }
+
+  $cur_ref
 }
 
-sub del_server_from_hub {
+sub add_node_to_parent_ref {
+  ## add_node_to_parent( $parent_ref, $name )
+  ## add_node_to_parent( $parent_ref, $name, $arrayref )
+  my ($self, $parent_ref, $name, $arrayref) = @_;
 
+  push @$parent_ref, $name, ($arrayref||[])
 }
+
+sub add_node_to_top {
+  my ($self, $name, $arrayref) = @_;
+
+  $self->add_node_to_parent_ref( $self, $name, $arrayref )
+}
+
+sub add_node_to_name {
+  my ($self, $parent_name, $name, $arrayref) = @_;
+
+  ## Can be passed $self like add_node_to_parent_ref
+  ## Should just use add_node_to_top instead, though
+  if ($parent_name eq $self) {
+    return $self->add_node_to_top($name, $arrayref)
+  }
+
+  my $index_route =
+    $self->path_to_server_indexes($parent_name)
+    or carp "Cannot add node to nonexistant parent $parent_name"
+    and return;
+
+  my $cur_ref = $self;
+
+  while (my $idx = shift @$index_route) {
+    $cur_ref = $cur_ref->[$idx]
+  }
+
+  ## Now in the ref belonging to our named parent.
+  $self->add_node_to_parent_ref($cur_ref, $name, $arrayref || [] )
+}
+
+sub del_node_by_name {
+  my ($self, $name) = @_;
+
+  ## Returns deleted node.
+
+  my $index_route =
+    $self->path_to_server_indexes($name)
+    or carp "Cannot del nonexistant node $name"
+    and return;
+
+  my $idx_for_ref  = pop @$index_route;
+  my $idx_for_name = $idx_for_ref - 1;
+
+  my $cur_ref = $self;
+  while (my $idx = @$index_route) {
+    $cur_ref = $cur_ref->[$idx]
+  }
+
+  ## Should now be in top-level container and have index values
+  ## for the name/ref that we're deleting.
+  my ($del_name, $del_ref) = splice @$cur_ref, $idx_for_name, 2;
+
+  $del_ref
+}
+
 
 1;

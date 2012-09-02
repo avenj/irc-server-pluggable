@@ -15,8 +15,6 @@ requires qw/
   send_to_routes
 /;
 
-### ->chan_user_can_join( $user_obj, $chan_name, %join_opts )
-### ->chan_user_can_send( $user_obj, $chan_name )
 
 ## FIXME join methods, call Channels->add_user_to_channel?
 ## FIXME same for part
@@ -33,11 +31,14 @@ requires qw/
 # sub irc_ev_peer_cmd_join {}
 # sub irc_ev_peer_cmd_sjoin {}
 
+
+#### Joinable/sendable checks.
+
+## +b check/send
 sub _r_channels_chk_user_banned {
   my ($self, $channels, $chan_name, $user_obj) = @_;
 
   ## This +b check allows invite-past-ban.
-  ## Split out to be easily overriden.
   return 1 if not $channels->user_is_invited($user_obj, $chan_name)
     and $channels->user_is_banned($user_obj, $chan_name);
 
@@ -54,10 +55,10 @@ sub _r_channels_send_user_banned {
   $self->send_to_routes( $output, $user_obj->route )
 }
 
+
+## +i check/send
 sub _r_channels_chk_invite_only {
   my ($self, $channels, $chan_name, $user_obj) = @_;
-
-  ## +i check
 
   return 1 if not $channels->user_is_invited($user_obj, $chan_name)
            and $channels->channel_has_mode($chan_name, 'i');
@@ -75,6 +76,8 @@ sub r_channels_send_invite_only {
   $self->send_to_routes( $output, $user_obj->route )
 }
 
+
+## +l check/send
 sub _r_channels_chk_over_limit {
   my ($self, $chan_obj) = @_;
 
@@ -95,6 +98,7 @@ sub _r_channels_send_over_limit {
   $self->send_to_routes( $output, $user_obj->route )
 }
 
+## +k send, comparison happens in chan_user_can_join
 sub _r_channels_send_bad_key {
   my ($self, $user_obj, $chan_name) = @_;
 
@@ -105,10 +109,17 @@ sub _r_channels_send_bad_key {
   $self->send_to_routes( $output, $user_obj->route )
 }
 
+
+## ->chan_user_can_join( $user_obj, $chan_name, %join_opts )
+## ->chan_user_can_send( $user_obj, $chan_name )
+
 sub chan_user_can_join {
   ## chan_user_can_join( $user_obj, $chan_name, key => $key, . . . )
+  ##  Return true if the User can join.
+  ##  Return false and dispatched an error numeric to User if not.
   my ($self, $user_obj, $chan_name, %opts) = @_;
 
+  ## Public methods can try to retrieve a user obj from nick, if needed:
   return unless $self->__r_channels_check_user_arg($user_obj);
 
   my $channels = $self->channels;
@@ -146,7 +157,7 @@ sub chan_user_can_join {
     }
   }
 
-  ## Limit +l check
+  ## Limit (+l) check
   if ( $self->_r_channels_chk_over_limit( $chan_obj ) ) {
     $self->_r_channels_send_over_limit(
       $user_obj, $chan_name
@@ -196,7 +207,7 @@ sub chan_user_can_send {
 }
 
 
-### Internals.
+#### Internals.
 
 sub __r_channels_check_user_arg {
   my $self = shift;

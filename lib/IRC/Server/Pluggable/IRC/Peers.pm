@@ -53,4 +53,10 @@ sub del {
   delete $self->_peers->{ lc($s_name) }
 }
 
+## FIXME
+##  -> An added Peer is either local or remote
+##  -> Methods to build a tree of identifiers (Peer->name usually):
+##   $self->_tree
+##    
+
 1;

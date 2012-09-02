@@ -8,9 +8,7 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable qw/
-  Types
-/;
+use IRC::Server::Pluggable::Types;
 
 has 'conn' => (
   ## Our directly-linked peers should have a Backend::Connect
@@ -22,9 +20,10 @@ has 'conn' => (
   writer    => 'set_conn',
   clearer   => 'clear_conn',
   isa       => sub {
+    my $wantclass = "IRC::Server::Pluggable::Backend::Connect";
     is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::Backend::Connect')
-      or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Connect"
+      and $_[0]->isa($wantclass)
+      or confess "$_[0] is not a $wantclass"
   },
 );
 
@@ -36,14 +35,19 @@ has 'name' => (
 );
 
 has 'peers'  => (
-  ## A Peer can have its own Peers
-  ## FIXME
+  ## A Peer can have its own Peers collection.
+  ## See doc/design/peers_collections.txt
   lazy      => 1,
   is        => 'ro',
-  writer    =>
-  predicate =>
-  clearer   =>
-  isa       =>
+  writer    => 'set_peers',
+  predicate => 'has_peers',
+  clearer   => 'clear_peers',
+  isa       => sub {
+    my $wantclass = "IRC::Server::Pluggable::IRC::Peers";
+    is_Object($_[0]
+      and $_[0]->isa($wantclass)
+      or confess "$_[0] is not a $wantclass"
+  },
 );
 
 has 'route' => (
@@ -58,7 +62,7 @@ has 'route' => (
     my ($self) = @_;
 
     unless ($self->has_conn) {
-      carp "No route() and no conn() available, using empty route"
+      carp "No route() and no conn() available, using empty route";
       return ''
     }
 

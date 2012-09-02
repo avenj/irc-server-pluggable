@@ -6,6 +6,8 @@ use Moo;
 use 5.12.1;
 use strictures 1;
 
+use IRC::Server::Pluggable::Types;
+
 ## FIXME
 ##  - Config::Auth for users/opers/peers?
 

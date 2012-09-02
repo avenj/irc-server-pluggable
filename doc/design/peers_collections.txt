@@ -1,5 +1,7 @@
-# IRC::Peer / IRC::Peers / IRC::Users / IRC::User rework
+### IRC::Peer / IRC::Peers / IRC::Users / IRC::User rework
 
+
+## Peers
 
 An IRC::Peer can have its own Peers collection
 
@@ -15,3 +17,89 @@ A bursted Server should belong to a peer of a peer
 
 A split situation should delist all peers of the peer that split and all 
 users of that peer or peers beneath it
+
+
+        Protocol
+           *
+       IRC::Peers
+         has _peers
+           peer A
+           peer B
+         has _routes
+     |           |
+  IRC::Peer  IRC::Peer
+    (A)         (B)
+                 |
+             IRC::Peers
+              |      \
+           IRC::Peer  IRC::Peer
+             (C)        (D)
+              |
+          IRC::Peers
+              |
+           IRC::Peer
+             (E)
+
+QUERY
+ Protocol ->            
+  ->query for route to E
+    ->peer A has no peers, return()
+    ->peer B has peers
+    ->peer B query peer C
+     ->peer C has peers
+     ->peer C has peer E, return peer E
+    ->peer B found route via peer C
+    ->peer B save route E => C
+  ->route E was found via next-hop peer B
+  ->save route E => peer B
+
+CLEAR
+ Protocol -> split peer ->
+  ->trace_path
+  FIXME
+
+Map a queryable server identifier (a PEERNAME passed to trace_path) to 
+the _peers() key matching the next-hop IRC::Peer. The next-hop IRC::Peer 
+should either know about this peer directly via its own _peers() or 
+have _routes() telling it which of its _peers() to query.
+
+See above QUERY details
+
+->trace_path( PEERNAME ):
+   > Protocol query IRC::Peers for trace_path
+   > trace_path queries IRC::Peer
+    -> first peer has no peers, return empty list
+    -> second peer has peers, return query retval
+   > if IRC::Peer has Peers, IRC::Peer query IRC::Peers
+    > call trace_path to follow above procedure
+   > track currently-followed path
+   > if any peer is a match, return traced path
+
+Create and preserve peer path resultset objects?
+Would need to a memory-efficient way to do so.
+
+
+## Users
+
+Options:
+ - Maintain all known users in Protocol->users
+    Maintain a peer association for each user
+    > Pros:
+      Can quickly find user and their route_id
+    > Cons:
+      Need to be able to quickly get all users for a peer
+      and drop them in split situations
+      Iterating is too slow
+
+ - Maintain per-Peer sets of User objects
+    Keep users contained in their respective Peer
+    > Pros:
+
+    > Cons:
+      Need to be able to quickly grab a next-hop route_id
+      
+
+A User has a:
+##  ->server()   Name of their local Peer
+##  ->route()    ID of our Peer or next-hop Peer that introduced User
+

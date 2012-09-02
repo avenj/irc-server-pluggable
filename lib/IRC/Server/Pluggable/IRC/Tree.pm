@@ -199,11 +199,11 @@ sub print_map {
   my $recurse_print;
   $recurse_print = sub {
     my ($name, $ref) = @_;
-    print( ' ' x $indent . "$name\n" );
     my @nodes = @$ref;
+    print( ' ' x $indent . "$name\n" );
+    $indent += 2 if @nodes;
     while (my ($next_name, $next_ref) = splice @nodes, 0, 2) {
-      ++$indent;
-      $recurse_print->($next_name, $next_ref)
+      $recurse_print->($next_name, $next_ref);
     }
   };
 

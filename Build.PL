@@ -81,22 +81,30 @@ my $build = $class->new(
   requires => {
     'perl'     => '5.12.1',
 
-    'Carp'     => 0,
+    'Carp'         => 0,
+    'Carp::Always' => 0,
+
     'Exporter' => 0,
     'Socket'   => 2,
 
     'strictures'             => 1,
+
     'IRC::Utils'             => 0,
+
     'Moo'                    => '1.000003',
     'MooX::Types::MooseLike' => 0,
+
     'Net::IP::Minimal'       => 0,
+
     'Object::Pluggable'      => 0,
+
     'POE'                    => '1.3',
     'POE::Component::Client::DNS'          => 0,
     'POE::Component::Client::Ident::Agent' => 0,
     'POE::Component::SSLify' => '1.006',
     'POE::Filter::IRCD'      => 0,
     'POE::Filter::Zlib'      => 0,
+
     'Try::Tiny'              => 0,
   },
 );

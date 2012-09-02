@@ -148,12 +148,6 @@ sub users_as_array {
   [ keys %{ $self->nicknames } ]
 }
 
-sub _param_isa_user_obj {
-  my ($self, $obj) = @_;
-  return unless is_Object($user)
-    and $user->isa('IRC::Server::Pluggable::IRC::User');
-  1
-}
 
 sub nickname_has_mode {
   my ($self, $nickname, $modechr) = @_;
@@ -174,7 +168,7 @@ sub channel_has_mode {
 }
 
 sub channel_has_nickname {
-  my ($self, $nickname) = @_
+  my ($self, $nickname) = @_;
   confess "channel_has_user expects a lowercased nickname"
     unless defined $nickname;
 
@@ -206,7 +200,7 @@ sub chg_status {
     for my $ex (@splitex) {
       ## Remove excluded modes.
       ## Inefficient, but these are typically very short lists.
-      $final = [ grep { !($_ ne $ex } @$final ];
+      $final = [ grep { $_ ne $ex } @$final ];
     }
   }
 

@@ -14,6 +14,8 @@ use IRC::Server::Pluggable qw/
 
 use POE;
 
+use namespace::clean -except => 'meta';
+
 extends 'Object::Pluggable';
 
 

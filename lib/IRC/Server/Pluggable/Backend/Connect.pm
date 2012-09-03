@@ -8,6 +8,8 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
+use namespace::clean -except => 'meta';
+
 
 has 'alarm_id' => (
   ## Idle alarm ID.

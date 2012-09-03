@@ -44,6 +44,7 @@ use Socket qw/
 
 use Try::Tiny;
 
+use namespace::clean -except => 'meta';
 
 has 'session_id' => (
   ## Session ID for own session.

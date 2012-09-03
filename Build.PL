@@ -89,7 +89,7 @@ my $build = $class->new(
 
     'strictures'             => 1,
 
-    'IRC::Server::Tree'      => 0,
+    'IRC::Server::Tree'      => '0.03',
     'IRC::Utils'             => 0,
 
     'Moo'                    => '1.000003',

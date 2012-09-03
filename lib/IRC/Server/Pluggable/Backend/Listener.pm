@@ -8,6 +8,9 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
+use namespace::clean -except => 'meta';
+
+
 has 'addr'  => (
   required => 1,
 

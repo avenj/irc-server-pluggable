@@ -4,7 +4,9 @@ use Carp;
 use Moo::Role;
 use strictures 1;
 
-require Scalar::Utils;
+use Scalar::Utils 'blessed';
+
+use namespace::clean -except => 'meta';
 
 requires qw/
   channels
@@ -215,7 +217,7 @@ sub __r_channels_check_user_arg {
   ## Attempt to modify caller's args
   ## If we can't get either, carp and return
   ## FIXME it's possible this should live as a role method
-  unless ( Scalar::Utils::blessed($_[0]) ) {
+  unless ( blessed($_[0]) ) {
     $_[0] = $self->users->by_name($_[0]);
     unless ($_[0]) {
       my $called = (caller(1))[3];

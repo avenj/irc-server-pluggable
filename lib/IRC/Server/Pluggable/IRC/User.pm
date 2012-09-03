@@ -13,6 +13,8 @@ use overload
 use Carp;
 use Moo;
 
+use namespace::clean -except => 'meta';
+
 use IRC::Server::Pluggable qw/
   Types
   Utils

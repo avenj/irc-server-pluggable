@@ -4,6 +4,8 @@ use strictures 1;
 use Carp;
 use Moo::Role;
 
+use namespace::clean -except => 'meta';
+
 requires qw/
   send_to_routes
 /;

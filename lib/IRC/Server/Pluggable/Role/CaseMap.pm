@@ -7,6 +7,8 @@ use Moo::Role;
 
 use IRC::Server::Pluggable::Utils qw/lc_irc uc_irc/;
 
+use namespace::clean -except => 'meta';
+
 requires 'casemap';
 
 sub lower {

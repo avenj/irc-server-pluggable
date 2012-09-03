@@ -14,6 +14,7 @@ use IRC::Server::Pluggable qw/
   IRC::User
 /;
 
+use namespace::clean -except => 'meta';
 
 requires qw/
   config

@@ -12,6 +12,7 @@ use IRC::Server::Pluggable qw/
   Types
 /;
 
+use namespace::clean -except => 'meta';
 
 has 'casemap' => (
   required => 1,

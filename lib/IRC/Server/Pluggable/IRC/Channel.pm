@@ -18,6 +18,8 @@ use IRC::Server::Pluggable qw/
   Utils
 /;
 
+use namespace::clean -except => 'meta';
+
 has 'name' => (
   required => 1,
   is       => 'ro',

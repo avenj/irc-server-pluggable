@@ -6,6 +6,8 @@ package IRC::Server::Pluggable::Role::Clients;
 use strictures 1;
 use Moo::Role;
 
+use namespace::clean -except => 'meta';
+
 sub ROLES () {
   'IRC::Server::Pluggable::Protocol::Role::Clients::'
 }

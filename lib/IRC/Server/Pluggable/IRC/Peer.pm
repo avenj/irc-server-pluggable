@@ -10,6 +10,8 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
+use namespace::clean -except => 'meta';
+
 has 'conn' => (
   ## Our directly-linked peers should have a Backend::Connect
   lazy      => 1,

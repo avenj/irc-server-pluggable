@@ -88,6 +88,7 @@ my $build = $class->new(
     'Socket'   => 2,
 
     'strictures'             => 1,
+    'namespace::clean'       => '0.23',
 
     'IRC::Server::Tree'      => '0.03',
     'IRC::Utils'             => 0,

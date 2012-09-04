@@ -1,0 +1,38 @@
+## SERVER relay
+
+        A
+     B     C G
+   D  E
+        \_ F
+
+    - server E introduces server F via SERVER
+    - server E relays SERVER to B,   ? ++hopcount
+     - server B relays SERVER to A and D with prefix E
+       ! server A changes prefix to server B, ++hopcount
+      - server A relays SERVER to C with prefix B
+        ! server C changes prefix to server A, ++hopcount
+       - server C relays SERVER to G with prefix A
+    
+
+## Process
+
+- SERVER from a local peer
+ - check args, should be 2+
+ - check if we have this peer in our Network alreaday
+ - route() for the new Peer obj is the introducing-local-peer
+
+
+## Scratchpad
+
+  for each serv_list entry hybrid sends bclient_p to the peer's data
+  skips if bclient_p is the introducing server
+  sends SERVER to bclient_p via sendto_one:
+   ":%s SERVER %s %d :%s%s"
+   ? ID_or_name(source_p, bclient_p)   ## prefix
+   the target_p (the new peer) name
+   the hopcount+1
+   hidden server info (we can skip this in base class, probably)
+   gecos string
+  
+
+ how does hostmasking figure into all this, exactly?

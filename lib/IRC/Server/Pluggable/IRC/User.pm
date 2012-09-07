@@ -46,7 +46,7 @@ has 'nick' => (
   is       => 'ro',
   isa      => Str,
   writer   => 'set_nick',
-  trigger  =>  '_reset_full',
+  trigger  =>  1, ## _trigger_nick
 );
 
 has 'user' => (
@@ -54,7 +54,7 @@ has 'user' => (
   is       => 'ro',
   isa      => Str,
   writer   => 'set_user',
-  trigger  =>  '_reset_full',
+  trigger  =>  1,
 );
 
 has 'host' => (
@@ -62,7 +62,7 @@ has 'host' => (
   is       => 'ro',
   isa      => Str,
   writer   => 'set_host',
-  trigger  =>  '_reset_full',
+  trigger  =>  1,
 );
 
 has 'full' => (
@@ -85,11 +85,13 @@ sub _build_full {
   $self->nick .'!'. $self->user .'@'. $self->host
 }
 
-sub _reset_full {
+sub _trigger_nick {
   my ($self) = @_;
   $self->set_full( $self->_build_full )
     if $self->has_full
 }
+sub _trigger_user { shift->_trigger_nick(@_) }
+sub _trigger_host { shift->_trigger_nick(@_) }
 
 has 'server' => (
   required => 1,

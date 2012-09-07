@@ -9,6 +9,8 @@ package IRC::Server::Pluggable::Role::Peers;
 use strictures 1;
 use Moo::Role;
 
+use POE;
+
 use namespace::clean -except => 'meta';
 
 sub ROLES () {

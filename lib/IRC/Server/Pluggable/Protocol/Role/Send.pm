@@ -27,7 +27,7 @@ requires qw/
 sub send_to_route {
   my ($self, $output, $id) = @_;
   unless (ref $output && defined $id) {
-    carp "send_to_route() received insufficient params"
+    carp "send_to_route() received insufficient params";
     return
   }
 
@@ -37,7 +37,7 @@ sub send_to_route {
 sub send_to_routes {
   my ($self, $output, @ids) = @_;
   unless (ref $output && @ids) {
-    carp "send_to_routes() received insufficient params"
+    carp "send_to_routes() received insufficient params";
     return
   }
 

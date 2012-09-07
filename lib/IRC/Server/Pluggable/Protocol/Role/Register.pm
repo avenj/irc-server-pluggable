@@ -8,10 +8,14 @@ use Carp;
 use Moo::Role;
 use strictures 1;
 
+use POE;
+
 use IRC::Server::Pluggable qw/
   Constants
 
   IRC::User
+
+  Types
 /;
 
 use namespace::clean -except => 'meta';
@@ -108,7 +112,7 @@ sub register_user_local {
       command => '001',
       params  => [
         $nickname,
-        "Welcome to the $net_name Internet Relay Chat network $nick"
+        "Welcome to the $net_name Internet Relay Chat network $nickname"
       ],
     },
     $conn->wheel_id

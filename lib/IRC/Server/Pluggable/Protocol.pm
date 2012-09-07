@@ -51,6 +51,8 @@ use Moo;
 use POE;
 
 use IRC::Server::Pluggable qw/
+  Constants
+
   IRC::Channel
   IRC::Numerics
   IRC::Peer
@@ -388,7 +390,7 @@ sub _build_states_client_cmds {
 ### Roles, composed in order.
 
 sub PROTO_ROLE_PREFIX () {
-  'IRC::Server::Pluggable::Protocol::Role::
+  'IRC::Server::Pluggable::Protocol::Role::'
 }
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
@@ -553,6 +555,11 @@ around '_emitter_default' => sub {
 
   ## FIXME not handled, dispatch unknown cmd
   ## FIXME  ... do servers need anything special?
+
+  ## FIXME switch to method dispatch passing wheel / event objects?
+  ##  worth a ponder; may be easier plus we can process() all the time
+  ##  rather than hard-coded methods?
+  ##  would also mean irc_ev_* is more of a private/reserved ns
 };
 
 no warnings 'void';

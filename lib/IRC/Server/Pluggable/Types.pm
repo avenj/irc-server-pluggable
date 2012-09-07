@@ -60,11 +60,7 @@ my $type_definitions = [
   },
   {
     name => 'IRC_Nickname',
-    test => sub {
-      is_Str($_[0]) && length($_[0]) &&
-      ## Regexp borrowed from IRC::Utils
-      $_[0] =~ /^[A-Za-z_`\-^\|\\\{}\[\]][A-Za-z_0-9`\-^\|\\\{}\[\]]*$/;
-    },
+    test => \&test_valid_nickname,
     message => sub { "$_[0] is not a valid IRC nickname" },
   },
   {
@@ -86,6 +82,17 @@ my $type_definitions = [
     message => sub { "$_[0] is not inet protocol 4 or 6" },
   },
 ];
+
+sub test_valid_nickname {
+  my ($str) = @_;
+
+  return unless defined $str and length $str;
+
+  return unless
+    $str =~ /^[A-Za-z_`\-^\|\\\{}\[\]][A-Za-z_0-9`\-^\|\\\{}\[\]]*$/;
+
+  1
+}
 
 sub test_valid_username {
   my ($str) = @_;

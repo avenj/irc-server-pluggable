@@ -101,6 +101,8 @@ sub N_connection {
     $conn->wheel_id
   );
 
+  my $peeraddr = $conn->peeraddr;
+
   if ($peeraddr =~ /^127\./ || $peeraddr eq '::1') {
     ## Connection from localhost.
     $proto->send_to_routes(

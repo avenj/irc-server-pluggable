@@ -55,6 +55,10 @@ has 'is_peer' => (
   default => sub { 0 },
 );
 
+## FIXME is_flooded / flood_timer?
+## FIXME per-conn flood control enable/disable bool?
+## actual flood ctrl / queuing logic should likely happen
+## in the Dispatcher layer
 
 has 'is_disconnecting' => (
   ## Bool or string (disconnect message)

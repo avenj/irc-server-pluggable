@@ -29,10 +29,6 @@ our $VERSION = 0;
 ##
 ##   peers                 ::IRC::Peers
 ##
-##   states_client_cmds    ArrayRef (POE state map)
-##   states_peer_cmds      ArrayRef (POE state map)
-##   states_unknown_cmds   ArrayRef (POE state map)
-##
 ##   users                 ::IRC::Users
 ##
 ##   valid_channel_modes   HashRef
@@ -311,11 +307,8 @@ sub _build_states_unknown_cmds {
   [ $self =>
       [
         ## Handled in Protocol::Role::Register:
+        ## FIXME?
         qw/
-          irc_ev_unknown_cmd_nick
-          irc_ev_unknown_cmd_pass
-          irc_ev_unknown_cmd_server
-          irc_ev_unknown_cmd_user
           irc_ev_register_complete
         /,
       ],
@@ -336,56 +329,14 @@ sub _build_states_peer_cmds {
   [ $self =>
 
       [
-        ## Protocol::Role::Messages:
-        qw/
-          irc_ev_peer_cmd_privmsg
-          irc_ev_peer_cmd_notice
-        /,
-
         ## Protocol::Role::Peers:
+        ## FIXME
         qw/
           irc_ev_peer_numeric
-          irc_ev_peer_cmd_server
-          irc_ev_peer_cmd_squit
-        /,
-
-        ## Protocol::Role::Ping:
-        qw/
-          irc_ev_peer_cmd_ping
-          irc_ev_peer_cmd_pong
         /,
       ],
   ],
 }
-
-
-has 'states_client_cmds' => (
-  lazy    => 1,
-  is      => 'ro',
-  isa     => ArrayRef,
-  writer  => 'set_states_client_cmds',
-  builder => '_build_states_client_cmds',
-);
-
-sub _build_states_client_cmds {
-  my ($self) = @_;
-  [ $self =>
-      [
-        ## Protocol::Role::Messages:
-        qw/
-          irc_ev_client_cmd_privmsg
-          irc_ev_client_cmd_notice
-        /,
-
-        ## Protocol::Role::Ping:
-        qw/
-          irc_ev_client_cmd_ping
-          irc_ev_client_cmd_pong
-        /,
-      ],
-  ],
-}
-
 
 ### Roles, composed in order.
 
@@ -426,7 +377,7 @@ sub BUILD {
       / ],
 
       ## Command handlers:
-      @{ $self->states_client_cmds  },
+      ## FIXME
       @{ $self->states_peer_cmds    },
       @{ $self->states_unknown_cmds },
 
@@ -514,11 +465,7 @@ sub irc_ev_listener_open {
   ##  not sure where the sanest place to hook that is ...
 }
 
-## FIXME
-##  Spec out which of the handlers below actually belong in a
-##  Role. Try to keep this file small.
-
-sub irc_ev_unknown_cmd_error {
+sub cmd_from_unknown_error {
   ## FIXME
   ## Received ERROR from the remote end
   ## if this isn't a conn in process of registering as a peer
@@ -528,8 +475,34 @@ sub irc_ev_unknown_cmd_error {
 }
 
 
+## FIXME register for these
+## FIXME Dispatch role for these?
+sub irc_ev_client_cmd {
+
+}
+
+sub irc_ev_peer_cmd {
+
+}
+
+sub irc_ev_unknown_cmd {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $event)  = @_[ARG0, ARG1];
+
+  ## FIXME
+  ## ->process() a cmd_from_unknown_ for this
+  ##  (A POST proxy check could hook here for example?)
+  ##  return if EAT_ALL
+  ## ->check ->can(), call if we ->can()
+  ## ->check $event->handled
+  ## ->if we can't call this method and the event wasn't handled()
+  ##   in process(), do nothing, connect should timeout due to no
+  ##   registration before idle timer fires
+}
+
 
 around '_emitter_default' => sub {
+  ## FIXME busted after Dispatcher changes wrt cmd dispatch
   my $orig = shift;
 
   my ($kernel, $self) = @_[KERNEL, OBJECT];

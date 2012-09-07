@@ -105,6 +105,9 @@ sub BUILD {
   $self->_start_emitter;
 }
 
+
+## Methods (and backing handlers)
+
 sub shutdown {
   my $self = shift;
 
@@ -127,65 +130,45 @@ sub _shutdown {
   $self->_yield( '_emitter_shutdown' );
 }
 
+sub dispatch {
+  my $self = shift;
 
-sub ircsock_registered {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-
-  my $backend = $_[ARG0];
-
-  $self->set_backend( $backend )
+  $self->yield( 'dispatch', @_ )
 }
 
-sub ircsock_connection_idle {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
+sub dispatch_now {
+  my $self = shift;
 
-  $self->emit_now( 'connection_idle', @_[ARG0 .. $#_] );
+  $self->call( 'dispatch', @_ )
 }
 
-sub ircsock_input {
+sub _dispatch {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
 
-  my $from_type =
-    $conn->is_peer   ? 'peer'   :
-    $conn->is_client ? 'client' :
-                       'unknown';
+  ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD
+  ## + List of either Backend::Connect wheel IDs
+  ##   or objs that can give us one
+  my ($out, @ids) = $_[ARG0 .. $#_];
+  return unless @ids;
 
-  my $cmd = lc($ev->command);
+  my $idref = [ map { is_Object($_) ? $_->wheel_id : $_ } @ids ];
 
-  ## client_cmd_
-  ## peer_cmd_
-  ## unknown_cmd_
-  my $event_name = join '_', $from_type, 'cmd', $cmd ;
-
-  if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
-    ## Numerics from peers being routed somewhere.
-
-    ## P_peer_numeric
-    ## irc_ev_peer_numeric / N_peer_numeric
-
-    return
-      if $self->process( 'peer_numeric', $conn, $ev ) == EAT_ALL;
-
-    $self->emit_now( 'peer_numeric', $conn, $ev );
-
-    return
-  }
-
-  ## process() via our plugin pipeline:
   return
-    if $self->process( $event_name, $conn, $ev ) == EAT_ALL;
+    if $self->process( 'message_dispatch', $out, $idref ) == EAT_ALL;
 
-  ## .. then emit_now() to registered sessions:
-  $self->emit_now( $event_name, $conn, $ev );
+  $self->backend->send( $out, @$idref )
 }
 
-sub ircsock_connector_open {
-  ## Opened connection to remote.
+
+## ircsock_* handlers
+
+sub ircsock_compressed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
 
-  my $event_name = 'peer_connected';
+  ## Link is probably burstable
+
+  my $event_name = 'peer_compressed';
 
   return
     if $self->process( $event_name, $conn ) == EAT_ALL;
@@ -205,13 +188,12 @@ sub ircsock_connector_failure {
   $self->emit_now( 'connector_failure', @_[ARG0 .. ARG3] )
 }
 
-sub ircsock_compressed {
+sub ircsock_connector_open {
+  ## Opened connection to remote.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
 
-  ## Link is probably burstable
-
-  my $event_name = 'peer_compressed';
+  my $event_name = 'peer_connected';
 
   return
     if $self->process( $event_name, $conn ) == EAT_ALL;
@@ -237,6 +219,50 @@ sub ircsock_disconnect {
     if $self->process( $event_name, $conn ) == EAT_ALL;
 
   $self->emit_now( $event_name, $conn )
+}
+
+sub ircsock_connection_idle {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  $self->emit_now( 'connection_idle', @_[ARG0 .. $#_] );
+}
+
+sub ircsock_input {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  my $from_type =
+    $conn->is_peer   ? 'peer'   :
+    $conn->is_client ? 'client' :
+                       'unknown';
+
+  if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
+    ## Numerics from peers being routed somewhere.
+
+    ## P_peer_numeric
+    ## irc_ev_peer_numeric / N_peer_numeric
+
+    return
+      if $self->process( 'peer_numeric', $conn, $ev ) == EAT_ALL;
+
+    $self->emit_now( 'peer_numeric', $conn, $ev );
+
+    return
+  }
+
+  my $cmd = lc($ev->command);
+
+  ## _client_cmd
+  ## _peer_cmd
+  ## _unknown_cmd
+  my $event_name = join '_', $from_type, 'cmd' ;
+
+  ## process() via our plugin pipeline:
+  return
+    if $self->process( $event_name, $conn, $ev ) == EAT_ALL;
+
+  ## .. then emit_now() to registered sessions:
+  $self->emit_now( $event_name, $conn, $ev );
 }
 
 sub ircsock_listener_created {
@@ -302,34 +328,14 @@ sub ircsock_listener_removed {
   $self->emit_now( 'listener_removed', $listener )
 }
 
-sub dispatch {
-  my $self = shift;
-
-  $self->yield( 'dispatch', @_ )
-}
-
-sub dispatch_now {
-  my $self = shift;
-
-  $self->call( 'dispatch', @_ )
-}
-
-sub _dispatch {
+sub ircsock_registered {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD
-  ## + List of either Backend::Connect wheel IDs
-  ##   or objs that can give us one
-  my ($out, @ids) = $_[ARG0 .. $#_];
-  return unless @ids;
+  my $backend = $_[ARG0];
 
-  my $idref = [ map { is_Object($_) ? $_->wheel_id : $_ } @ids ];
-
-  return
-    if $self->process( 'message_dispatch', $out, $idref ) == EAT_ALL;
-
-  $self->backend->send( $out, @$idref )
+  $self->set_backend( $backend )
 }
+
 
 no warnings 'void';
 q{

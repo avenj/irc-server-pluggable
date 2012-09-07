@@ -194,10 +194,9 @@ sub irc_ev_register_complete {
   $self->register_user_local($conn);
 }
 
+sub cmd_from_unknown_server {
 
-sub irc_ev_unknown_cmd_server {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
+  ## FIXME args for this
 
   unless (@{$ev->params}) {
     my $output = $self->numeric->to_hash( 461,
@@ -222,9 +221,9 @@ sub irc_ev_unknown_cmd_server {
 }
 
 
-sub irc_ev_unknown_cmd_nick {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
+sub cmd_from_unknown_nick {
+
+  ## FIXME args for this
 
   unless (@{$ev->params}) {
     my $output = $self->numeric->to_hash( 461,
@@ -259,9 +258,9 @@ sub irc_ev_unknown_cmd_nick {
 }
 
 
-sub irc_ev_unknown_cmd_user {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
+sub cmd_from_unknown_user {
+
+  ## FIXME
 
   unless (@{$ev->params} && @{$ev->params} < 4) {
     my $output = $self->numeric->to_hash(
@@ -289,9 +288,8 @@ sub irc_ev_unknown_cmd_user {
   $self->register_user_local($conn);
 }
 
-sub irc_ev_unknown_cmd_pass {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev)     = @_[ARG0, ARG1];
+sub cmd_from_unknown_pass {
+  ## FIXME
 
   unless (@{$ev->params}) {
     my $output = $self->numeric->to_hash(

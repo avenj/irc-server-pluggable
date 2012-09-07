@@ -12,10 +12,10 @@ requires qw/
   send_to_routes
 /;
 
-sub irc_ev_connection_idle {
+sub conn_is_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  ## A connection is idle.
+  ## A connection is idle, per irc_ev_connection_idle in base class
   ## Might be unknown, user, or peer.
   ## If the conn is not registered yet:
   ##  took too long to register, disconnect with Connection timeout
@@ -28,24 +28,11 @@ sub irc_ev_connection_idle {
 }
 
 ## Handlers should relay, pong, or reset ping status appropriately.
-sub irc_ev_peer_cmd_ping {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-}
+sub cmd_from_client_ping {}
+sub cmd_from_client_pong {}
 
-sub irc_ev_peer_cmd_pong {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-
-}
-
-sub irc_ev_client_cmd_ping {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-
-}
-
-sub irc_ev_client_cmd_pong {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-
-}
+sub cmd_from_peer_ping {}
+sub cmd_from_peer_pong {}
 
 1;

@@ -294,49 +294,33 @@ sub _build_numeric {
 
 
 ### States.
-has 'states_unknown_cmds' => (
+has 'extra_states' => (
   lazy    => 1,
   is      => 'ro',
   isa     => ArrayRef,
-  writer  => 'set_states_unknown_cmds',
-  builder => '_build_states_unknown_cmds',
+  writer  => 'set_extra_states',
+  clearer => 'clear_extra_states',
+  builder => '_build_extra_states',
+  predicate => 'has_extra_states',
 );
 
-sub _build_states_unknown_cmds {
+sub _build_extra_states {
   my ($self) = @_;
   [ $self =>
       [
-        ## Handled in Protocol::Role::Register:
-        ## FIXME?
         qw/
           irc_ev_register_complete
+
+          irc_ev_peer_numeric
+
+          irc_ev_client_cmd
+          irc_ev_peer_cmd
+          irc_ev_unknown_cmd
         /,
       ],
   ]
 }
 
-
-has 'states_peer_cmds' => (
-  lazy    => 1,
-  is      => 'ro',
-  isa     => ArrayRef,
-  writer  => 'set_states_peer_cmds',
-  builder => '_build_states_peer_cmds',
-);
-
-sub _build_states_peer_cmds {
-  my ($self) = @_;
-  [ $self =>
-
-      [
-        ## Protocol::Role::Peers:
-        ## FIXME
-        qw/
-          irc_ev_peer_numeric
-        /,
-      ],
-  ],
-}
 
 ### Roles, composed in order.
 
@@ -362,6 +346,7 @@ sub BUILD {
     [
       $self => {
         'emitter_started' => '_emitter_started',
+        'dispatch'        => '_dispatch',
       },
 
       ## Connectors and listeners
@@ -374,14 +359,19 @@ sub BUILD {
 
           irc_ev_listener_created
           irc_ev_listener_open
+
+          irc_ev_client_cmd
+          irc_ev_peer_cmd
+          irc_ev_unknown_cmd
       / ],
 
-      ## Command handlers:
-      ## FIXME
-      @{ $self->states_peer_cmds    },
-      @{ $self->states_unknown_cmds },
+      ## Predefined in the base class, but subs could tweak if they like:
+      (
+        $self->has_extra_states ? @{ $self->extra_states }   : ()
+      ),
 
-      ## May have other object_states specified at construction time:
+      ## May have other object_states specified at construction time
+      ## (attrib inherited from Emitter)
       (
         $self->has_object_states ? @{ $self->object_states } : ()
       ),
@@ -466,7 +456,7 @@ sub irc_ev_listener_open {
 }
 
 sub cmd_from_unknown_error {
-  ## FIXME
+  ## FIXME should be in a role
   ## Received ERROR from the remote end
   ## if this isn't a conn in process of registering as a peer
   ##  we should do nothing
@@ -475,14 +465,42 @@ sub cmd_from_unknown_error {
 }
 
 
-## FIXME register for these
-## FIXME Dispatch role for these?
-sub irc_ev_client_cmd {
+sub irc_ev_connection_idle {
+  my ($kernel, $self) = @_;
+
+  ## FIXME dispatch to $self->dispatch('conn_is_idle', ...)
+}
+
+sub irc_ev_register_complete {
 
 }
 
-sub irc_ev_peer_cmd {
+sub irc_ev_peer_numeric {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $event)  = @_[ARG0, ARG1];
 
+  my $target_nick = $ev->params->[0];
+  my $target_user = $self->users->by_name($target_nick);
+
+  $self->send_to_route( $ev, $target_user->route );
+}
+
+sub irc_ev_client_cmd {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $event)  = @_[ARG0, ARG1];
+
+  my $cmd = $event->command;
+
+  $self->dispatch( 'cmd_from_client_'.lc($cmd), $conn, $event );
+}
+
+sub irc_ev_peer_cmd {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($conn, $event)  = @_[ARG0, ARG1];
+
+  my $cmd = $event->command;
+
+  $self->dispatch( 'cmd_from_peer_'.lc($cmd), $conn, $event );
 }
 
 sub irc_ev_unknown_cmd {
@@ -490,50 +508,42 @@ sub irc_ev_unknown_cmd {
   my ($conn, $event)  = @_[ARG0, ARG1];
 
   ## FIXME
-  ## ->process() a cmd_from_unknown_ for this
-  ##  (A POST proxy check could hook here for example?)
-  ##  return if EAT_ALL
-  ## ->check ->can(), call if we ->can()
-  ## ->check $event->handled
-  ## ->if we can't call this method and the event wasn't handled()
-  ##   in process(), do nothing, connect should timeout due to no
-  ##   registration before idle timer fires
+  ## validate ascii?
+  ## ... hmm, we *know* we have a command, right? maybe not so much.
+  my $cmd = $event->command;
+
+  $self->dispatch( 'cmd_from_unknown_'.lc($cmd), $conn, $event );
 }
 
+sub dispatch {
+  my ($self, $event_name, $conn, $event, @args) = @_;
 
-around '_emitter_default' => sub {
-  ## FIXME busted after Dispatcher changes wrt cmd dispatch
-  my $orig = shift;
+  ## P_$event_name
+  return
+    if $self->process( $event_name, $conn, $event, @args ) == EAT_ALL;
 
+  ## Try to dispatch via $self
+  if ( $self->can($event_name) ) {
+    $self->$event_name($conn, $event, @args);
+  } else {
+
+    unless ( $event->handled ) {
+      ## FIXME send unknown cmd RPL
+    }
+
+  }
+
+  1
+}
+
+sub _dispatch {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($event, $args)  = @_[ARG0, ARG1];
 
-  ## Our super's behavior:
-  unless ($event =~ /^_/ || $event =~ /^emitter_(?:started|stopped)$/) {
-    return if $self->process( $event, @$args ) == EAT_ALL
-  }
+  $self->dispatch(@_[ARG0 .. $#_]);
 
-  ## Not interested if it's not a client/peer cmd:
-  return unless $event =~ /^irc_ev_(?:client|peer)_cmd_/;
+  1
+}
 
-  my ($conn, $ev) = @$args;
-  unless (is_Object($conn) && is_Object($ev)) {
-    carp "_default expected Backend::Connect and Backend::Event objects",
-         "got $conn and $ev";
-    return
-  }
-
-  ## Already handled:
-  return if $ev->handled;
-
-  ## FIXME not handled, dispatch unknown cmd
-  ## FIXME  ... do servers need anything special?
-
-  ## FIXME switch to method dispatch passing wheel / event objects?
-  ##  worth a ponder; may be easier plus we can process() all the time
-  ##  rather than hard-coded methods?
-  ##  would also mean irc_ev_* is more of a private/reserved ns
-};
 
 no warnings 'void';
 q{

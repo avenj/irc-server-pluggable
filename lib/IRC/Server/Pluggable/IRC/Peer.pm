@@ -36,21 +36,19 @@ has 'name' => (
   writer   => 'set_name',
 );
 
-has 'peers'  => (
-  ## A Peer can have its own Peers collection.
-  ## See doc/design/peers_collections.txt
+has 'linked'  => (
+  ## Servers introduced by this Peer, if applicable.
   lazy      => 1,
   is        => 'ro',
   writer    => 'set_peers',
   predicate => 'has_peers',
   clearer   => 'clear_peers',
-  isa       => sub {
-    my $wantclass = "IRC::Server::Pluggable::IRC::Peers";
-    is_Object($_[0]
-      and $_[0]->isa($wantclass)
-      or confess "$_[0] is not a $wantclass"
-  },
+  isa       => HashRef,
+  default   => sub { {} },
 );
+
+## FIXME should we track a list of user identifiers introduced by
+##  a peer here?
 
 has 'route' => (
   ## Either our Connect's wheel_id or the wheel_id of the next hop peer.
@@ -80,5 +78,7 @@ sub BUILD {
       "A Peer needs either a conn() or a route() at construction time"
   }
 }
+
+## FIXME methods  to add/del ->linked() peers
 
 1;

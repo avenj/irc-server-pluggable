@@ -29,10 +29,8 @@ requires qw/
 
 ## FIXME
 ## Pass actions/timestamps/args to burst_* methods for verification?
-# sub irc_ev_client_cmd_join {}
-# sub irc_ev_peer_cmd_join {}
-# sub irc_ev_peer_cmd_sjoin {}
 
+## FIXME channel-related commands?
 
 #### Joinable/sendable checks.
 

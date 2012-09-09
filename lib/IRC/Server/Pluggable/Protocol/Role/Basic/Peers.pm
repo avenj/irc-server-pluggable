@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Role::Peers;
+package IRC::Server::Pluggable::Protocol::Role::Basic::Peers;
 
 use strictures 1;
 use Moo::Role;

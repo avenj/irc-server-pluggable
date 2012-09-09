@@ -185,7 +185,10 @@ sub _build_version_string {
 }
 
 
+
 ### Collections.
+
+## IRC::Channels
 has 'channels' => (
   lazy    => 1,
   is      => 'ro',
@@ -209,6 +212,7 @@ sub _build_channels {
 }
 
 
+## IRC::Peers
 has 'peers' => (
   ## Map server names to Peer instances
   lazy    => 1,
@@ -229,6 +233,7 @@ sub _build_peers {
 }
 
 
+## IRC::Users
 has 'users' => (
   ## Map nicknames to User instances
   lazy    => 1,
@@ -253,6 +258,7 @@ sub _build_users {
 }
 
 
+
 ### Helpers.
 has 'autoloaded_plugins' => (
   lazy    => 1,
@@ -275,7 +281,7 @@ sub _build_autoloaded_plugins {
 
 
 has 'numeric' => (
-  ## Numeric parser.
+  ## Numeric parser (IRC::Numerics)
   lazy    => 1,
   is      => 'ro',
   writer  => 'set_numeric',

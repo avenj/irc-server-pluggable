@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::Burst;
+package IRC::Server::Pluggable::Protocol::Role::Basic::Burst;
 
 use Carp;
 use Moo::Role;

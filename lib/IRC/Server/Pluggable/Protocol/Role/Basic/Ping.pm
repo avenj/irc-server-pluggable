@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::Ping;
+package IRC::Server::Pluggable::Protocol::Role::Basic::Ping;
 
 use strictures 1;
 use Carp;

@@ -1,4 +1,4 @@
-## Handles:
+package IRC::Server::Pluggable::Protocol::Role::Basic::Messages;
 
 use namespace::clean -except => 'meta';
 

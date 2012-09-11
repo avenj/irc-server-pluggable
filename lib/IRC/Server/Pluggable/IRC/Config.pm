@@ -8,7 +8,9 @@ use strictures 1;
 
 use IRC::Server::Pluggable::Types;
 
+
 use namespace::clean -except => 'meta';
+
 
 ## FIXME
 ##  - Config::Auth for users/opers/peers?

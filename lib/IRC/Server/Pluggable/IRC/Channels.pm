@@ -17,7 +17,9 @@ use IRC::Server::Pluggable qw/
   Utils
 /;
 
+
 use namespace::clean -except => 'meta';
+
 
 has 'casemap' => (
   required  => 1,

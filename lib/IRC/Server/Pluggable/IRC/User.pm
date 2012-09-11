@@ -5,20 +5,21 @@ package IRC::Server::Pluggable::IRC::User;
 use 5.12.1;
 use strictures 1;
 
-use overload
-  bool     => sub { 1 },
-  '""'     => 'nick',
-  fallback => 1;
-
 use Carp;
 use Moo;
-
-use namespace::clean -except => 'meta';
 
 use IRC::Server::Pluggable qw/
   Types
   Utils
 /;
+
+
+use namespace::clean -except => 'meta';
+use overload
+  bool     => sub { 1 },
+  '""'     => 'nick',
+  fallback => 1 ;
+
 
 has 'conn' => (
   ## Backend::Connect conn obj for a local user.

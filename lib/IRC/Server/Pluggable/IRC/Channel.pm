@@ -5,11 +5,6 @@ package IRC::Server::Pluggable::IRC::Channel;
 use 5.12.1;
 use strictures 1;
 
-use overload
-  bool     => sub { 1 },
-  '""'     => 'name',
-  fallback => 1;
-
 use Carp;
 use Moo;
 
@@ -18,7 +13,14 @@ use IRC::Server::Pluggable qw/
   Utils
 /;
 
+
 use namespace::clean -except => 'meta';
+use overload
+  bool     => sub { 1 },
+  '""'     => 'name',
+  fallback => 1 ;
+
+
 
 has 'name' => (
   required => 1,

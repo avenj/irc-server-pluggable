@@ -10,7 +10,9 @@ use IRC::Server::Pluggable::Types;
 
 use IRC::Server::Tree::Network;
 
+
 use namespace::clean -except => 'meta';
+
 
 has '_peers' => (
   lazy    => 1,

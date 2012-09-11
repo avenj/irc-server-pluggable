@@ -10,7 +10,9 @@ use Moo;
 
 use IRC::Server::Pluggable::Types;
 
+
 use namespace::clean -except => 'meta';
+
 
 has 'rpl_map' => (
   lazy    => 1,

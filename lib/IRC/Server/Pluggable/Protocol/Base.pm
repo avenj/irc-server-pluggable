@@ -463,10 +463,10 @@ sub irc_ev_peer_numeric {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $event)  = @_[ARG0, ARG1];
 
-  my $target_nick = $ev->params->[0];
+  my $target_nick = $event->params->[0];
   my $target_user = $self->users->by_name($target_nick);
 
-  $self->send_to_route( $ev, $target_user->route );
+  $self->send_to_route( $event, $target_user->route );
 }
 
 sub irc_ev_client_cmd {
@@ -539,6 +539,15 @@ sub cmd_from_unknown_error {
   ## needs to hook in with SERVER registration
   ## may belong in the same Role as SERVER registration bits
 }
+
+
+no warnings 'void';
+q{
+<Gilded> Arrh, gather around men, for I saw a user of the female variety
+ on IRC once. 'Twas the year 2002, on a Magic the Gathering channel on ye
+ olde QuakeNet. A fair wench did indeed join and then immediately part at
+ the sight of all the unkempt neckbeards.
+};
 
 
 =pod

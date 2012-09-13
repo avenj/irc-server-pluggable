@@ -6,40 +6,22 @@ use base 'Exporter';
 use MooX::Types::MooseLike;
 use MooX::Types::MooseLike::Base qw/:all/;
 
-our @EXPORT_OK = ();
+our @EXPORT_OK;
 
-use Scalar::Util qw/blessed/;
+use Scalar::Util 'blessed';
 
 my $type_definitions = [
-  ## POE bits
+  ## ClassLike is named a bit stupidly to try to avoid conflicting
+  ## with upstream when mateu eventually ends up adding a similar test
+  ## to MooX::Types::MooseLike -- the existing InstanceOf is close but
+  ## checks ref() not ->isa()
   {
-    name => 'Wheel',
-    test => sub { blessed($_[0]) && $_[0]->isa('POE::Wheel') },
-    message => sub { "$_[0] is not a POE::Wheel" },
-  },
-  {
-
-    name => 'Filter',
-    test => sub { blessed($_[0]) && $_[0]->isa('POE::Filter') },
-    message => sub { "$_[0] is not a POE::Filter" },
-  },
-
-  ## Our classes
-  {
-    name => 'BackendClass',
+    name => 'ClassLike',
     test => sub {
-      blessed($_[0])
-      && $_[0]->isa('IRC::Server::Pluggable::Backend')
+      my ($instance, $class) = @_;
+      blessed($instance) && $instance->isa($class)
     },
-    message => sub { "$_[0] is not a IRC::Server::Pluggable::Backend" },
-  },
-  {
-    name => 'ProtocolClass',
-    test => sub {
-      blessed($_[0])
-      && $_[0]->isa('IRC::Server::Pluggable::Protocol')
-    },
-    message => sub { "$_[0] is not a IRC::Server::Pluggable::Protocol" },
+    message => sub { "$_[0] is not a subclass of $_[1]" },
   },
 
   ## IRC bits
@@ -58,22 +40,24 @@ my $type_definitions = [
      ."should be one of: rfc1459, ascii, strict-rfc1459"
     },
   },
+
   {
     name => 'IRC_Nickname',
     test => \&test_valid_nickname,
     message => sub { "$_[0] is not a valid IRC nickname" },
   },
+
   {
     name => 'IRC_Username',
     test => \&test_valid_name,
     message => sub { "$_[0] is not a valid IRC username" },
   },
+
   {
     name => 'IRC_Hostname',
     test => \&test_valid_hostname,
     message => sub { "$_[0] is not a valid IRC hostname" },
   },
-
 
   ## Misc
   {

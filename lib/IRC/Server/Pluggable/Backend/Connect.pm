@@ -137,7 +137,7 @@ has 'wheel_id' => (
 has 'wheel' => (
   ## Actual POE::Wheel
   required => 1,
-  isa      => Wheel,
+  isa      => ClassLike['POE::Wheel'],
   is       => 'ro',
   clearer  => 'clear_wheel',
   writer   => 'set_wheel',

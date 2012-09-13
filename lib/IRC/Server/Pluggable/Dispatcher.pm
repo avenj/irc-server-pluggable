@@ -20,8 +20,8 @@ extends 'IRC::Server::Pluggable::Emitter';
 
 has 'backend_opts' => (
   required  => 1,
-  isa       => HashRef,
   is        => 'ro',
+  isa       => HashRef,
   writer    => 'set_backend_opts',
   predicate => 'has_backend_opts',
   clearer   => 'clear_backend_opts',
@@ -40,8 +40,8 @@ sub _build_backend_class { "IRC::Server::Pluggable::Backend" }
 
 has 'backend' => (
   lazy      => 1,
-  isa       => BackendClass,
   is        => 'ro',
+  isa       => ClassLike['IRC::Server::Pluggable::Backend'],
   predicate => 'has_backend',
   writer    => 'set_backend',
   builder   => '_build_backend',

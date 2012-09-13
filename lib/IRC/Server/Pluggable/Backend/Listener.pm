@@ -74,7 +74,7 @@ has 'wheel_id' => (
 has 'wheel' => (
   required => 1,
 
-  isa => Wheel,
+  isa => ClassLike['POE::Wheel'],
   is  => 'ro',
 
   clearer => 'clear_wheel',

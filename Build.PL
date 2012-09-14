@@ -96,7 +96,7 @@ my $build = $class->new(
     'Moo'                    => '1.000003',
     'MooX::Types::MooseLike' => '0.11',
 
-    'Net::IP::Minimal'       => 0,
+    'Net::IP::Minimal'       => '0.04',
 
     'Object::Pluggable'      => 0,
 

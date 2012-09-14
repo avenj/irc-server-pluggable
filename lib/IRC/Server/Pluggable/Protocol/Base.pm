@@ -515,6 +515,9 @@ sub dispatch {
   ##    check if $event was ->handled()
   ##    Send unknown cmd RPL if this is a known connect type
 
+  ## FIXME possible a $self handler should be able to use constants
+  ## to let an event be automatically sent on to NOTIFY handlers ?
+
   ## P_$event_name
   ## Returns boolean true on EAT_ALL
   ## (Can override via a P_* handler in $self)

@@ -42,6 +42,15 @@ has 'max_msg_targets' => (
   default   => sub { 4 },
 );
 
+has 'motd' => (
+  lazy      => 1,
+  isa       => ArrayRef,
+  is        => 'ro',
+  predicate => 'has_motd',
+  writer    => 'set_motd',
+  default   => sub { [ ] },
+);
+
 has 'network_name' => (
   lazy      => 1,
   is        => 'ro',

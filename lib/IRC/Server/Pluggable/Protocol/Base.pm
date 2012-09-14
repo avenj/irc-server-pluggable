@@ -276,6 +276,8 @@ sub _build_autoloaded_plugins {
 
     ## If you're handling clients, you at least want Register:
     [ 'Register', $prefix . 'Protocol::Plugin::Register' ],
+
+    [ 'Motd', $prefix . 'Protocol::Plugin::MOTD' ],
   ],
 }
 
@@ -500,23 +502,31 @@ sub irc_ev_unknown_cmd {
 }
 
 sub dispatch {
-  my ($self, $event_name, $conn, $event, @args) = @_;
+  my ($self, $event_name, @args) = @_;
+
+  ## FIXME
+  ## Dispatch:
+  ## -> Try to handle via P_$event_name plugin handlers
+  ##    Return 'ATE' if P_* handler returns EAT_ALL
+  ## -> If not eaten, try to call $event_name method on $self
+  ##    (brought in by Roles, usually)
+  ##    Return 'CALL' if we have this method via $self
+  ## -> Otherwise if not eaten and no method to call,
+  ##    check if $event was ->handled()
+  ##    Send unknown cmd RPL if this is a known connect type
 
   ## P_$event_name
   ## Returns boolean true on EAT_ALL
+  ## (Can override via a P_* handler in $self)
   return 'ATE'
-    if $self->process( $event_name, $conn, $event, @args ) == EAT_ALL;
+    if $self->process( $event_name, @args ) == EAT_ALL;
 
-  ## Try to dispatch via $self
+  ## Try to dispatch via $self->$event_name
   if ( $self->can($event_name) ) {
-    $self->$event_name($conn, $event, @args);
+    $self->$event_name(@args);
     return 'CALL'
   } else {
-
-    unless ( $event->handled ) {
       ## FIXME send unknown cmd RPL
-    }
-
   }
 
   1

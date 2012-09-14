@@ -19,18 +19,19 @@ use POE qw/
 /;
 
 has 'session_id' => (
-  is        => 'ro',
   lazy      => 1,
+  is        => 'ro',
   writer    => 'set_session_id',
   predicate => 'has_session_id',
 );
 
 has 'proto' => (
-  is        => 'ro',
-  lazy      => 1,
   weak_ref  => 1,
+  lazy      => 1,
+  is        => 'ro',
   writer    => 'set_proto',
   predicate => 'has_proto',
+  isa       => HasMethods[ ('emit', 'send_to_routes') ],
 );
 
 has 'pending' => (
@@ -42,13 +43,14 @@ has 'pending' => (
 );
 
 has 'resolver' => (
+  lazy      => 1,
   is        => 'ro',
   writer    => 'set_resolver',
   predicate => 'has_resolver',
 );
 
 sub Emitter_register {
-  my ($self, $proto) = splice @_, 0, 2;
+  my ($self, $proto) = @_;
 
   $self->set_proto( $proto );
 
@@ -82,7 +84,7 @@ sub Emitter_unregister {
 }
 
 sub N_connection {
-  my ($self, $proto) = splice @_, 0, 2;
+  my ($self, $proto) = @_;
   my $conn = ${ $_[0] };
 
   $proto->send_to_routes(

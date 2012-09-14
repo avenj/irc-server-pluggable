@@ -13,12 +13,16 @@ use POE;
 use IRC::Server::Pluggable qw/
   Constants
 
+  Backend::Event
+
   IRC::User
 
   Types
 /;
 
+
 use namespace::clean -except => 'meta';
+
 
 requires qw/
   config
@@ -101,8 +105,7 @@ sub register_user_local {
   ## Add to our IRC::Users collection:
   $self->users->add( $user );
 
-  ## FIXME
-  ##  -> dispatch 001 .. 004 numerics, lusers, motd, default mode
+  ## Dispatch 001 .. 004 numerics, lusers, motd, default mode(s)
 
   my $net_name = $self->config->network_name;
 
@@ -132,11 +135,21 @@ sub register_user_local {
     $conn->wheel_id
   );
 
-  ## FIXME ISUPPORT [005] (dispatch cmd handler event)
+  ## FIXME VERSION / ISUPPORT [005] (dispatch cmd handler event) ?
 
-  ## FIXME LUSERS (dispatch cmd handler event)
+  ## Dispatch LUSERS
+  $self->dispatch( 'cmd_from_client_lusers', $conn,
+    IRC::Server::Pluggable::Backend::Event->new(
+      command => 'LUSERS',
+    )
+  );
 
-  ## FIXME MOTD   (dispatch cmd handler event)
+  ## Dispatch MOTD
+  $self->dispatch( 'cmd_from_client_motd', $conn,
+    IRC::Server::Pluggable::Backend::Event->new(
+      command => 'MOTD',
+    )
+  );
 
   ## FIXME see notes about default modes in object creation above
 
@@ -195,10 +208,9 @@ sub irc_ev_register_complete {
 }
 
 sub cmd_from_unknown_server {
+  my ($self, $conn, $event) = @_;
 
-  ## FIXME args for this
-
-  unless (@{$ev->params}) {
+  unless (@{$event->params}) {
     my $output = $self->numeric->to_hash( 461,
       prefix => $self->config->server_name,
       target => '*',
@@ -222,10 +234,9 @@ sub cmd_from_unknown_server {
 
 
 sub cmd_from_unknown_nick {
+  my ($self, $conn, $event) = @_;
 
-  ## FIXME args for this
-
-  unless (@{$ev->params}) {
+  unless (@{$event->params}) {
     my $output = $self->numeric->to_hash( 461,
       prefix => $self->config->server_name,
       target => '*',
@@ -235,7 +246,7 @@ sub cmd_from_unknown_nick {
     return
   }
 
-  my $nick = $ev->params->[0];
+  my $nick = $event->params->[0];
   unless ( is_IRC_Nickname($nick) ) {
     my $output = $self->numeric->to_hash( 432,
       prefix => $self->config->server_name,
@@ -259,10 +270,9 @@ sub cmd_from_unknown_nick {
 
 
 sub cmd_from_unknown_user {
+  my ($self, $conn, $event) = @_;
 
-  ## FIXME
-
-  unless (@{$ev->params} && @{$ev->params} < 4) {
+  unless (@{$event->params} && @{$event->params} < 4) {
     my $output = $self->numeric->to_hash(
       prefix => $self->config->server_name,
       target => '*',
@@ -273,7 +283,7 @@ sub cmd_from_unknown_user {
   }
 
   ## USERNAME HOSTNAME SERVERNAME REALNAME
-  my ($username, undef, $servername, $gecos) = @{$ev->params};
+  my ($username, undef, $servername, $gecos) = @{$event->params};
 
   unless ( is_IRC_Username($username) ) {
     ## FIXME username validation
@@ -289,9 +299,9 @@ sub cmd_from_unknown_user {
 }
 
 sub cmd_from_unknown_pass {
-  ## FIXME
+  my ($self, $conn, $event) = @_;
 
-  unless (@{$ev->params}) {
+  unless (@{$event->params}) {
     my $output = $self->numeric->to_hash(
       prefix => $self->config->server_name,
       target => '*',
@@ -306,7 +316,7 @@ sub cmd_from_unknown_pass {
   ##
   ## Preserve PASS for later checking by register_user_local.
 
-  my $pass = $ev->params->[0];
+  my $pass = $event->params->[0];
   $self->_r_pending_reg->{ $conn->wheel_id }->{pass} = $pass;
 }
 

@@ -236,7 +236,7 @@ sub ircsock_input {
     $conn->is_client ? 'client' :
                        'unknown';
 
-  if ($conn->is_peer && $cmd =~ /^[0-9]$/) {
+  if ($conn->is_peer && $ev->command =~ /^[0-9]$/) {
     ## Numerics from peers being routed somewhere.
 
     ## P_peer_numeric

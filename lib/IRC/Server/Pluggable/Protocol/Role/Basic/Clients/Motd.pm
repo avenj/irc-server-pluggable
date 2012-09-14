@@ -31,37 +31,40 @@ sub cmd_from_client_motd {
   my $user     = $self->users->by_name($nickname);
   my $server   = $self->config->server_name;
 
-  REMOTE: if (@{ $event->params }) {
-    my $request_peer = $event->params->[0];
+  REMOTE: {
+    if (@{ $event->params }) {
+      my $request_peer = $event->params->[0];
 
-    if (uc($request_peer) eq uc($server)) {
-      ## This is us. Continue our normal MOTD dispatch.
-      last REMOTE
+      if (uc($request_peer) eq uc($server)) {
+        ## This is us. Continue our normal MOTD dispatch.
+        last REMOTE
+      }
+
+      my $peer;
+      if ($peer = $self->peers->by_name($request_peer) ) {
+        ## Relayed elsewhere.
+        $self->send_to_routes(
+          {
+            prefix  => $nickname,
+            command => 'MOTD',
+            params  => $peer->name,
+          },
+          $peer->route
+        );
+      } else {
+        ## Don't know this peer. Send 402
+        my $output = $self->numeric->to_hash( 402,
+          prefix => $server,
+          target => $nickname,
+        );
+
+        $self->send_to_routes( $output, $peer->route );
+      }
+
+      ## Handled
+      return 1
     }
-
-    my $peer;
-    if ($peer = $self->peers->by_name($request_peer) ) {
-      ## Relayed elsewhere.
-      $self->send_to_routes(
-        {
-          prefix  => $nickname,
-          command => 'MOTD',
-          params  => $peer->name,
-        },
-        $peer->route
-      );
-    } else {
-      ## Don't know this peer. Send 402
-      my $output = $self->numeric->to_hash( 402,
-        prefix => $server,
-        target => $nickname,
-      );
-
-      $self->send_to_routes( $output, $peer->route );
-    }
-
-    return 1
-  }
+  }  ## REMOTE
 
   ## 422 if no MOTD
   unless ($self->config->has_motd) {

@@ -780,7 +780,8 @@ sub _disconnected {
 
   $poe_kernel->post( $self->controller,
     'ircsock_disconnect',
-    $this_conn
+    $this_conn,
+    $str
   );
 
   1

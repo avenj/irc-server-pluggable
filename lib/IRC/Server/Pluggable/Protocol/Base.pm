@@ -331,11 +331,12 @@ sub _build_extra_states {
 }
 
 
-## The only Roles the base class needs.
-## (Protocol.pm consumes others to form a useful basic Protocol.)
+## Basic behavorial roles.
+## Protocol.pm consumes others to form a useful basic TS Protocol.
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
 with 'IRC::Server::Pluggable::Protocol::Role::Send';
+with 'IRC::Server::Pluggable::Protocol::Role::Disconnect';
 
 with 'IRC::Server::Pluggable::Protocol::Role::Motd';
 with 'IRC::Server::Pluggable::Protocol::Role::Ping';

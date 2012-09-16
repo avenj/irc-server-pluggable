@@ -61,13 +61,11 @@ has '_topic' => (
 );
 
 has 'ts' => (
-  ## Channel's timestamp.
-  ## Most common Protocols can make use of this.
-  required => 1,
   is       => 'ro',
   isa      => Num,
   writer   => 'set_ts',
   clearer  => 'clear_ts',
+  default  => sub { time() },
 );
 
 

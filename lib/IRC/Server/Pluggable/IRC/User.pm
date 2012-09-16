@@ -42,6 +42,66 @@ has 'conn' => (
   clearer   => 'clear_conn',
 );
 
+has 'flags' => (
+  ## FIXME document flags:
+  ##  - SERVICE
+  lazy => 1,
+  is   => 'ro',
+  isa  => HashRef,
+  default => sub { {} },
+);
+
+has 'modes' => (
+  ## FIXME should this really be an object?
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
+  default => sub { {} },
+);
+
+has 'realname' => (
+  required => 1,
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_realname',
+);
+
+has 'route' => (
+  ## Either our conn's wheel_id or the ID of the next hop peer
+  ## (ie, the peer that relayed user registration)
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_route',
+  predicate => 'has_route',
+  clearer   => 'clear_route',
+  default   => sub {
+    my ($self) = @_;
+    ## If we have a conn() we can get a route.
+    ## If we don't we should've had a route specified at construction
+    ## or died in BUILD.
+    $self->conn->wheel_id
+  },
+);
+
+has 'server' => (
+  required => 1,
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_server',
+);
+
+has 'ts' => (
+  is      => 'ro',
+  isa     => Num,
+  writer  => 'set_ts',
+  clearer => 'clear_ts',
+  default => sub { time() },
+);
+
+
+## Host information
+
 has 'nick' => (
   required => 1,
   is       => 'ro',
@@ -93,54 +153,6 @@ sub _trigger_nick {
 }
 sub _trigger_user { shift->_trigger_nick(@_) }
 sub _trigger_host { shift->_trigger_nick(@_) }
-
-has 'server' => (
-  required => 1,
-  is       => 'ro',
-  isa      => Str,
-  writer   => 'set_server',
-);
-
-has 'realname' => (
-  required => 1,
-  is       => 'ro',
-  isa      => Str,
-  writer   => 'set_realname',
-);
-
-has 'route' => (
-  ## Either our conn's wheel_id or the ID of the next hop peer
-  ## (ie, the peer that relayed user registration)
-  lazy      => 1,
-  is        => 'ro',
-  isa       => Str,
-  writer    => 'set_route',
-  predicate => 'has_route',
-  clearer   => 'clear_route',
-  default   => sub {
-    my ($self) = @_;
-    ## If we have a conn() we can get a route.
-    ## If we don't we should've had a route specified at construction
-    ## or died in BUILD.
-    $self->conn->wheel_id
-  },
-);
-
-has 'modes' => (
-  lazy    => 1,
-  is      => 'ro',
-  isa     => HashRef,
-  default => sub { {} },
-);
-
-has 'flags' => (
-  ## FIXME document flags:
-  ##  - SERVICE
-  lazy => 1,
-  is   => 'ro',
-  isa  => HashRef,
-  default => sub { {} },
-);
 
 
 sub BUILD {

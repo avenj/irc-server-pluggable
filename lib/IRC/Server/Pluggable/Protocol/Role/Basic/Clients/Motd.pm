@@ -41,27 +41,27 @@ sub cmd_from_client_motd {
       }
 
       my $peer;
-      if ($peer = $self->peers->by_name($request_peer) ) {
-        ## Relayed elsewhere.
-        $self->send_to_routes(
-          {
-            prefix  => $nickname,
-            command => 'MOTD',
-            params  => $peer->name,
-          },
-          $peer->route
-        );
-      } else {
+      unless ($peer = $self->peers->by_name($request_peer) ) {
         ## Don't know this peer. Send 402
         my $output = $self->numeric->to_hash( 402,
           prefix => $server,
           target => $nickname,
         );
-
         $self->send_to_routes( $output, $peer->route );
+        return
       }
 
-      ## Handled
+      ## Relayed elsewhere.
+      $self->send_to_routes(
+        {
+            prefix  => $nickname,
+            command => 'MOTD',
+            params  => $peer->name,
+        },
+        $peer->route
+      );
+
+      ## Handled.
       return 1
     }
   }  ## REMOTE

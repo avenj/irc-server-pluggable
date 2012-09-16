@@ -26,7 +26,6 @@ with PROTO_ROLE_PREFIX . 'Register' ;
 with PROTO_ROLE_PREFIX . 'Clients'  ;
 with PROTO_ROLE_PREFIX . 'Peers'    ;
 with PROTO_ROLE_PREFIX . 'Ping'     ;
-with PROTO_ROLE_PREFIX . 'Burst'    ;
 
 no warnings 'void';
 q{

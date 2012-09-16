@@ -13,6 +13,13 @@ use IRC::Server::Pluggable::Types;
 
 use namespace::clean -except => 'meta';
 
+has 'casemap' => (
+  ## For use with ->lower / ->upper; ascii should do
+  lazy    => 1,
+  is      => 'ro',
+  default => sub { 'ascii' },
+);
+with 'IRC::Server::Pluggable::Role::CaseMap';
 
 has 'conn' => (
   ## Our directly-linked peers should have a Backend::Connect
@@ -62,13 +69,9 @@ has 'route' => (
   clearer   => 'clear_route',
   default   => sub {
     my ($self) = @_;
-
-    unless ($self->has_conn) {
-      carp "No route() and no conn() available, using empty route";
-      return ''
-    }
-
-    $self->conn->wheel_id,
+    ## Should be either a local Peer or specified at construction time
+    ## BUILD verifies
+    $self->conn->wheel_id
   },
 );
 
@@ -81,6 +84,6 @@ sub BUILD {
   }
 }
 
-## FIXME methods  to add/del ->linked() peers
+## FIXME methods  to add/del ->linked() peers ?
 
 1;

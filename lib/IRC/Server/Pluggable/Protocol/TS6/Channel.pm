@@ -7,6 +7,12 @@ use strictures 1;
 use Carp;
 use Moo;
 
+use IRC::Server::Pluggable qw/
+  Types
+/;
+
+use namespace::clean -except => 'meta';
+
 extends 'IRC::Server::Pluggable::IRC::Channel';
 
 has 'ts' => (

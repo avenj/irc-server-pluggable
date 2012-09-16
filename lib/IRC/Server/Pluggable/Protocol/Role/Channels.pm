@@ -4,22 +4,40 @@ use Carp;
 use Moo::Role;
 use strictures 1;
 
-use Scalar::Utils 'blessed';
+use Scalar::Util 'blessed';
 
 use namespace::clean -except => 'meta';
 
 requires qw/
   channels
-  users
-
   numeric
-
+  peers
+  users
   send_to_routes
 /;
 
 
 ## FIXME join methods, call Channels->add_user_to_channel?
 ## FIXME same for part
+
+## FIXME TS3/5-ish?
+
+sub cmd_from_client_join {
+
+}
+
+sub cmd_from_peer_join {
+
+}
+
+sub cmd_from_peer_sjoin {
+
+}
+
+sub cmd_from_peer_part {
+
+}
+
 
 ## FIXME methods for:
 ##  - channel creation (+ process / event events)
@@ -148,7 +166,7 @@ sub chan_user_can_join {
 
   ## Key (+k) check
   ## Key should be passed along in params, see docs
-  if ( $opts{key} && my $ckey = $chan_obj->channel_has_mode('k') ) {
+  if ( $opts{key} && (my $ckey = $chan_obj->channel_has_mode('k')) ) {
     unless ( $opts{key} eq $ckey ) {
       $self->_r_channels_send_bad_key(
         $user_obj, $chan_name

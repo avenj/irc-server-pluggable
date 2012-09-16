@@ -185,7 +185,10 @@ sub __register_user_ready {
 sub register_user_remote {
   ## FIXME figure out sane args for this; these are bursted users
 
+  ## FIXME create a User obj
+
   ## Figure out what belongs in Burst role
+
   ## FIXME remote User objs need a route() specifying wheel_id for
   ## next-hop peer; i.e., the peer that introduced the user to us
   ##  take next-hop Peer/conn obj as arg, pull wheel_id
@@ -210,24 +213,49 @@ sub irc_ev_register_complete {
 sub cmd_from_unknown_server {
   my ($self, $conn, $event) = @_;
 
+  delete $self->_r_pending_reg->{ $conn->wheel_id };
+
   unless (@{$event->params}) {
-    my $output = $self->numeric->to_hash( 461,
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ 'SERVER' ],
+    $self->send_to_routes(
+      $self->numeric->to_hash( 461,
+        prefix => $self->config->server_name,
+        target => '*',
+        params => [ 'SERVER' ],
+      ),
+      $conn->wheel_id
     );
-    $self->send_to_route( $output, $conn->wheel_id );
     return
   }
 
+  ## FIXME check if TS server?
+  ##  attrib to mark a Peer accordingly?
+
   ## FIXME
-  ##  check auth
+  ##  check auth (and args?)
   ##  check if peer exists
-  ##  set $conn->is_peer
-  ##  set up Peer obj, route() can default to wheel_id
+  my $intro_name = $event->params->[0];
+  my $peer;
+  if ($peer = $self->peers->by_name($intro_name)) {
+    ## FIXME peer exists
+    ## call disconnect method
+    ## send ERROR
+    ## kill any pending user registrations belonging to this server
+  }
+
+  $conn->is_peer(1);
+
+  ## set up Peer obj, route() can default to conn->wheel_id
+  $peer = IRC::Server::Pluggable::IRC::Peer->new(
+    conn => $conn,
+    name => $intro_name,
+  );
+
+  ## add to ->peers
+  $self->peers->add($peer);
+
+  ## FIXME
   ##  check if we should be setting up compressed_link
   ##  burst (event for this we can also trigger on compressed_link ?)
-  ##  clear from _r_pending_reg
 
   ## FIXME should a server care if Plugin::Register isn't done?
 }
@@ -237,23 +265,26 @@ sub cmd_from_unknown_nick {
   my ($self, $conn, $event) = @_;
 
   unless (@{$event->params}) {
-    my $output = $self->numeric->to_hash( 461,
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ 'NICK' ],
+    $self->send_to_routes(
+      $self->numeric->to_hash( 461,
+        prefix => $self->config->server_name,
+        target => '*',
+        params => [ 'NICK' ],
+      ),
+      $conn->wheel_id
     );
-    $self->send_to_route( $output, $conn->wheel_id );
     return
   }
 
   my $nick = $event->params->[0];
   unless ( is_IRC_Nickname($nick) ) {
-    my $output = $self->numeric->to_hash( 432,
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ $nick ],
-    );
-    $self->send_to_route( $output, $conn->wheel_id );
+    $self->send_to_routes(
+      $self->numeric->to_hash( 432,
+        prefix => $self->config->server_name,
+        target => '*',
+        params => [ $nick ],
+      ),
+      $conn->wheel_id
     return
   }
 
@@ -273,12 +304,14 @@ sub cmd_from_unknown_user {
   my ($self, $conn, $event) = @_;
 
   unless (@{$event->params} && @{$event->params} < 4) {
-    my $output = $self->numeric->to_hash(
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ 'USER' ],
+    $self->send_to_routes(
+      $self->numeric->to_hash( 461,
+        prefix => $self->config->server_name,
+        target => '*',
+        params => [ 'USER' ],
+      )
+      $conn->wheel_id
     );
-    $self->send_to_route( $output, $conn->wheel_id );
     return
   }
 
@@ -302,11 +335,15 @@ sub cmd_from_unknown_pass {
   my ($self, $conn, $event) = @_;
 
   unless (@{$event->params}) {
-    my $output = $self->numeric->to_hash(
-      prefix => $self->config->server_name,
-      target => '*',
-      params => [ 'PASS' ],
+    $self->send_to_routes(
+      $self->numeric->to_hash( 461,
+        prefix => $self->config->server_name,
+        target => '*',
+        params => [ 'PASS' ],
+      ),
+      $conn->wheel_id
     );
+    return
   }
 
   ## RFC:

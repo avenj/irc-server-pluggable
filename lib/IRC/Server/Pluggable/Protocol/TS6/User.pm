@@ -7,14 +7,18 @@ use strictures 1;
 use Carp;
 use Moo;
 
+use IRC::Server::Pluggable qw/
+  Types
+/;
+
 extends 'IRC::Server::Pluggable::IRC::User';
 
 has 'ts' => (
   required => 1,
-  
+
   is  => 'ro',
   isa => Num,
-  
+
   writer => 'set_ts',
 );
 
@@ -24,13 +28,13 @@ has 'ts' => (
 ##  (in which case they need predicates)
 has 'id' => (
   required => 1,
-  
+
   is  => 'ro',
   isa => sub {
     $_[0] =~ /^[A-Z][A-Z0-9]+$/
       or die "$_[0] does not look like a valid TS6 ID"
   },
-  
+
   writer => 'set_id',
 );
 

@@ -1,14 +1,14 @@
 Socket -> Filter -> Backend
- { ircsock_* POE event post }
+ { ircsock_* POE event post } (ASYNC)
 
     -> Dispatcher (ISA Emitter)
-    { plugin process() & emit_now() to plugins/consumers }
+    { plugin process() & emit_now() to plugins/consumers } (SYNC)
 
       -> Protocol  
         <-> [ plugin process() & emit to plugins/consumers ]
 
-      { dispatch via ->dispatcher->dispatch() }
+      { dispatch via ->dispatcher->dispatch() } (ASYNC)
     <- Dispatcher
 
-  { dispatch() yields send() }
+  { dispatch() yields send() } (SYNC call to wheel->put)
 Socket <- Filter <- Backend

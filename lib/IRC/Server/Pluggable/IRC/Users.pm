@@ -80,7 +80,7 @@ sub by_name {
 }
 
 sub by_id {
-  my ($self, $id) = @_:
+  my ($self, $id) = @_;
 
   unless (defined $id) {
     carp "by_id() called with no ID specified";

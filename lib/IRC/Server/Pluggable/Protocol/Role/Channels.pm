@@ -84,7 +84,7 @@ sub _r_channels_chk_invite_only {
   return
 }
 
-sub r_channels_send_invite_only {
+sub _r_channels_send_invite_only {
   my ($self, $user_obj, $chan_name) = @_;
 
   my $output = $self->__r_channels_get_numeric(

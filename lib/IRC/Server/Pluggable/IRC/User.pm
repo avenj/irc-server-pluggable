@@ -18,7 +18,7 @@ use namespace::clean -except => 'meta';
 use overload
   bool     => sub { 1 },
   '""'     => 'nick',
-  fallback => 1 ;
+  fallback => 1;
 
 
 has 'conn' => (

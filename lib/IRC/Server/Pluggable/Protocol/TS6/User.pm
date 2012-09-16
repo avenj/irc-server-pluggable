@@ -13,19 +13,6 @@ use IRC::Server::Pluggable qw/
 
 extends 'IRC::Server::Pluggable::IRC::User';
 
-has 'ts' => (
-  required => 1,
-
-  is  => 'ro',
-  isa => Num,
-
-  writer => 'set_ts',
-);
-
-## FIXME
-##  TS6 servers need to be TS5-compat
-##  either need TS5 objs or these shouldn't be required
-##  (in which case they need predicates)
 has 'id' => (
   required => 1,
 

@@ -59,7 +59,7 @@ sub cmd_from_client_ping {
   ## send back PONG otherwise
   unless (@{$event->params}) {
     $self->send_to_routes(
-      $
+      ## FIXME
     );
   }
 

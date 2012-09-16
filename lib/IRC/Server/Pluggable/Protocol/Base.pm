@@ -53,7 +53,9 @@ use IRC::Server::Pluggable qw/
   Types
 /;
 
+
 use namespace::clean -except => 'meta';
+
 
 extends 'IRC::Server::Pluggable::Emitter';
 

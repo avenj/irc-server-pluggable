@@ -10,6 +10,9 @@ use Moo;
 extends 'IRC::Server::Pluggable::IRC::Peer';
 
 has 'sid' => (
+  is => 'ro',
+  writer    => 'set_sid',
+  predicate => 'has_sid',
   ## FIXME
   ##  See notes regarding TS5 compat in User.pm
 );

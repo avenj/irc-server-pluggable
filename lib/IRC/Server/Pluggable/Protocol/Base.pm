@@ -480,7 +480,9 @@ sub irc_ev_client_cmd {
 
   my $cmd = $event->command;
 
-  $self->dispatch( 'cmd_from_client_'.lc($cmd), $conn, $event );
+  my $user = $self->users->by_id($conn->route);
+
+  $self->dispatch( 'cmd_from_client_'.lc($cmd), $conn, $event, $user );
 }
 
 sub irc_ev_peer_cmd {

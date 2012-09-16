@@ -8,6 +8,8 @@ use strictures 1;
 use Carp;
 use Moo;
 
+use Scalar::Util 'weaken';
+
 use IRC::Server::Pluggable qw/
   Types
 /;
@@ -33,6 +35,13 @@ has '_users' => (
   default => sub { {} },
 );
 
+has '_by_id' => (
+  lazy => 1,
+  is   => 'ro',
+  isa  => HashRef,
+  default => sub { {} },
+);
+
 sub add {
   my ($self, $user) = @_;
 
@@ -43,6 +52,12 @@ sub add {
   my $nick = $self->lower( $user->nick );
 
   $self->_users->{$nick} = $user;
+
+  if ($user->has_conn) {
+    ## Local user. Map their route ID to a weakened User ref.
+    $self->_by_id->{ $user->route() } = $user;
+    weaken($self->_by_id->{ $user->route() });
+  }
 
   $user
 }
@@ -62,6 +77,17 @@ sub by_name {
   }
 
   $self->_users->{ $self->lower($nick) }
+}
+
+sub by_id {
+  my ($self, $id) = @_:
+
+  unless (defined $id) {
+    carp "by_id() called with no ID specified";
+    return
+  }
+
+  $self->_by_id->{$id}
 }
 
 sub del {

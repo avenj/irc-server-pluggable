@@ -25,10 +25,14 @@ sub cmd_from_peer_motd {
 }
 
 sub cmd_from_client_motd {
-  my ($self, $conn, $event) = @_;
+  my ($self, $conn, $event, $user) = @_;
 
-  my $nickname = $event->prefix;
-  my $user     = $self->users->by_name($nickname);
+  ## Might've been dispatched from a peer,
+  ## in which case we don't have a $user obj.
+  $user = $self->users->by_name($event->prefix)
+    unless defined $user;
+
+  my $nickname = $user->nick;
   my $server   = $self->config->server_name;
 
   REMOTE: {

@@ -48,10 +48,41 @@ sub conn_is_idle {
 
 ## Handlers should relay, pong, or reset ping status appropriately.
 
-sub cmd_from_client_ping {}
-sub cmd_from_client_pong {}
+sub cmd_from_client_ping {
+  my ($self, $conn, $event) = @_;
 
-sub cmd_from_peer_ping {}
-sub cmd_from_peer_pong {}
+
+  ## check args
+  ## check if we're relaying
+  ##  check if target server exists
+  ##  check if it's us
+  ## send back PONG otherwise
+  unless (@{$event->params}) {
+    $self->send_to_routes(
+      $
+    );
+  }
+
+}
+
+sub cmd_from_client_pong {
+  my ($self, $conn, $event) = @_;
+
+  ## FIXME see if we're relaying similar to PING
+}
+
+sub cmd_from_peer_ping {
+  ## see if we're relaying to another peer
+  ## see if we're relaying from another peer to a local user
+  ## send our own PONG,
+}
+
+
+sub cmd_from_peer_pong {
+  my ($self, $conn, $event) = @_;
+
+  ## FIXME see if we're relaying
+
+}
 
 1;

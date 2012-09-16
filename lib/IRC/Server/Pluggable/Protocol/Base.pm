@@ -277,7 +277,6 @@ sub _build_autoloaded_plugins {
     ## If you're handling clients, you at least want Register:
     [ 'Register', $prefix . 'Protocol::Plugin::Register' ],
 
-    [ 'Motd', $prefix . 'Protocol::Plugin::MOTD' ],
   ],
 }
 
@@ -335,8 +334,11 @@ sub _build_extra_states {
 ## The only Roles the base class needs.
 ## (Protocol.pm consumes others to form a useful basic Protocol.)
 with 'IRC::Server::Pluggable::Role::CaseMap';
-with 'IRC::Server::Pluggable::Protocol::Role::Ping';
+
 with 'IRC::Server::Pluggable::Protocol::Role::Send';
+
+with 'IRC::Server::Pluggable::Protocol::Role::Motd';
+with 'IRC::Server::Pluggable::Protocol::Role::Ping';
 
 
 

@@ -8,7 +8,6 @@ sub PREFIX () { 'IRC::Server::Pluggable::Protocol::Role::TS::Clients::' }
 use namespace::clean -except => 'meta';
 
 
-with PREFIX . '::Motd';
 
 
 ## FIXME figure out 'core' user command bits that belong in Roles

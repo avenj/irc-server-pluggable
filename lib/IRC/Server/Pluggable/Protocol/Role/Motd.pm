@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::TS::Clients::Motd;
+package IRC::Server::Pluggable::Protocol::Role::Motd;
 
 use Moo::Role;
 use strictures 1;

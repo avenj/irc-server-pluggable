@@ -1,9 +1,9 @@
-package IRC::Server::Pluggable::Protocol::Role::Basic::Clients;
+package IRC::Server::Pluggable::Protocol::Role::TS::Clients;
 
 use strictures 1;
 use Moo::Role;
 
-sub PREFIX () { 'IRC::Server::Pluggable::Protocol::Role::Basic::Clients::' }
+sub PREFIX () { 'IRC::Server::Pluggable::Protocol::Role::TS::Clients::' }
 
 use namespace::clean -except => 'meta';
 

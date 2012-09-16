@@ -18,14 +18,13 @@ extends 'IRC::Server::Pluggable::Protocol::Base';
 ### (Base gives us Role::CaseMap and Protocol::Role::Send)
 
 sub PROTO_ROLE_PREFIX () {
-  'IRC::Server::Pluggable::Protocol::Role::Basic::'
+  'IRC::Server::Pluggable::Protocol::Role::TS::'
 }
 
 with PROTO_ROLE_PREFIX . 'Messages' ;
 with PROTO_ROLE_PREFIX . 'Register' ;
 with PROTO_ROLE_PREFIX . 'Clients'  ;
 with PROTO_ROLE_PREFIX . 'Peers'    ;
-with PROTO_ROLE_PREFIX . 'Ping'     ;
 
 no warnings 'void';
 q{

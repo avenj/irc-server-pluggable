@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::Basic::Register;
+package IRC::Server::Pluggable::Protocol::Role::TS::Register;
 
 ## A role defining user/server registration.
 

@@ -90,6 +90,12 @@ has 'peerport' => (
   writer   => 'set_peerport',
 );
 
+has 'ping_pending' => (
+  lazy    => 1,
+  is      => 'rw',
+  isa     => Bool,
+  default => sub { 0 },
+);
 
 has 'protocol' => (
   ## 4 or 6.

@@ -335,7 +335,9 @@ sub _build_extra_states {
 ## The only Roles the base class needs.
 ## (Protocol.pm consumes others to form a useful basic Protocol.)
 with 'IRC::Server::Pluggable::Role::CaseMap';
+with 'IRC::Server::Pluggable::Protocol::Role::Ping';
 with 'IRC::Server::Pluggable::Protocol::Role::Send';
+
 
 
 sub BUILD {
@@ -456,8 +458,9 @@ sub irc_ev_listener_open {
 
 sub irc_ev_connection_idle {
   my ($kernel, $self) = @_;
+  my $conn = $_[ARG0];
 
-  ## FIXME dispatch to $self->dispatch('conn_is_idle', ...)
+  $self->dispatch( 'conn_is_idle', $conn );
 }
 
 

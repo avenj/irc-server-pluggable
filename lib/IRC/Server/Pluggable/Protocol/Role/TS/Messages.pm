@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::Basic::Messages;
+package IRC::Server::Pluggable::Protocol::Role::TS::Messages;
 
 use Moo::Role;
 use strictures 1;

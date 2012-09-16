@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::Basic::Clients::Motd;
+package IRC::Server::Pluggable::Protocol::Role::TS::Clients::Motd;
 
 use Moo::Role;
 use strictures 1;
@@ -118,7 +118,7 @@ sub cmd_from_client_motd {
 
 =head1 NAME
 
-IRC::Server::Pluggable::Protocol::Role::Basic::Clients::Motd
+IRC::Server::Pluggable::Protocol::Role::TS::Clients::Motd
 
 =head1 SYNOPSIS
 
@@ -132,7 +132,7 @@ A L<Moo::Role> adding 'MOTD' command handlers to a
 L<IRC::Server::Pluggable::Protocol::Base> subclass.
 
 Usually consumed by
-L<IRC::Server::Pluggable::Protocol::Role::Basic::Clients> via
+L<IRC::Server::Pluggable::Protocol::Role::TS::Clients> via
 L<IRC::Server::Pluggable::Protocol>
 
 =head1 AUTHOR

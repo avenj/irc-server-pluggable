@@ -199,11 +199,8 @@ sub chg_status {
   push @$final, split //, $modestr;
 
   if (defined $exclude && (my @splitex = split //, $exclude) ) {
-    for my $ex (@splitex) {
-      ## Remove excluded modes.
-      ## Inefficient, but these are typically very short lists.
-      $final = [ grep { $_ ne $ex } @$final ];
-    }
+    my %excluded = map { $_ => 1 } @splitex;
+    $final = [ grep { !$excluded{$_} } @$final ];
   }
 
   ## Return arrayref consisting of final modes.

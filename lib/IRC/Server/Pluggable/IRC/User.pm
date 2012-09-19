@@ -21,6 +21,7 @@ use overload
   fallback => 1;
 
 
+
 has 'conn' => (
   ## Backend::Connect conn obj for a local user.
   ## See route() attrib with regards to remote users.
@@ -146,13 +147,16 @@ sub _build_full {
   $self->nick .'!'. $self->user .'@'. $self->host
 }
 
+## These all do the same thing, but Moo triggers appear to be
+## either a coderef or a boolean true value, with little room for
+## negotiation. (So the documentation says, at least.)
 sub _trigger_nick {
   my ($self) = @_;
   $self->set_full( $self->_build_full )
     if $self->has_full
 }
-sub _trigger_user { shift->_trigger_nick(@_) }
-sub _trigger_host { shift->_trigger_nick(@_) }
+sub _trigger_user { $_[0]->_trigger_nick(@_[1 .. $#_]) }
+sub _trigger_host { $_[0]->_trigger_nick(@_[1 .. $#_]) }
 
 
 sub BUILD {

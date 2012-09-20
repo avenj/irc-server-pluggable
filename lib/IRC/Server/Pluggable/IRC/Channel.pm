@@ -188,24 +188,24 @@ sub chg_status {
   confess "chg_status() called with no mode string specified"
     unless defined $modestr;
 
-  my $final;
-  unless ($final = $self->nicknames->{$nickname}) {
+  my $current;
+  unless ($current = $self->nicknames->{$nickname}) {
     carp
       "chg_status() called on $nickname but not present on ".$self->name;
 
     return
   }
 
-  push @$final, split //, $modestr;
+  my @modeset = ( @$current, split(//, $modestr) );
 
   if (defined $exclude && (my @splitex = split //, $exclude) ) {
     my %excluded = map { $_ => 1 } @splitex;
-    $final = [ grep { !$excluded{$_} } @$final ];
+    @modeset = [ grep { !$excluded{$_} } @modeset ];
   }
 
   ## Return arrayref consisting of final modes.
   ## These will have to be sorted upstream from here.
-  $self->nicknames->{$nickname} = [ @$final ]
+  $self->nicknames->{$nickname} = [ @modeset ]
 }
 
 sub chg_modes {

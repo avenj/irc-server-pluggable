@@ -354,3 +354,47 @@ sub ident_agent_error {
 }
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Protocol::Plugin::Register
+
+=head1 SYNOPSIS
+
+Registers for:
+
+  N_connection
+
+Loaded via the B<autoloaded_plugins> attribute belonging to
+L<IRC::Server::Pluggable::Protocol::Base>.
+
+=head1 DESCRIPTION
+
+L<IRC::Server::Pluggable::Protocol> plugin bridging
+L<POE::Component::Client::DNS> and
+L<POE::Component::Client::Ident::Agent>.
+
+Listens for connection events and issues asynchronous DNS/identd lookups.
+
+Emits B<register_complete> when DNS and identd lookups have finished
+(with either success or failure); carries the
+L<IRC::Server::Pluggable::Backend::Connect> object and a hash containing
+resolved C<host> / C<ident> keys (whose values are undefined if
+lookups were unsuccessful):
+
+  $protocol->emit( 'register_complete',
+    $conn,
+    { host => $host, ident => $ident }
+  )
+
+Also see L<IRC::Server::Pluggable::Protocol::Role::TS::Register>
+
+Conceptually based on L<POE::Component::Server::IRC>'s Register plugin.
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

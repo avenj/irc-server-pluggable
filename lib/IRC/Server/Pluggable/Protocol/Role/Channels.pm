@@ -20,8 +20,6 @@ requires qw/
 ## FIXME join methods, call Channels->add_user_to_channel?
 ## FIXME same for part
 
-## FIXME TS3/5-ish?
-
 sub cmd_from_client_join {
 
 }
@@ -31,6 +29,10 @@ sub cmd_from_peer_join {
 }
 
 sub cmd_from_peer_sjoin {
+
+}
+
+sub cmd_from_client_part {
 
 }
 

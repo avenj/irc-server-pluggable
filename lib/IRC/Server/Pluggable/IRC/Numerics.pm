@@ -66,10 +66,29 @@ sub to_hash {
   \%input
 }
 
+sub get_rpl {
+  my ($self, $numeric) = @_;
+  $self->rpl_map->{$numeric}
+}
+
+sub set_rpl {
+  my ($self, $numeric, $ref) = @_;
+
+  confess "set_rpl() expects a numeric and ARRAY"
+    unless defined $numeric
+    and ref $ref eq 'ARRAY';
+
+  confess "ARRAY passed to set_rpl should have a param count and string"
+    unless @$ref > 1;
+
+  $self->rpl_map->{$numeric} = $ref
+}
 
 sub _build_rpl_map {
   my ($self) = @_;
+
   ## Based off the list in POE::Component::Server::IRC
+  ## (Param specification concept also borrowed)
 
   {
     ## numeric => [ prefix_count , string ]

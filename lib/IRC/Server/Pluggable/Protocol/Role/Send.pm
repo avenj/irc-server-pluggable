@@ -44,7 +44,44 @@ sub send_to_routes {
   $self->dispatcher->dispatch( $output, @ids )
 }
 
+sub send_numeric {
+  ## send_numeric(  $numeric,
+  ##   target => ...,
+  ##   routes => \@routes,
+  ## );
+  ## Optionally pass prefix / params
+  my ($self, $numeric, %params) = @_;
+  $params{lc $_} = delete $params{$_} for keys %params;
+
+  confess "Expected a numeric and at least 'target' and 'routes' params"
+    unless defined $params{target}
+    and defined    $params{routes};
+
+  my @routes = ref $params{routes} eq 'ARRAY' ?
+                 @{ $params{routes} }
+                 : ( $params{routes} );
+
+  my $output = $self->numeric->to_hash( $numeric,
+    target => $params{target},
+
+    ## Default to our server name.
+    prefix => (
+      $params{prefix} ?
+        $params{prefix} : $self->config->server_name
+    ),
+
+    params => (
+      ref $params{params} eq 'ARRAY' ?
+        $params{params} : [ $params{params}||() ]
+    ),
+  );
+
+  $self->send_to_routes( $output, @routes )
+}
+
+
 ## FIXME
+## Most of this actually goes in Messages
 ##  methods for:
 
 ##   - send to remote channel

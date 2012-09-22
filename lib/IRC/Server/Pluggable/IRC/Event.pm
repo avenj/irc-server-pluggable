@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Backend::Event;
+package IRC::Server::Pluggable::IRC::Event;
 
 use 5.12.1;
 use strictures 1;
@@ -65,11 +65,11 @@ q{
 
 =head1 NAME
 
-IRC::Server::Pluggable::Backend::Event - IRC Events
+IRC::Server::Pluggable::IRC::Event - IRC Events
 
 =head1 SYNOPSIS
 
-  my $event = IRC::Server::Pluggable::Backend::Event->new(
+  my $event = IRC::Server::Pluggable::IRC::Event->new(
     prefix   => ':some.server.org',
     command  => '001',
     params   => [ 'user', 'Welcome to IRC' ],
@@ -77,7 +77,7 @@ IRC::Server::Pluggable::Backend::Event - IRC Events
   );
 
   ## Can be fed from POE::Filter::IRCD :
-  my $event = IRC::Server::Pluggable::Backend::Event->new(
+  my $event = IRC::Server::Pluggable::IRC::Event->new(
    %{ $input_hash_from_filter }
   );
 

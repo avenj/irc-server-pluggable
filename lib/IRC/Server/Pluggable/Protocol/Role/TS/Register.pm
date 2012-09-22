@@ -13,7 +13,7 @@ use POE;
 use IRC::Server::Pluggable qw/
   Constants
 
-  Backend::Event
+  IRC::Event
 
   IRC::User
 
@@ -139,14 +139,14 @@ sub register_user_local {
 
   ## Dispatch LUSERS
   $self->dispatch( 'cmd_from_client_lusers', $conn,
-    IRC::Server::Pluggable::Backend::Event->new(
+    IRC::Server::Pluggable::IRC::Event->new(
       command => 'LUSERS',
     )
   );
 
   ## Dispatch MOTD
   $self->dispatch( 'cmd_from_client_motd', $conn,
-    IRC::Server::Pluggable::Backend::Event->new(
+    IRC::Server::Pluggable::IRC::Event->new(
       command => 'MOTD',
     )
   );

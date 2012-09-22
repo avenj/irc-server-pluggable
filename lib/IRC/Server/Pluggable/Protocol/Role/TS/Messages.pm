@@ -4,7 +4,7 @@ use Moo::Role;
 use strictures 1;
 
 use IRC::Server::Pluggable qw/
-  Backend::EventSet
+  IRC::EventSet
 /;
 
 

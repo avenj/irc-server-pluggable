@@ -10,7 +10,7 @@ use Moo;
 use IRC::Server::Pluggable qw/
   Backend::Connect
   Backend::Connector
-  Backend::Event
+  IRC::Event
   Backend::Listener
 
   Types
@@ -663,7 +663,7 @@ sub _ircsock_input {
   ## FIXME anti-flood code or should that be higher up ... ?
 
   ## Create obj from HASH from POE::Filter::IRCD
-  my $obj = IRC::Server::Pluggable::Backend::Event->new(
+  my $obj = IRC::Server::Pluggable::IRC::Event->new(
     %$input
   );
 
@@ -723,7 +723,7 @@ sub send {
   my ($self, $out, @ids) = @_;
 
   if (is_Object($out) &&
-    $out->isa('IRC::Server::Pluggable::Backend::Event') ) {
+    $out->isa('IRC::Server::Pluggable::IRC::Event') ) {
 
     $out = {
       prefix  => $out->prefix,
@@ -891,7 +891,7 @@ IRC::Server::Pluggable::Backend - IRC socket handler backend
     ## IRC::Server::Pluggable::Backend::Connect obj:
     my $this_conn = $_[ARG0];
 
-    ## IRC::Server::Pluggable::Backend::Event obj:
+    ## IRC::Server::Pluggable::IRC::Event obj:
     my $input_obj = $_[ARG1];
 
     my $cmd = $input_obj->command;
@@ -1085,7 +1085,7 @@ Dispatched when there is some IRC input from a connection wheel.
 C<$_[ARG0]> is the connection's 
 L<IRC::Server::Pluggable::Backend::Connect>.
 
-C<$_[ARG1]> is a L<IRC::Server::Pluggable::Backend::Event>.
+C<$_[ARG1]> is a L<IRC::Server::Pluggable::IRC::Event>.
 
 =head3 ircsock_listener_created
 

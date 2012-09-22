@@ -21,7 +21,7 @@ requires qw/
 ### FIXME truncate outgoing strings to 510 chars?
 ### ->send_to_route( $ref, $id )
 ### ->send_to_routes( $ref, @ids )
-###    These take either a Backend::Event or a POE::Filter::IRCD hash.
+###    These take either a IRC::Event or a POE::Filter::IRCD hash.
 ###    Check args and bridge dispatcher.
 
 sub send_to_route {

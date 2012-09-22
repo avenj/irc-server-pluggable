@@ -236,7 +236,6 @@ sub __r_channels_check_user_arg {
   ## Allow methods to take either a user_obj or an identifier
   ## Attempt to modify caller's args
   ## If we can't get either, carp and return
-  ## FIXME it's possible this should live as a role method
   unless ( blessed($_[0]) ) {
     $_[0] = $self->users->by_name($_[0]);
     unless ($_[0]) {

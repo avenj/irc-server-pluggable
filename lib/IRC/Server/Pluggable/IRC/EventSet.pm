@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Backend::EventSet;
+package IRC::Server::Pluggable::IRC::EventSet;
 
 use Carp;
 use strictures 1;
@@ -6,7 +6,7 @@ use strictures 1;
 use Scalar::Util  'blessed';
 use Storable      'dclone';
 
-use IRC::Server::Pluggable::Backend::Event;
+use IRC::Server::Pluggable::IRC::Event;
 
 use namespace::clean -except => 'meta';
 
@@ -27,16 +27,16 @@ sub _valid_ev {
 
   EVENT: {
     if (blessed $event
-      && $event->isa('IRC::Server::Pluggable::Backend::Event') ) {
+      && $event->isa('IRC::Server::Pluggable::IRC::Event') ) {
       last EVENT
     }
 
     if (ref $event eq 'HASH') {
-      $event = IRC::Server::Pluggable::Backend::Event->new(%$event);
+      $event = IRC::Server::Pluggable::IRC::Event->new(%$event);
       last EVENT
     }
 
-    confess "Expected Backend::Event or compatible HASH, got $event"
+    confess "Expected IRC::Event or compatible HASH, got $event"
   }  ## EVENT
 
   $event
@@ -92,11 +92,11 @@ sub unshift {
 
 =head1 NAME
 
-IRC::Server::Pluggable::Backend::EventSet - Accumulate Backend::Events
+IRC::Server::Pluggable::IRC::EventSet - Accumulate IRC::Events
 
 =head1 SYNOPSIS
 
-  my $evset = IRC::Server::Pluggable::Backend::EventSet->new(
+  my $evset = IRC::Server::Pluggable::IRC::EventSet->new(
     {
       prefix => $prefix,
       target => $target,
@@ -123,8 +123,8 @@ IRC::Server::Pluggable::Backend::EventSet - Accumulate Backend::Events
 =head1 DESCRIPTION
 
 An ARRAY-type object that takes (and validates) either
-L<IRC::Server::Pluggable::Backend::Event> object instances or a HASH that
-will be fed to L<IRC::Server::Pluggable::Backend::Event> ->new().
+L<IRC::Server::Pluggable::IRC::Event> object instances or a HASH that
+will be fed to L<IRC::Server::Pluggable::IRC::Event> ->new().
 
 
 FIXME

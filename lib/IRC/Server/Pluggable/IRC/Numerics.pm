@@ -9,7 +9,7 @@ use Carp;
 use Moo;
 
 use IRC::Server::Pluggable qw/
-  Backend::Event
+  IRC::Event
   Types
 /;
 
@@ -28,7 +28,7 @@ has 'rpl_map' => (
 sub to_event {
   my $self = shift;
   my $hashified = $self->to_hash(@_);
-  IRC::Server::Pluggable::Backend::Event->new( %$hashified )
+  IRC::Server::Pluggable::IRC::Event->new( %$hashified )
 }
 
 sub to_hash {

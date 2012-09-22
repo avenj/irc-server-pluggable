@@ -145,7 +145,7 @@ sub dispatch_now {
 sub _dispatch {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  ## Either a Backend::Event or a hash suitable for POE::Filter::IRCD
+  ## Either an IRC::Event or a hash suitable for POE::Filter::IRCD
   ## + List of either Backend::Connect wheel IDs
   ##   or objs that can give us one
   my ($out, @ids) = $_[ARG0 .. $#_];

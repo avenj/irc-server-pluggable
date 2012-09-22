@@ -3,7 +3,7 @@ package IRC::Server::Pluggable::Backend::EventSet;
 use Carp;
 use strictures 1;
 
-use Scalar::Utils 'blessed';
+use Scalar::Util  'blessed';
 use Storable      'dclone';
 
 use IRC::Server::Pluggable::Backend::Event;
@@ -23,7 +23,7 @@ sub new {
 }
 
 sub _valid_ev {
-  my ($self, $ev) = @_;
+  my ($self, $event) = @_;
 
   EVENT: {
     if (blessed $event
@@ -51,6 +51,11 @@ sub by_index {
     unless defined $idx;
 
   $self->[$idx]
+}
+
+sub set_index {
+  my ($self, $idx, $event) = @_;
+  $self->[$idx] = $self->_valid_ev($event)
 }
 
 sub clone {

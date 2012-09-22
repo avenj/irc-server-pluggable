@@ -118,7 +118,7 @@ sub _r_channels_send_over_limit {
   $self->send_to_routes( $output, $user_obj->route )
 }
 
-## +k send, comparison happens in chan_user_can_join
+## +k send, comparison happens in user_can_join_chan
 sub _r_channels_send_bad_key {
   my ($self, $user_obj, $chan_name) = @_;
 
@@ -130,13 +130,13 @@ sub _r_channels_send_bad_key {
 }
 
 
-## ->chan_user_can_join( $user_obj, $chan_name, %join_opts )
-## ->chan_user_can_send( $user_obj, $chan_name )
+## ->user_can_join_chan( $user_obj, $chan_name, %join_opts )
+## ->user_can_send_to_chan( $user_obj, $chan_name )
 
-sub chan_user_can_join {
-  ## chan_user_can_join( $user_obj, $chan_name, key => $key, . . . )
+sub user_can_join_chan {
+  ## user_can_join_chan( $user_obj, $chan_name, key => $key, . . . )
   ##  Return true if the User can join.
-  ##  Return false and dispatched an error numeric to User if not.
+  ##  Return false and dispatches an error numeric to User if not.
   my ($self, $user_obj, $chan_name, %opts) = @_;
 
   ## Public methods can try to retrieve a user obj from nick, if needed:
@@ -182,6 +182,7 @@ sub chan_user_can_join {
     $self->_r_channels_send_over_limit(
       $user_obj, $chan_name
     );
+    return
   }
 
   ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
@@ -196,7 +197,7 @@ sub chan_user_can_join {
   return 1
 }
 
-sub chan_user_can_send {
+sub user_can_send_to_chan {
   my ($self, $user_obj, $chan_name) = @_;
 
   return unless $self->__r_channels_check_user_arg($user_obj);

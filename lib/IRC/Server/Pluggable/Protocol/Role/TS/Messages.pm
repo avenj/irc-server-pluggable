@@ -23,16 +23,14 @@ sub _r_msgs_accumulate_targets {
   ##  Accumulate an EventSet
 }
 
-sub _r_msgs_can_send_to_chan {
-
-}
-
 sub _r_msgs_can_send_to_nick {
 
 }
 
 sub _r_msgs_can_send {
-
+  ## FIXME
+  ##  For a channel, Role::Channels provides user_can_send_to_chan
+  ##  Should we provide user_can_send_to_user ?
 }
 
 

@@ -13,6 +13,7 @@ requires qw/
   numeric
   peers
   users
+  send_numeric
   send_to_routes
 /;
 
@@ -68,11 +69,11 @@ sub _r_channels_chk_user_banned {
 sub _r_channels_send_user_banned {
   my ($self, $user_obj, $chan_name) = @_;
 
-  my $output = $self->__r_channels_get_numeric(
-    474, $user_obj->nick, $chan_name
+  $self->send_numeric( 474,
+    target => $user_obj->nick,
+    params => [ $chan_name ],
+    routes => $user_obj->route,
   );
-
-  $self->send_to_routes( $output, $user_obj->route )
 }
 
 
@@ -89,11 +90,11 @@ sub _r_channels_chk_invite_only {
 sub _r_channels_send_invite_only {
   my ($self, $user_obj, $chan_name) = @_;
 
-  my $output = $self->__r_channels_get_numeric(
-    473, $user_obj->nick, $chan_name
+  $self->send_numeric( 473,
+    target => $user_obj->nick,
+    params => [ $chan_name ],
+    routes => $user_obj->route,
   );
-
-  $self->send_to_routes( $output, $user_obj->route )
 }
 
 
@@ -111,22 +112,22 @@ sub _r_channels_chk_over_limit {
 sub _r_channels_send_over_limit {
   my ($self, $user_obj, $chan_name) = @_;
 
-  my $output = $self->__r_channels_get_numeric(
-    471, $user_obj->nick, $chan_name
+  $self->send_numeric( 471,
+    target => $user_obj->nick,
+    params => [ $chan_name ],
+    routes => $user_obj->route,
   );
-
-  $self->send_to_routes( $output, $user_obj->route )
 }
 
 ## +k send, comparison happens in user_can_join_chan
 sub _r_channels_send_bad_key {
   my ($self, $user_obj, $chan_name) = @_;
 
-  my $output = $self->__r_channels_get_numeric(
-    475, $user_obj->nick, $chan_name
+  $self->send_numeric( 475,
+    target => $user_obj->nick,
+    params => [ $chan_name ],
+    routes => $user_obj->route,
   );
-
-  $self->send_to_routes( $output, $user_obj->route )
 }
 
 
@@ -245,18 +246,6 @@ sub __r_channels_check_user_arg {
     }
   }
   $_[0]
-}
-
-sub __r_channels_get_numeric {
-  my ($self, $numeric, $target, @params) = @_;
-
-  ## FIXME very possible this should live in a Role method
-
-  $self->numeric->to_hash( $numeric,
-    prefix => $self->config->server_name,
-    target => $target,
-    params => \@params,
-  )
 }
 
 1;

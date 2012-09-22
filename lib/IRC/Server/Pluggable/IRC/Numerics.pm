@@ -8,7 +8,10 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable qw/
+  Backend::Event
+  Types
+/;
 
 
 use namespace::clean -except => 'meta';
@@ -22,6 +25,11 @@ has 'rpl_map' => (
   builder => '_build_rpl_map',
 );
 
+sub to_event {
+  my $self = shift;
+  my $hashified = $self->to_hash(@_);
+  IRC::Server::Pluggable::Backend::Event->new( %$hashified )
+}
 
 sub to_hash {
   ## ->to_hash(

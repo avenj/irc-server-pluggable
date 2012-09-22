@@ -1,0 +1,85 @@
+x## %  =  missing role
+## *  =  unimplemented
+## ?  =  questionable
+
+Protocol::
+  Role::Channels
+*   client_invite
+*     peer_invite
+*   client_join
+*     peer_join
+*     peer_sjoin
+*   client_part
+*     peer_part
+*   client_list
+?   client_names
+?     peer_names
+*   client_topic
+*     peer_topic
+?     peer_tburst
+
+* Role::Disconnect
+
+* Role::ISupport
+
+% Role::Modes
+*   client_mode
+*     peer_mode
+  ## ? dispatch out umode/cmode to Clients / Channels methods
+
+  Role::Motd
+    client_motd
+      peer_motd
+
+  Role::Ping
+*   client_ping
+*     peer_ping
+*   client_pong
+*     peer_pong
+
+* Role::TS::Clients
+*   client_admin
+*     peer_admin
+*   client_nick
+*     peer_nick
+*   client_quit
+*     peer_quit
+
+% Role::TS::Clients::Oper
+*   client_oper
+
+% Role::TS::Clients::Who
+*   client_userhost
+*   client_who
+*   client_whois
+*     peer_whois
+
+? Role::TS::Messages
+*   client_privmsg
+*     peer_privmsg
+*   client_notice
+*     peer_notice
+
+  Role::TS::Peers
+?   client_links
+?     peer_links
+?     peer_nick
+?     peer_server
+?     peer_squit
+
+  Role::TS::Register
+?   client_svinfo
+?     peer_svinfo
+    unknown_server
+    unknown_nick
+    unknown_user
+    unknown_pass
+  
+
+Plugins::
+*  Cmd::DLine
+*  Cmd::KLine
+*  Cmd::Kick
+*  Cmd::Remove
+*  Cmd::Stats
+*  Cmd::Trace

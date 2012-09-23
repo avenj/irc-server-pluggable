@@ -6,9 +6,10 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Types;
-
-use IRC::Server::Tree::Network;
+use IRC::Server::Pluggable qw/
+  Types
+  Utils
+/;
 
 use Scalar::Util 'weaken';
 
@@ -23,7 +24,7 @@ has '_peers' => (
   default => sub { {} },
 );
 
-has '_by_id' => (
+has '_peers_by_id' => (
   lazy    => 1,
   is      => 'ro',
   isa     => HashRef,
@@ -41,9 +42,10 @@ sub add {
 
   $self->_peers->{$s_name} = $peer;
 
+  ## Only local peers should have a _peers_by_id entry:
   if ($peer->has_conn) {
-    $self->_by_id->{ $peer->route() } = $peer;
-    weaken($self->_by_id->{ $peer->route() });
+    $self->_peers_by_id->{ $peer->conn->wheel_id } = $peer;
+    weaken($self->_peers_by_id->{ $peer->conn->wheel_id });
   }
 
   $peer
@@ -61,7 +63,7 @@ sub by_id {
   confess "by_id() called with no ID specified"
     unless defined $id;
 
-  $self->_by_id->{$id}
+  $self->_peers_by_id->{$id}
 }
 
 sub by_name {
@@ -79,9 +81,26 @@ sub del {
   confess "del() called with no peer specified"
     unless defined $s_name;
 
-  delete $self->_peers->{ lc($s_name) }
+  if (my $peer = delete $self->_peers->{ lc($s_name) }) {
+    delete $self->_peers_by_id->{ $peer->conn->wheel_id }
+      if $peer->has_conn;
+    return $peer
+  }
 }
 
+sub matching {
+  my ($self, $mask) = @_;
+
+  my @matches;
+  for my $p_name (keys %{ $self->_peers }) {
+    my $this_peer = $self->_peers->{$p_name};
+
+    push @matches, $this_peer
+      if matches_mask( $mask, $this_peer->name, 'ascii' );
+  }
+
+  wantarray ? @matches : @matches ? \@matches : ()
+}
 
 
 1;

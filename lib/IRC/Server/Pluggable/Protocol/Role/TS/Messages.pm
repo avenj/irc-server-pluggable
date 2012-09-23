@@ -113,6 +113,13 @@ sub _r_msgs_parse_targets {
   ## which is reasonably clever.
   ## Turns a list of targets into a hash:
   ##  $target => [ $type, @args ]
+  ## Valid types:
+  ##   channel
+  ##   channel_prefixed
+  ##   servermask
+  ##   hostmask
+  ##   nick
+  ##   nick_fully_qualified
 
   my @chan_prefixes = keys %{ $self->channel_types };
   ## FIXME where do we set/get status prefixes...?
@@ -121,8 +128,9 @@ sub _r_msgs_parse_targets {
 
   TARGET: for my $target (@targets) {
 
+    my $t_prefix = substr($target, 0, 1);
     for my $prefix (@chan_prefixes) {
-      if ( substr($target, 0, 1) eq $prefix ) {
+      if ($t_prefix eq $prefix) {
         $targets{$target} = [ 'channel' ];
         next TARGET
       }
@@ -156,7 +164,7 @@ sub _r_msgs_parse_targets {
     }
 
     ## Fall through to nickname
-    $targets{$target} = [ 'nickname ];
+    $targets{$target} = [ 'nick' ];
   } ## TARGET
 
 
@@ -179,6 +187,8 @@ sub handle_message_relay {
       unless defined $params{$req};
   }
 
+  my $eventset = IRC::Server::Pluggable::IRC::EventSet->new;
+
   ## FIXME
   ##  Parse targets
   ##  Call handlers as-needed
@@ -186,8 +196,9 @@ sub handle_message_relay {
   my $target_array = ref $params{targets} eq 'ARRAY' ?
     $params{targets} : [ $params{targets} ];
 
+  my $tcount;
   my $targetset = $self->_r_msgs_parse_targets(@$target_array);
-  for my $target (keys %$targetset) {
+  DEST: for my $target (keys %$targetset) {
     my ($t_type, @t_params) = @{ $targetset->{$target} };
     ## FIXME sanity checks, build EventSet if we hit errors
     ##  - 481 if prefix nick not an oper and target is host/servermask
@@ -200,7 +211,63 @@ sub handle_message_relay {
     ## FIXME call appropriate methods to accumulate routes as-needed
     ##  pcsi uses some funkyness in dispatching send_output ...
     ## FIXME sort out full/nickname prefix situation
-  }
+
+    ## Organized vaguely by usage frequency ...
+
+    $tcount++;
+    ## FIXME 407 + last if $tcount > maxtargets
+
+   ## FIXME always delete originator, ie. src_conn->wheel_id
+
+    for ($t_type) {
+      when ("channel") {
+        ## - 401 if channel nonexistant
+        unless (my $chan = $self->channels->by_name($t_params[0])) {
+          $eventset->push(
+            $self->numeric->to_hash( 401,
+              prefix => $self->config->server_name,
+              params => [ $target ],
+              target => $params{prefix},
+            )
+          );
+          next DEST
+        }
+        ## - call _r_msgs_accumulate_targets_channel to get routes
+        my %routes = $self->_r_msgs_accumulate_targets_channel($chan);
+        ## - delete originator ($params{src_conn}->wheel_id)
+        delete $routes{ $params{src_conn}->wheel_id() };
+        ## FIXME
+        ## - find out if this user can send
+      }
+
+      when ("nick") {
+        my $user;
+        unless ($user = $self->users->by_name($t_params[0])) {
+          $eventset->push(
+            $self->numeric->to_hash( 401,
+              prefix => $self->config->server_name,
+              params => [ $target ],
+              target => $params{prefix},
+            );
+          );
+          next DEST
+        }
+        ## FIXME
+      }
+
+      when ("nick_fully_qualified") {
+      }
+
+      when ("channel_prefixed") {
+      }
+
+      when ("servermask") {
+      }
+
+      when ("hostmask") {
+      }
+    }
+  } ## DEST
 }
 
 sub cmd_from_client_privmsg {

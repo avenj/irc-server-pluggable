@@ -12,6 +12,7 @@ use Scalar::Util 'weaken';
 
 use IRC::Server::Pluggable qw/
   Types
+  Utils
 /;
 
 
@@ -55,8 +56,8 @@ sub add {
 
   if ($user->has_conn) {
     ## Local user. Map their route ID to a weakened User ref.
-    $self->_by_id->{ $user->route() } = $user;
-    weaken($self->_by_id->{ $user->route() });
+    $self->_by_id->{ $user->conn->wheel_id } = $user;
+    weaken($self->_by_id->{ $user->conn->wheel_id });
   }
 
   $user
@@ -98,9 +99,49 @@ sub del {
 
   $nick = $self->lower($nick);
 
-  delete $self->_users->{$nick}
+  if (my $user = delete $self->_users->{$nick}) {
+    delete $self->_by_id->{ $user->conn->wheel_id }
+      if $user->has_conn;
+    return $user
+  }
 }
 
+sub matching {
+  my ($self, $mask) = @_;
+
+  ## Note that this currently returns the IRC-lowercase version.
+
+  confess "matching() called with no mask specified"
+    unless defined $mask;
+
+  my @matches;
+  my $casemap = $self->casemap;
+  for my $nick (keys %{ $self->_users }) {
+    my $user = $self->_users->{$nick};
+    push @matches, $user
+      if matches_mask( $mask, $nick, $casemap )
+  }
+
+  wantarray ? @matches : @matches ? \@matches : ()
+}
+
+sub nuh_matching {
+  my ($self, $mask) = @_;
+
+  confess "nuh_matching() called with no mask specified"
+    unless defined $mask;
+
+  my @matches;
+  my $casemap = $self->casemap;
+  for my $nick (keys %{ $self->_users }) {
+    my $user = $self->_users->{$nick};
+    my $nuh  = $user->full;
+    push @matches, $user
+      if matches_mask( $mask, $nuh, $casemap )
+  }
+
+  wantarray ? @matches : @matches ? \@matches : ()
+}
 
 1;
 
@@ -159,11 +200,18 @@ rules.
 
 Returns the current list of nicknames as an array reference.
 
+=head3 by_id
+
+  my $user = $users->by_id( $conn->wheel_id );
+
+Returns the L<IRC::Server::Pluggable::IRC::User> object belonging to a 
+local user with the specified route/wheel ID. Also see L</by_name>
+
 =head3 by_name
 
   my $user = $users->by_name( $nickname );
 
-Returns the L<IRC::Server::Pluggable::IRC::User> (sub)class instance for 
+Returns the L<IRC::Server::Pluggable::IRC::User> object instance for 
 the specified nickname. Returns false if the nickname is not known.
 
 Nickname does not need to be case-munged; this class will handle that for 

@@ -41,6 +41,9 @@ has '_channels' => (
   default => sub { {} },
 );
 
+## FIXME allow for construction w/ prioritized and mapped
+##  status modes..?
+## Would save a lot of subclassing hassles in adding extras.
 
 ### Implementation-specific bits.
 

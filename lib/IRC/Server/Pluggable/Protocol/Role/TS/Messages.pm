@@ -187,7 +187,10 @@ sub handle_message_relay {
       unless defined $params{$req};
   }
 
-  my $eventset = IRC::Server::Pluggable::IRC::EventSet->new;
+  my $err_set = IRC::Server::Pluggable::IRC::EventSet->new;
+
+  ## FIXME notices should return no error at all
+  ##  see http://tools.ietf.org/html/rfc2812#section-3.3
 
   ## FIXME
   ##  Parse targets
@@ -223,13 +226,13 @@ sub handle_message_relay {
       when ("channel") {
         ## - 401 if channel nonexistant
         unless (my $chan = $self->channels->by_name($t_params[0])) {
-          $eventset->push(
+          $err_set->push(
             $self->numeric->to_hash( 401,
               prefix => $self->config->server_name,
               params => [ $target ],
               target => $params{prefix},
             )
-          );
+          ) unless $params{type} eq 'notice';
           next DEST
         }
         ## - call _r_msgs_accumulate_targets_channel to get routes
@@ -243,13 +246,13 @@ sub handle_message_relay {
       when ("nick") {
         my $user;
         unless ($user = $self->users->by_name($t_params[0])) {
-          $eventset->push(
+          $err_set->push(
             $self->numeric->to_hash( 401,
               prefix => $self->config->server_name,
               params => [ $target ],
               target => $params{prefix},
-            );
-          );
+            )
+          ) unless $params{type} eq 'notice';
           next DEST
         }
         ## FIXME

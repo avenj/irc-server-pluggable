@@ -119,7 +119,7 @@ sub _r_channels_send_over_limit {
   );
 }
 
-## +k send, comparison happens in user_can_join_chan
+## +k send, comparison happens in _r_channels_user_can_join
 sub _r_channels_send_bad_key {
   my ($self, $user_obj, $chan_name) = @_;
 
@@ -130,12 +130,8 @@ sub _r_channels_send_bad_key {
   );
 }
 
-
-## ->user_can_join_chan( $user_obj, $chan_name, %join_opts )
-## ->user_can_send_to_chan( $user_obj, $chan_name )
-
-sub user_can_join_chan {
-  ## user_can_join_chan( $user_obj, $chan_name, key => $key, . . . )
+sub _r_channels_user_can_join {
+  ## _r_channels_user_can_join( $user_obj, $chan_name, key => $key, . . . )
   ##  Return true if the User can join.
   ##  Return false and dispatches an error numeric to User if not.
   my ($self, $user_obj, $chan_name, %opts) = @_;
@@ -188,7 +184,7 @@ sub user_can_join_chan {
 
   ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
   ## In a subclass:
-  ##  around 'user_can_join' => sub {
+  ##  around '_r_channels_user_can_join' => sub {
   ##    my ($orig, $self, $user, $chan_name, %opts) = @_;
   ##    ## Check if super (here) would allow this user:
   ##    return unless $self->$orig($user, $chan_name, %opts);
@@ -198,34 +194,38 @@ sub user_can_join_chan {
   return 1
 }
 
-sub user_can_send_to_chan {
+
+## FIXME
+##  return a numeric? (482, 404, ...?)
+##  return a numeric output hash / event obj?
+##  user_cannot_join_chan refactor for above also ?
+sub user_cannot_send_to_chan {
+  ## Return false if user is clear to send to channel.
   my ($self, $user_obj, $chan_name) = @_;
+  $self->__r_channels_check_user_arg($user_obj);
 
-  return unless $self->__r_channels_check_user_arg($user_obj);
-
-  return 1 if $user_obj->is_flagged_as('SERVICE');
+  ## SERVICE can always send.
+  return if $user_obj->is_flagged_as('SERVICE');
 
   my $channels = $self->channels;
 
-  if ( $channels->user_is_present($user_obj, $chan_name) ) {
-    ## User is present, if they have status modes,
-    ## the message should pass
-    return 1
-  } else {
-    ## User is not present; if +n is set, drop message
-    return if $channels->channel_has_mode($chan_name, 'n')
+  unless ( $channels->user_is_present($user_obj, $chan_name) ) {
+    ## External user. Check +n first.
+    if ( $channels->channel_has_mode($chan_name, 'n') ) {
+      ## FIXME return err
+    }
   }
 
-  ## user_is_moderated is false if the user has status modes
-  ## See IRC::Channels base class
-  return if $channels->user_is_moderated($user_obj, $chan_name);
+  if ( $channels->user_is_moderated($user_obj, $chan_name) ) {
+    ## FIXME return err
+  }
 
-  ## Can't send if banned unless the user is present and has status.
-  ## If that is the case, we already returned true above.
-  return if $channels->user_is_banned($user_obj, $chan_name);
+  if ( $channels->user_is_banned($user_obj, $chan_name) ) {
+    ## FIXME return err *if* user has no status modes
+  }
 
-  ## User can send to channel.
-  return 1
+  ## Good to go.
+  return
 }
 
 

@@ -144,12 +144,11 @@ sub del_nickname {
   delete $self->nicknames->{$nickname}
 }
 
-sub users_as_array {
+sub nicknames_as_array {
   my ($self) = @_;
 
   [ keys %{ $self->nicknames } ]
 }
-
 
 sub nickname_has_mode {
   my ($self, $nickname, $modechr) = @_;

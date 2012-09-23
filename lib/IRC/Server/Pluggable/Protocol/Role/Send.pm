@@ -79,7 +79,6 @@ sub send_numeric {
   $self->send_to_routes( $output, @routes )
 }
 
-
 ## FIXME
 ## Most of this actually goes in Messages
 ##  methods for:

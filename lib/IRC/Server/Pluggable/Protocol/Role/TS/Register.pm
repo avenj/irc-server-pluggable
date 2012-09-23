@@ -261,6 +261,11 @@ sub cmd_from_unknown_server {
 }
 
 
+sub cmd_from_unknown_error {
+  ## FIXME
+  ## do nothing if this conn isn't registering as a peer
+}
+
 sub cmd_from_unknown_nick {
   my ($self, $conn, $event) = @_;
 

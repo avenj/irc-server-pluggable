@@ -496,7 +496,9 @@ sub irc_ev_peer_cmd {
 
   my $cmd = $event->command;
 
-  $self->dispatch( 'cmd_from_peer_'.lc($cmd), $conn, $event );
+  my $peer = $self->peers->by_id($conn->route);
+
+  $self->dispatch( 'cmd_from_peer_'.lc($cmd), $conn, $event, $peer );
 }
 
 sub irc_ev_unknown_cmd {
@@ -551,16 +553,6 @@ sub _dispatch {
   $self->dispatch(@_[ARG0 .. $#_]);
 
   1
-}
-
-
-sub cmd_from_unknown_error {
-  ## FIXME should be in a role
-  ## Received ERROR from the remote end
-  ## if this isn't a conn in process of registering as a peer
-  ##  we should do nothing
-  ## needs to hook in with SERVER registration
-  ## may belong in the same Role as SERVER registration bits
 }
 
 

@@ -119,7 +119,7 @@ sub _r_channels_send_over_limit {
   );
 }
 
-## +k send, comparison happens in _r_channels_user_can_join
+## +k send, comparison happens in _r_channels_chk_can_join
 sub _r_channels_send_bad_key {
   my ($self, $user_obj, $chan_name) = @_;
 
@@ -130,8 +130,8 @@ sub _r_channels_send_bad_key {
   );
 }
 
-sub _r_channels_user_can_join {
-  ## _r_channels_user_can_join( $user_obj, $chan_name, key => $key, . . . )
+sub _r_channels_chk_can_join {
+  ## _r_channels_chk_can_join( $user_obj, $chan_name, key => $key, . . . )
   ##  Return true if the User can join.
   ##  Return false and dispatches an error numeric to User if not.
   my ($self, $user_obj, $chan_name, %opts) = @_;
@@ -184,7 +184,7 @@ sub _r_channels_user_can_join {
 
   ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
   ## In a subclass:
-  ##  around '_r_channels_user_can_join' => sub {
+  ##  around '_r_channels_chk_can_join' => sub {
   ##    my ($orig, $self, $user, $chan_name, %opts) = @_;
   ##    ## Check if super (here) would allow this user:
   ##    return unless $self->$orig($user, $chan_name, %opts);

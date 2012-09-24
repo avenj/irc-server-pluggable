@@ -122,32 +122,32 @@ sub del_user_from_channel {
 }
 
 sub user_is_banned {
-  my ($self, $user, $chan_name) = @_;
+  my ($self, $user_obj, $chan_name) = @_;
 
   my $chan = $self->by_name($chan_name) || return;
   my $cmap = $self->casemap;
 
   ## Consult Channel::List obj
   return 1 if $chan->lists->{bans}
-    and $chan->lists->{bans}->keys_matching_mask($user->full, $cmap);
+    and $chan->lists->{bans}->keys_matching_mask($user_obj->full, $cmap);
 
   return
 }
 
 sub user_is_invited {
-  my ($self, $user, $chan_name) = @_;
+  my ($self, $user_obj, $chan_name) = @_;
 
   my $chan = $self->by_name($chan_name) || return;
   my $cmap = $self->casemap;
 
   return 1 if $chan->lists->{invite}
-    and $chan->lists->{invite}->keys_matching_ircstr($user->nick, $cmap);
+    and $chan->lists->{invite}->keys_matching_ircstr($user_obj->nick, $cmap);
 
   return
 }
 
 sub user_is_moderated {
-  my ($self, $user, $chan_name) = @_;
+  my ($self, $user_obj, $chan_name) = @_;
 
   ## User is_moderated is true on a +m channel, unless the user
   ## has status modes.
@@ -158,28 +158,28 @@ sub user_is_moderated {
 
   return unless $self->channel_has_mode($chan_name, 'm');
 
-  return unless $self->status_char_for_user($user, $chan_name);
+  return unless $self->status_char_for_user($user_obj, $chan_name);
 
   1
 }
 
 sub user_is_present {
-  my ($self, $user, $chan_name) = @_;
+  my ($self, $user_obj, $chan_name) = @_;
 
   my $chan = $self->by_name($chan_name) || return;
 
   $chan->channel_has_nickname(
-    $self->lower( $user->nick )
+    $self->lower( $user_obj->nick )
   )
 }
 
 sub user_has_status {
-  my ($self, $user, $chan_name, $modechr) = @_;
+  my ($self, $user_obj, $chan_name, $modechr) = @_;
 
   my $chan = $self->by_name($chan_name) || return;
 
   $chan->nickname_has_mode(
-    $self->lower( $user->nick ),
+    $self->lower( $user_obj->nick ),
     $modechr
   )
 }
@@ -198,28 +198,28 @@ sub get_pub_or_secret_char {
 }
 
 sub status_char_for_user {
-  my ($self, $user, $chan_name) = @_;
+  my ($self, $user_obj, $chan_name) = @_;
 
   ## TODO; some newer ircds seem to send '@+' ... worth looking into
 
   for my $modechr ($self->available_status_modes) {
     return $self->status_prefix_for_mode($modechr)
-      if $self->user_has_status($user, $chan_name, $modechr)
+      if $self->user_has_status($user_obj, $chan_name, $modechr)
   }
 
   return
 }
 
 sub status_modes_for_user {
-  my ($self, $user, $chan_name) = @_;
+  my ($self, $user_obj, $chan_name) = @_;
 
   my @resultset;
   for my $modechr ($self->available_status_modes) {
     push @resultset, $modechr
-      if $self->user_has_status($user, $chan_name, $modechr)
+      if $self->user_has_status($user_obj, $chan_name, $modechr)
   }
 
-  wantarray ? @resultset : @resultset ? : \@resultset : ()
+  wantarray ? @resultset : @resultset ? \@resultset : ()
 }
 
 sub channel_has_mode {

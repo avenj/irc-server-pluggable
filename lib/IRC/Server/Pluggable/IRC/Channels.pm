@@ -41,9 +41,73 @@ has '_channels' => (
   default => sub { {} },
 );
 
-## FIXME allow for construction w/ prioritized and mapped
-##  status modes..?
-## Would save a lot of subclassing hassles in adding extras.
+has '_status_mode_map' => (
+  ## Array mapping status mode chars to prefixes
+  ## Ordered by priority, high-to-low:
+  ##  [ o => '@', v => '+' ]
+  ## See _build_status_mode_map
+  lazy      => 1,
+  is        => 'ro',
+  isa       => ArrayRef,
+  writer    => '_set_status_mode_map',
+  predicate => '_has_status_mode_map',
+  builder   => '_build_status_mode_map',
+  trigger   => sub {
+    my ($self, $value) = @_;
+    $self->_set_status_mode_hash({ @$value })
+  },
+);
+
+has '_status_mode_hash' => (
+  ## _status_mode_map inflated to a hash for fast lookups.
+  lazy      => 1,
+  is        => 'ro',
+  isa       => HashRef,
+  writer    => '_set_status_mode_hash',
+  predicate => '_has_status_mode_map',
+  default   => sub {
+    my ($self) = @_;
+    { @{ $self->_status_mode_map } }
+  },
+);
+
+sub _build_status_mode_map {
+  ## Override to add status modes.
+  [
+    o => '@',
+#   h => '%',
+    v => '+',
+  ]
+}
+
+sub available_status_modes {
+  ## The prioritized list.
+  my ($self) = @_;
+
+  my @modes;
+  my @all = @{ $self->_status_mode_map };
+
+  while (my ($modechr, $prefix) = splice @all, 0, 2) {
+    push @modes, $modechr;
+  }
+
+  wantarray ? @modes :  [ @modes ]
+}
+
+sub status_mode_for_prefix {
+  my ($self, $status_prefix) = @_;
+
+  my %modes     = %{ $self->_status_mode_hash };
+  my %prefixes  = reverse %modes;
+
+  $prefixes{$status_prefix}
+}
+
+sub status_prefix_for_mode {
+  my ($self, $status_mode) = @_;
+
+  $self->_status_mode_hash->{$status_mode}
+}
 
 ### Implementation-specific bits.
 
@@ -94,7 +158,7 @@ sub user_is_moderated {
 
   return unless $self->channel_has_mode($chan_name, 'm');
 
-  return unless $self->get_status_char($user, $chan_name);
+  return unless $self->status_char_for_user($user, $chan_name);
 
   1
 }
@@ -133,28 +197,29 @@ sub get_pub_or_secret_char {
    : '='
 }
 
-sub get_status_char {
+sub status_char_for_user {
   my ($self, $user, $chan_name) = @_;
 
-  ## Override to add prefixes.
   ## TODO; some newer ircds seem to send '@+' ... worth looking into
 
-  return '@' if $self->user_has_status($user, $chan_name, 'o');
-  return '+' if $self->user_has_status($user, $chan_name, 'v');
+  for my $modechr ($self->available_status_modes) {
+    return $self->status_prefix_for_mode($modechr)
+      if $self->user_has_status($user, $chan_name, $modechr)
+  }
 
   return
 }
 
-sub get_status_modes {
+sub status_modes_for_user {
   my ($self, $user, $chan_name) = @_;
 
   my @resultset;
-  for my $mode (qw/ o v /) {
-    push(@resultset, $mode)
-      if $self->user_has_status($user, $chan_name, $mode)
+  for my $modechr ($self->available_status_modes) {
+    push @resultset, $modechr
+      if $self->user_has_status($user, $chan_name, $modechr)
   }
 
-  \@resultset
+  wantarray ? @resultset : \@resultset
 }
 
 sub channel_has_mode {

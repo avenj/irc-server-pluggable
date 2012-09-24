@@ -122,7 +122,7 @@ sub _r_msgs_parse_targets {
   ##   nick_fully_qualified
 
   my @chan_prefixes = keys %{ $self->channel_types };
-  ## FIXME where do we set/get status prefixes...?
+  ## FIXME get status prefixes from ->channels
 
   my %targets;
 

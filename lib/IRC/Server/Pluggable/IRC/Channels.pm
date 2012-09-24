@@ -219,7 +219,7 @@ sub status_modes_for_user {
       if $self->user_has_status($user, $chan_name, $modechr)
   }
 
-  wantarray ? @resultset : \@resultset
+  wantarray ? @resultset : @resultset ? : \@resultset : ()
 }
 
 sub channel_has_mode {

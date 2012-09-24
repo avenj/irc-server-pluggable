@@ -196,11 +196,12 @@ sub _r_channels_user_can_join {
 
 
 ## FIXME
-##  return a numeric? (482, 404, ...?)
-##  return a numeric output hash / event obj?
+##  482 .. ?
 ##  user_cannot_join_chan refactor for above also ?
 sub user_cannot_send_to_chan {
   ## Return false if user is clear to send to channel.
+  ## Return an error numeric IRC::Event if not.
+  ## FIXME optionally take a chan_obj instead
   my ($self, $user_obj, $chan_name) = @_;
   $self->__r_channels_check_user_arg($user_obj);
 
@@ -209,19 +210,29 @@ sub user_cannot_send_to_chan {
 
   my $channels = $self->channels;
 
+  my $cantsend = sub {
+    $self->numeric->as_event( 404,
+      target => $user_obj->nick,
+      prefix => $self->config->server_name,
+      params => [ $chan_name ],
+    )
+  };
+
   unless ( $channels->user_is_present($user_obj, $chan_name) ) {
     ## External user. Check +n first.
     if ( $channels->channel_has_mode($chan_name, 'n') ) {
-      ## FIXME return err
+      return $cantsend->()
     }
   }
 
   if ( $channels->user_is_moderated($user_obj, $chan_name) ) {
-    ## FIXME return err
+    return $cantsend->()
   }
 
-  if ( $channels->user_is_banned($user_obj, $chan_name) ) {
-    ## FIXME return err *if* user has no status modes
+  if ( $channels->user_is_banned($user_obj, $chan_name)
+    && !$channels->status_char_for_user($user_obj, $chan_name) ) {
+    ## Banned and no status modes.
+    return $cantsend->()
   }
 
   ## Good to go.

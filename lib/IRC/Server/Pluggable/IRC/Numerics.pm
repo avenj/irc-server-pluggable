@@ -38,7 +38,8 @@ sub to_hash {
   ##    target => $nick,
   ##    params => [ . . . ],
   ## );
-  my ($self, $numeric, %params) = @_;
+  my ($self, $numeric) = splice @_, 0, 2;
+  my %params = @_ > 1 ? @_ : %{$_[0]};
 
   confess "to_hash() needs a numeric and a params hash with prefix/target"
     unless defined $params{prefix}

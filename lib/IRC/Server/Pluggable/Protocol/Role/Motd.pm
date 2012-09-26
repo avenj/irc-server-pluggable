@@ -29,8 +29,10 @@ sub cmd_from_client_motd {
 
   ## Might've been dispatched from a peer,
   ## in which case we don't have a $user obj.
-  $user = $self->users->by_name($event->prefix)
-    unless defined $user;
+  unless (defined $user) {
+    ## If the prefix isn't a known user, someone is being silly.
+    $user = $self->users->by_name($event->prefix) || return;
+  }
 
   my $nickname = $user->nick;
   my $server   = $self->config->server_name;

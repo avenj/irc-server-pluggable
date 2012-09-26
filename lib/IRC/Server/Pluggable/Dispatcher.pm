@@ -151,7 +151,13 @@ sub _dispatch {
   my ($out, @ids) = $_[ARG0 .. $#_];
   return unless @ids;
 
-  my $idref = [ map { is_Object($_) ? $_->wheel_id : $_ } @ids ];
+  my $idref = [
+    map {
+      is_Object($_) ?
+        ( $_->can('route') ? $_->route : $_->wheel_id )
+        : $_
+    } @ids
+  ];
 
   return
     if $self->process( 'message_dispatch', $out, $idref ) == EAT_ALL;

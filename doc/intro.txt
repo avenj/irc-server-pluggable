@@ -1,0 +1,66 @@
+#### IRC::Server::Pluggable summary / goals
+
+IRC::Server::Pluggable is a set of stackable POE-enabled object-oriented 
+building blocks intended for building IRCds (and things that behave like 
+IRCds).
+
+## Emitters
+
+Classes that inherit from IRC::Server::Pluggable::Emitter can be extended 
+by loaded plugins (synchronous action or notification-only) or registered 
+consumer sessions (notification-only).
+
+The Emitter superclass inherits from Object::Pluggable to provide a 
+plugin pipeline.
+
+## Backend
+
+The Backend layer handles socket-related operations, turning IRC input 
+"off the wire" into IRC::Server::Pluggable::IRC::Event object instances 
+via POE::Filter::IRCD.
+
+ - Handles IPv4 and IPv6 socket operations (POE::Wheel::SocketFactory)
+
+ - Manages Backend::Listener and Backend::Connector instances
+
+ - Manages lifecycle of Backend::Connect instances and related POE::Wheels
+
+ - Dispatches incoming ircsock_* POE events to a single registered listener
+   (usually a Dispatcher)
+
+ - Dispatches incoming send() POE events & method calls to specified
+   POE::Wheels belonging to Backend::Connects
+
+ - SSL-enabled, zlib-enabled
+
+## Dispatcher
+
+The Dispatcher layer bridges a Backend and a concrete behavorial 
+implementation (Protocol).
+
+The default Dispatcher is an Emitter.
+
+ - Dispatches incoming IRC::Events via process()/emit_now()
+
+ - Bridges Backend->send() via the 'dispatch' method/event
+   Can discern appropriate route IDs from IRC::User, IRC::Peer,
+   and Backend::Connect instances
+
+## Protocol
+
+The Protocol layer is responsible for all behavorial details, 
+implementing command handlers, managing the lifecycle of IRC::User / 
+IRC::Peer instances, and related.
+
+IRC::Server::Pluggable::Protocol::Base registers with a Dispatcher to 
+receive emitted events and consumes Protocol:: roles providing very 
+rudimentary behavioral pieces.
+
+IRC::Server::Pluggable::Protocol consumes Protocol::TS:: roles to 
+implement a basic TS5-alike Protocol.
+
+These pieces are all easily subclassed to extend an existing Protocol, 
+implement a new Protocol, or strip unneeded handlers from a Protocol (for 
+"IRCd-like" implementations such as services sets).
+
+A Protocol is an Emitter.

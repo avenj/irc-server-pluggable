@@ -60,7 +60,8 @@ use namespace::clean -except => 'meta';
 extends 'IRC::Server::Pluggable::Emitter';
 
 
-### Core bits.
+### Core attribs
+
 ## A Dispatcher instance to register with.
 ## http://eris.cobaltirc.org/bug/1/14
 has 'dispatcher' => (

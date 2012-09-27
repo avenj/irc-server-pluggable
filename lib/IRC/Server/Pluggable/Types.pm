@@ -11,12 +11,10 @@ our @EXPORT_OK;
 use Scalar::Util 'blessed';
 
 my $type_definitions = [
-  ## ClassLike is named a bit stupidly to try to avoid conflicting
-  ## with upstream when mateu eventually ends up adding a similar test
-  ## to MooX::Types::MooseLike -- the existing InstanceOf is close but
-  ## checks ref() not ->isa()
+  ## InstanceOf from MooX::Types::MooseLike::Base is close, but that test
+  ## checks ref(), not ->isa()
   {
-    name => 'ClassLike',
+    name => 'ObjectIsa',
     test => sub {
       my ($instance, $class) = @_;
       blessed($instance) && $instance->isa($class)
@@ -99,10 +97,7 @@ sub test_valid_hostname {
 
   return unless defined $str and length $str;
 
-  ## OK, so { } aren't standard.
-  ## ... but oftc-hybrid/bc6 allows them for user cloaks.
-  ## Whether that's a good idea or not . . . well.
-  return unless $str =~ /^[A-Za-z0-9\|\-.\/:^\{}]+$/;
+  return unless $str =~ /^[A-Za-z0-9\|\-.\/:]+$/;
 
   1
 }
@@ -121,5 +116,73 @@ our @EXPORT = (
 
 =pod
 
+=head1 NAME
+
+IRC::Server::Pluggable::Types - MooX::Types::MooseLike and extras
+
+=head1 SYNOPSIS
+
+  use IRC::Server::Pluggable::Types;
+
+  has 'nick' => (
+    is  => 'ro',
+    isa => IRC_Nickname,
+  );
+
+  has 'user' => (
+    is  => 'ro',
+    isa => IRC_Username,
+  );
+
+=head1 DESCRIPTION
+
+This module exports all types from L<MooX::Types::MooseLike>, plus the
+following additional types:
+
+=head2 Misc
+
+=head3 ObjectIsa
+
+  isa => ObjectIsa['IRC::Server::Pluggable::Protocol::Base'];
+
+Parameterized type that checks L<UNIVERSAL/isa>.
+
+Expects an object whose inheritance tree contains the specified class.
+
+=head3 InetProtocol
+
+  isa => InetProtocol,
+
+Expects an integer representing Internet protocol '4' or '6'
+
+=head2 IRC
+
+=head3 CaseMap
+
+Expects a valid IRC CaseMap, one of:
+
+  ascii
+  rfc1459
+  strict-rfc1459
+
+=head3 IRC_Hostname
+
+Expects a valid hostname.
+
+=head3 IRC_Nickname
+
+Expects a valid nickname per RFC1459.
+
+=head3 IRC_Username
+
+Expects a valid username.
+
+Usernames must begin with an alphanumeric value.
+
+Valid: A-Z 0-9 . - $ [ ] \ ^ _ ` { } ~ |
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
 
 =cut

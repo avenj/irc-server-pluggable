@@ -143,7 +143,7 @@ has 'wheel_id' => (
 has 'wheel' => (
   ## Actual POE::Wheel
   required => 1,
-  isa      => ClassLike['POE::Wheel'],
+  isa      => ObjectIsa['POE::Wheel'],
   is       => 'ro',
   clearer  => 'clear_wheel',
   writer   => 'set_wheel',

@@ -41,7 +41,7 @@ sub _build_backend_class { "IRC::Server::Pluggable::Backend" }
 has 'backend' => (
   lazy      => 1,
   is        => 'ro',
-  isa       => ClassLike['IRC::Server::Pluggable::Backend'],
+  isa       => ObjectIsa['IRC::Server::Pluggable::Backend'],
   predicate => 'has_backend',
   writer    => 'set_backend',
   builder   => '_build_backend',

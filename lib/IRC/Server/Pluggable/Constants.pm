@@ -44,7 +44,7 @@ IRC::Server::Pluggable::Constants
 
 =head1 DESCRIPTION
 
-Exports constants used by L<IRC::Server::Pluggable::Protocol>:
+Exports constants used by L<IRC::Server::Pluggable::Protocol::Base>:
 
   DISPATCH_EATEN   => 1
   DISPATCH_CALLED  => 2

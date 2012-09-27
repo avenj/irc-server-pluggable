@@ -16,24 +16,10 @@ requires qw/
   numeric
 /;
 
+
 ### FIXME should sendq management live here... ?
 
-### FIXME truncate outgoing strings to 510 chars?
-### ->send_to_route( $ref, $id )
-### ->send_to_routes( $ref, @ids )
-###    These take either a IRC::Event or a POE::Filter::IRCD hash.
-###    Check args and bridge dispatcher.
-
-sub send_to_route {
-  my ($self, $output, $id) = @_;
-  unless (ref $output && defined $id) {
-    carp "send_to_route() received insufficient params";
-    return
-  }
-
-  $self->dispatcher->dispatch( $output, $id )
-}
-
+sub send_to_route  { shift->send_to_routes(@_) }
 sub send_to_routes {
   my ($self, $output, @ids) = @_;
   unless (ref $output && @ids) {
@@ -41,7 +27,17 @@ sub send_to_routes {
     return
   }
 
-  $self->dispatcher->dispatch( $output, @ids )
+  $self->dispatcher->to_irc( $output, @ids )
+}
+
+sub send_to_routes_now {
+  my ($self, $output, @ids) = @_;
+  unless (ref $output && @ids) {
+    carp "send_to_routes_now() received insufficient params";
+    return
+  }
+
+  $self->dispatcher->to_irc_now( $output, @ids )
 }
 
 sub send_numeric {

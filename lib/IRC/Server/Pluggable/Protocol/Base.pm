@@ -477,7 +477,7 @@ sub irc_ev_peer_numeric {
   my $target_nick = $event->params->[0];
   my $target_user = $self->users->by_name($target_nick) || return;
 
-  $self->send_to_route( $event, $target_user->route );
+  $self->send_to_routes( $event, $target_user->route );
 }
 
 sub irc_ev_client_cmd {

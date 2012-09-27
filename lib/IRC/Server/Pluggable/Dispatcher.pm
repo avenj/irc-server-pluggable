@@ -73,7 +73,7 @@ sub BUILD {
   $self->set_object_states(
     [
       $self => {
-        'dispatch' => '_dispatch',
+        'to_irc' => '_to_irc',
         'shutdown' => '_shutdown',
       },
 
@@ -130,19 +130,19 @@ sub _shutdown {
   $self->_yield( '_emitter_shutdown' );
 }
 
-sub dispatch {
+sub to_irc {
   my $self = shift;
 
-  $self->yield( 'dispatch', @_ )
+  $self->yield( 'to_irc', @_ )
 }
 
-sub dispatch_now {
+sub to_irc_now {
   my $self = shift;
 
-  $self->call( 'dispatch', @_ )
+  $self->call( 'to_irc', @_ )
 }
 
-sub _dispatch {
+sub _to_irc {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   ## Either an IRC::Event or a hash suitable for POE::Filter::IRCD
@@ -161,7 +161,7 @@ sub _dispatch {
   ];
 
   return
-    if $self->process( 'message_dispatch', $out, $idref ) == EAT_ALL;
+    if $self->process( 'message_to_irc', $out, $idref ) == EAT_ALL;
 
   $self->backend->send( $out, @$idref )
 }

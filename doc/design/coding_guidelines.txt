@@ -1,0 +1,57 @@
+### Style guidelines that pertain to the core set, incld.:
+###   ::Pluggable::Protocol::Base
+###   ::Pluggable::Protocol
+###   ::Pluggable::Protocol::Role:: roles composing ::Protocol
+
+### General notes:
+
+ - 'use strictures 1;' by default
+
+ - 'use Carp' and always die with backtrace (confess)
+
+ - 2-space indent
+
+ - Liberal use of white space
+
+ - No ridiculous brace styles
+
+  ## Good:
+  if ( defined $stuff->{a} || defined $stuff->{b} ) {
+    do_stuff();
+  } else {
+    confess "No stuff!"
+  }
+
+  ## Bad:
+  if ( defined $stuff->{a} )
+  {
+    . . .
+  }
+
+  ## Bad:
+  if ( defined $stuff->{b} ) {
+  }
+  else {
+  }
+
+  ## bdfoy, you do nice work, but please stop it:
+  if ( defined $stuff->{a} ) {
+    things();
+    stuff();
+    }
+
+####### Protocol #######
+##### Roles #####
+
+- Provide behavior that could be considered 'core'
+  or is commonly required by other modules
+
+- Private methods should be prefixed with _r_
+  and uniquely named (descriptive names preferred)
+
+
+##### Plugins #####
+
+- Provide user commands providing extended functionality
+
+- Provide 'external' POE::Sessions used by core functionality

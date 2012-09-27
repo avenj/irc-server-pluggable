@@ -491,7 +491,7 @@ sub irc_ev_client_cmd {
     $conn, $event, $user
   );
 
-  if ($disp eq 'UNKNOWN') {
+  if ($disp == DISPATCH_UNKNOWN) {
     $self->send_to_routes(
       $self->numeric->to_hash( 421,
         prefix => $self->config->server_name,
@@ -518,9 +518,6 @@ sub irc_ev_unknown_cmd {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $event)  = @_[ARG0, ARG1];
 
-  ## FIXME
-  ## validate ascii?
-  ## ... hmm, we *know* we have a command, right? maybe not so much.
   my $cmd = $event->command;
 
   $self->dispatch( 'cmd_from_unknown_'.lc($cmd), $conn, $event );
@@ -539,14 +536,14 @@ sub dispatch {
   ##    return 'UNKNOWN' to caller
   ##    Caller can return 421 (unknown command), for example.
 
-  return 'ATE'
+  return DISPATCH_EATEN
     if $self->process( $event_name, @args ) == EAT_ALL;
 
   if ( $self->can($event_name) ) {
     $self->$event_name(@args);
-    return 'CALL'
+    return DISPATCH_CALLED
   } else {
-    return 'UNKNOWN'
+    return DISPATCH_UNKNOWN
   }
 
   1

@@ -151,6 +151,7 @@ sub _dispatch {
   my ($out, @ids) = $_[ARG0 .. $#_];
   return unless @ids;
 
+  ## A list of wheel IDs, or objects that can give us one.
   my $idref = [
     map {
       is_Object($_) ?

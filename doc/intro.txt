@@ -4,7 +4,18 @@ IRC::Server::Pluggable is a set of stackable POE-enabled object-oriented
 building blocks intended for building IRCds (and things that behave like 
 IRCds).
 
+Goals:
+
+ - Extensible IRCds compatible with existing implementations
+ - Extensible "IRCd-like" utilities such as services/stats suites
+ - Ability to easily implement other "looks like an IRCd" applications,
+   such as IRC interfaces to other services
+
 ## Emitters
+
+Emitters are POE sessions that are capable of processing events via 
+plugins and emitting notifications to interested plugins or 
+external sessions.
 
 Classes that inherit from IRC::Server::Pluggable::Emitter can be extended 
 by loaded plugins (synchronous action or notification-only) or registered 

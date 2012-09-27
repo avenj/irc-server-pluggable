@@ -474,7 +474,7 @@ sub irc_ev_peer_numeric {
   my ($conn, $event)  = @_[ARG0, ARG1];
 
   my $target_nick = $event->params->[0];
-  my $target_user = $self->users->by_name($target_nick);
+  my $target_user = $self->users->by_name($target_nick) || return;
 
   $self->send_to_route( $event, $target_user->route );
 }
@@ -485,9 +485,22 @@ sub irc_ev_client_cmd {
 
   my $cmd = $event->command;
 
-  my $user = $self->users->by_id($conn->route);
+  my $user = $self->users->by_id($conn->wheel_id);
 
-  $self->dispatch( 'cmd_from_client_'.lc($cmd), $conn, $event, $user );
+  my $disp = $self->dispatch( 'cmd_from_client_'.lc($cmd),
+    $conn, $event, $user
+  );
+
+  if ($disp eq 'UNKNOWN') {
+    $self->send_to_routes(
+      $self->numeric->to_hash( 421,
+        prefix => $self->config->server_name,
+        params => [ uc($cmd) ],
+        target => $user->nick,
+      ),
+      $conn->wheel_id
+    );
+  }
 }
 
 sub irc_ev_peer_cmd {
@@ -496,7 +509,7 @@ sub irc_ev_peer_cmd {
 
   my $cmd = $event->command;
 
-  my $peer = $self->peers->by_id($conn->route);
+  my $peer = $self->peers->by_id($conn->wheel_id);
 
   $self->dispatch( 'cmd_from_peer_'.lc($cmd), $conn, $event, $peer );
 }
@@ -516,32 +529,24 @@ sub irc_ev_unknown_cmd {
 sub dispatch {
   my ($self, $event_name, @args) = @_;
 
-  ## FIXME
   ## Dispatch:
   ## -> Try to handle via P_$event_name plugin handlers
   ##    Return 'ATE' if P_* handler returns EAT_ALL
   ## -> If not eaten, try to call $event_name method on $self
   ##    (brought in by Roles, usually)
-  ##    Return 'CALL' if we have this method via $self
+  ##    Return 'CALL' if we called this method via $self
   ## -> Otherwise if not eaten and no method to call,
-  ##    check if $event was ->handled()
-  ##    Send unknown cmd RPL if this is a known connect type
+  ##    return 'UNKNOWN' to caller
+  ##    Caller can return 421 (unknown command), for example.
 
-  ## FIXME possible a $self handler should be able to use constants
-  ## to let an event be automatically sent on to NOTIFY handlers ?
-
-  ## P_$event_name
-  ## Returns boolean true on EAT_ALL
-  ## (Can override via a P_* handler in $self)
   return 'ATE'
     if $self->process( $event_name, @args ) == EAT_ALL;
 
-  ## Try to dispatch via $self->$event_name
   if ( $self->can($event_name) ) {
     $self->$event_name(@args);
     return 'CALL'
   } else {
-      ## FIXME send unknown cmd RPL
+    return 'UNKNOWN'
   }
 
   1

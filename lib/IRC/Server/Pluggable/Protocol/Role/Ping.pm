@@ -37,7 +37,9 @@ sub conn_is_idle {
       command => 'PING',
       params  => [ $self->config->server_name ],
     },
+    $conn
   );
+
   ## Set pending ping status
   $conn->ping_pending(1);
 

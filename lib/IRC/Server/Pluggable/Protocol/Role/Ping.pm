@@ -174,7 +174,7 @@ sub cmd_from_peer_ping {
   if (defined $target && uc($target) ne uc($server_name) ) {
     my $output = {
       command => 'PING',
-      params  => [ @{ $event->params } ],
+      params  => $event->params,
     };
 
     if      (my $target_user = $self->users->by_name($target)) {
@@ -204,7 +204,7 @@ sub cmd_from_peer_pong {
   if (defined $target && uc($target) ne uc($server_name) ) {
     my $output = {
       command => 'PONG',
-      params  => [ @{ $event->params } ],
+      params  => $event->params,
     };
 
     if      (my $target_user = $self->users->by_name($target)) {
@@ -218,3 +218,29 @@ sub cmd_from_peer_pong {
 }
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Protocol::Role::Ping
+
+=head1 SYNOPSIS
+
+Handles:
+
+  conn_is_idle
+  cmd_from_client_ping
+  cmd_from_client_pong
+  cmd_from_peer_ping
+  cmd_from_peer_pong
+
+=head1 DESCRIPTION
+
+A Protocol::Role providing PING / PONG for clients & peers.
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

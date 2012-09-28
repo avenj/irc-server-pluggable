@@ -74,7 +74,7 @@ has 'controller' => (
 has 'filter_irc' => (
   lazy => 1,
 
-  isa => ObjectIsa['POE::Filter'],
+  isa => InstanceOf['POE::Filter'],
   is  => 'rwp',
 
   default => sub {
@@ -85,7 +85,7 @@ has 'filter_irc' => (
 has 'filter_line' => (
   lazy => 1,
 
-  isa => ObjectIsa['POE::Filter'],
+  isa => InstanceOf['POE::Filter'],
   is  => 'rwp',
 
   default => sub {
@@ -99,7 +99,7 @@ has 'filter_line' => (
 has 'filter' => (
   lazy => 1,
 
-  isa => ObjectIsa['POE::Filter'],
+  isa => InstanceOf['POE::Filter'],
   is  => 'rwp',
 
   default => sub {

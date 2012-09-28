@@ -94,7 +94,7 @@ my $build = $class->new(
     'IRC::Utils'             => 0,
 
     'Moo'                    => '1.000003',
-    'MooX::Types::MooseLike' => '0.11',
+    'MooX::Types::MooseLike' => '0.15',
 
     'Net::IP::Minimal'       => '0.04',
 

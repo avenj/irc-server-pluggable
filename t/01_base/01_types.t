@@ -23,7 +23,7 @@ ok( is_Num(1), 'Have base type Num' );
   our @ISA = 'POE::Wheel';
   sub new { bless [], shift }
 }
-ok( is_ObjectIsa(MockWheel->new, 'POE::Wheel'), 'ObjectIsa accept' );
+ok( is_InstanceOf(MockWheel->new, 'POE::Wheel'), 'InstanceOf accept' );
 
 ok( !is_InetProtocol(1), 'InetProtocol reject' );
 ok( is_InetProtocol(4), 'InetProtocol(4)' );

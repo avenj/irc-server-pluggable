@@ -130,9 +130,9 @@ following additional types:
 
 =head2 Misc
 
-=head3 ObjectIsa
+=head3 InstanceOf
 
-  isa => ObjectIsa['IRC::Server::Pluggable::Protocol::Base'];
+  isa => InstanceOf['IRC::Server::Pluggable::Protocol::Base'];
 
 Parameterized type that checks L<UNIVERSAL/isa>.
 

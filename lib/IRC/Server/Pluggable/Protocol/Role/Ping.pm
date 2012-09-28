@@ -62,10 +62,6 @@ sub conn_is_idle {
 sub cmd_from_client_ping {
   my ($self, $conn, $event, $user) = @_;
 
-  unless (defined $user) {
-    $user = $self->users->by_id( $conn->wheel_id ) || return;
-  }
-
   my $server_name = $self->config->server_name;
 
   unless (@{$event->params}) {
@@ -124,10 +120,6 @@ sub cmd_from_client_ping {
 sub cmd_from_client_pong {
   my ($self, $conn, $event, $user) = @_;
 
-  unless (defined $user) {
-    $user = $self->users->by_id($conn->wheel_id) || return;
-  }
-
   my $server_name = $self->config->server_name;
 
   unless (@{$event->params}) {
@@ -172,17 +164,57 @@ sub cmd_from_client_pong {
 }
 
 sub cmd_from_peer_ping {
-  ## see if we're relaying to another peer
-  ## see if we're relaying from another peer to a local user
-  ## send our own PONG,
-}
+  my ($self, $conn, $event, $peer) = @_;
+  return unless @{ $event->params };
 
+  my $server_name = $self->config->server_name;
+
+  my ($src, $target) = @{ $event->params };
+
+  if (defined $target && uc($target) ne uc($server_name) ) {
+    my $output = {
+      command => 'PING',
+      params  => [ @{ $event->params } ],
+    };
+
+    if      (my $target_user = $self->users->by_name($target)) {
+      return $self->send_to_routes( $output, $target_user->route )
+    } elsif (my $target_peer = $self->peers->by_name($target)) {
+      return $self->send_to_routes( $output, $target_peer->route )
+    }
+  }
+
+  $self->send_to_routes(
+    {
+      command => 'PONG',
+      params  => [ $server_name, $src ],
+    },
+    $conn
+  );
+}
 
 sub cmd_from_peer_pong {
   my ($self, $conn, $event) = @_;
+  return unless @{ $event->params };
 
-  ## FIXME see if we're relaying
+  my $server_name = $self->config->server_name;
 
+  my ($src, $target) = @{ $event->params };
+
+  if (defined $target && uc($target) ne uc($server_name) ) {
+    my $output = {
+      command => 'PONG',
+      params  => [ @{ $event->params } ],
+    };
+
+    if      (my $target_user = $self->users->by_name($target)) {
+      return $self->send_to_routes( $output, $target_user->route )
+    } elsif (my $target_peer = $self->peers->by_name($target)) {
+      return $self->send_to_routes( $output, $target_peer->route )
+    }
+  }
+
+  $conn->ping_pending(0);
 }
 
 1;

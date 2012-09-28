@@ -17,7 +17,7 @@ requires qw/
 sub conn_is_idle {
   my ($self, $conn) = @_;
   return unless $conn->has_wheel;
-  ## A connection is idle, per irc_ev_connection_idle in base class
+  ## A connection is idle, per irc_ev_connection_idle
   ## Might be unknown, user, or peer.
 
   if (!$conn->is_client && !$conn->is_peer) {

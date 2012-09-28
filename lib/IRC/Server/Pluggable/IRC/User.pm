@@ -13,14 +13,31 @@ use IRC::Server::Pluggable qw/
   Utils
 /;
 
+use Scalar::Util qw/
+  blessed
+  weaken
+/;
 
 use namespace::clean -except => 'meta';
 use overload
   bool     => sub { 1 },
   '""'     => 'nick',
-  fallback => 1;
+  fallback => 1 ;
 
 
+has 'channels' => (
+  ## Array of channels.
+  ## FIXME weak-refs to chan objs may make the most sense.
+  ## These stringify to the channel name anyway.
+  ## Need methods to add/del/verify these.
+  lazy => 1,
+  is   => 'ro',
+  isa  => ArrayRef,
+  predicate => 'has_channels',
+  writer    => 'set_channels',
+  clearer   => 'clear_channels',
+  default   => sub { [] },
+);
 
 has 'conn' => (
   ## Backend::Connect conn obj for a local user.
@@ -168,6 +185,30 @@ sub BUILD {
   }
 }
 
+
+sub add_channel {
+  my ($self, $channel) = @_;
+
+  confess "add_channel expects an IRC::Server::Pluggable::IRC::Channel"
+    unless blessed $channel
+    and $channel->isa('IRC::Server::Pluggable::IRC::Channel');
+
+  my $name = $channel->name;
+
+  $self->channels->{$name} = $channel;
+
+  weaken($self->channels->{$name});
+
+  $self
+}
+
+sub del_channel {
+  my ($self, $channel) = @_;
+
+  my $name = blessed $channel ? $channel->name : $channel ;
+
+  delete $self->channels->{$name}
+}
 
 sub is_flagged_as {
   my ($self, @flags) = @_;

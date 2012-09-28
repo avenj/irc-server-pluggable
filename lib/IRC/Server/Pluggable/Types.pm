@@ -11,17 +11,6 @@ our @EXPORT_OK;
 use Scalar::Util 'blessed';
 
 my $type_definitions = [
-  ## InstanceOf from MooX::Types::MooseLike::Base is close, but that test
-  ## checks ref(), not ->isa()
-  {
-    name => 'ObjectIsa',
-    test => sub {
-      my ($instance, $class) = @_;
-      blessed($instance) && $instance->isa($class)
-    },
-    message => sub { "$_[0] is not a subclass of $_[1]" },
-  },
-
   ## IRC bits
   {
     name => 'CaseMap',

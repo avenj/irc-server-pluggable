@@ -1,5 +1,6 @@
 package IRC::Server::Pluggable::Protocol::Role::Disconnect;
 
+use 5.12.1;
 use Carp;
 
 use Moo::Role;
@@ -11,6 +12,10 @@ requires qw/
 
 use Scalar::Util 'blessed';
 
+## FIXME Should we define a disconnected event handler
+##  in ::Base and add 'around's that call $orig where we need to?
+##  Maybe better to just have a single handler that dispatches out to
+##  role methods that handle channel/user/peer cleanup.
 
 sub _r_disconnect_get_target_type {
   my ($self, $target) = @_;

@@ -87,6 +87,8 @@ sub _r_disconnect_client_quit {
 
 sub _r_disconnect_from_backend {
   my ($self, $conn, $msg) = @_;
+
+  ## Backend handles these after a socket flush.
   $conn->is_disconnecting($msg || "Client disconnect");
 }
 
@@ -102,6 +104,12 @@ sub _r_disconnect_peer_cleanup {
 
 sub disconnect {
   my ($self, %params) = @_;
+
+  ## ->disconnect(
+  ##  target => $obj,
+  ##  type   => $type,  ## 'error', 'quit'
+  ##  msg    => $disconnect_string,
+  ## )
 
   my $target = $params{target}
     // confess "missing required param 'target =>'";
@@ -129,7 +137,7 @@ sub disconnect {
         and $conn->isa('IRC::Server::Pluggable::Backend::Connect');
 
       $self->_r_disconnect_with_error($conn, $message);
-      ## FIXME cleanup routines?
+      ## FIXME cleanup routines
     }
 
     when ("QUIT") {

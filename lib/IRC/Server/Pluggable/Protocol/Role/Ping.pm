@@ -4,8 +4,6 @@ use strictures 1;
 use Carp;
 use Moo::Role;
 
-use POE;
-
 use namespace::clean -except => 'meta';
 
 requires qw/
@@ -155,7 +153,7 @@ sub cmd_from_client_pong {
           params  => [ $user->nick, $target_peer ],
         },
         $peer
-      ),
+      );
       return
     }
   }

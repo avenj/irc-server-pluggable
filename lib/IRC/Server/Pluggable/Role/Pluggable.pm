@@ -3,6 +3,7 @@ package IRC::Server::Pluggable::Role::Pluggable;
 ## Moo::Role for a pluggable object.
 ## Based largely on Object::Pluggable:
 ##  http://www.metacpan.org/dist/Object-Pluggable
+## Retaining API compat is a plus, but not mandatory, given good reason.
 
 use Moo::Role;
 
@@ -18,7 +19,7 @@ use Scalar::Util 'blessed';
 
 use Try::Tiny;
 
-###
+
 use namespace::clean -except => 'meta';
 
 
@@ -28,11 +29,8 @@ has '_pluggable_opts' => (
   default => sub {
     {
       reg_prefix => 'plugin_',
-      ev_prefix  => 'pluggable_',
-      types      => {
-        PROCESS => 'P',
-        NOTIFY  => 'N',
-      },
+      ev_prefix  => 'plugin_ev_',
+      types      => { PROCESS => 'P',  NOTIFY => 'N' },
     },
   },
 );
@@ -57,6 +55,11 @@ has '_pluggable_pipeline' => (
 ### Process methods.
 sub _pluggable_event {
   my ($self) = @_;
+
+  ## This should be overriden to handle Pluggable events
+  ##  ( plugin_{add, del, register, unregister, error} )
+  ## Non-fatal (ie not requires() ), but noisy.
+
   warn
    "_pluggable_event apparently not implemented in consumer ",
    ref $self, "\n"

@@ -520,33 +520,32 @@ q[
 
 =head1 NAME
 
-IRC::Server::Pluggable::Emitter - Event emitter base class
+IRC::Server::Pluggable::Role::Emitter - POE-enabled Emitter role
 
 =head1 SYNOPSIS
 
-  ## In a subclass:
   package My::EventEmitter;
 
   use Moo;
-  extends 'IRC::Server::Pluggable::Emitter';
+  with 'IRC::Server::Pluggable::Role::Pluggable';
+  with 'IRC::Server::Pluggable::Role::Emitter';
 
   sub spawn {
     my ($self, %args) = @_;
     $args{lc $_} = delete $args{$_} for keys %args;
 
-        
     $self->set_object_states(
       [
         $self => [
           ## ... Add some extra handlers ...
         ],
-        
+
         ## Include any object_states we were instantiated with:
         (
           $self->has_object_states ?
             @{ $self->object_states } : ()
         ),
-        
+
         ## Maybe include from named arguments:
         (
           ref $args{object_states} eq 'ARRAY' ?
@@ -563,12 +562,12 @@ IRC::Server::Pluggable::Emitter - Event emitter base class
 
 =head1 DESCRIPTION
 
-This is a base class for a POE-oriented observer pattern implementation; 
+This is a L<Moo::Role> for a POE-oriented observer pattern implementation; 
 it is based on L<POE::Component::Syndicator> (which may be better suited
 to general purpose use).
 
-This class inherits from L<Object::Pluggable>; the documentation
-for plugin manipulation methods can be found there.
+You will need the methods defined by 
+L<IRC::Server::Pluggable::Role::Pluggable>.
 
   FIXME
 
@@ -700,7 +699,7 @@ FIXME
 Jon Portnoy <avenj@cobaltirc.org>
 
 Based largely on L<POE::Component::Syndicator>-0.06 -- I needed something
-Moo-ish I could tweak.
+Moo-ish.
 
 =cut
 

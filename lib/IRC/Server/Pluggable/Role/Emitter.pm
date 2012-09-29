@@ -127,8 +127,10 @@ sub _start_emitter {
         '_stop'            => '_p_emitter_stop',
         'shutdown_emitter' => '_p_shutdown_emitter',
 
-        'register'   => '_p_emitter_register',
-        'unregister' => '_p_emitter_unregister',
+        'register'    => '_p_emitter_register',
+        'subscribe'   => '_p_emitter_register',
+        'unregister'  => '_p_emitter_unregister',
+        'unsubscribe' => '_p_emitter_unregister',
 
         '_default'   => '_emitter_default',
       },
@@ -638,6 +640,8 @@ Emitter L<POE::Session>.
 
 =head2 Registering sessions
 
+=head3 Session event registration
+
 An external L<POE::Session> can register to receive events via asynchronous 
 event dispatch by sending a C<register>:
 
@@ -649,6 +653,10 @@ event dispatch by sending a C<register>:
 Registered sessions are consumers; they cannot modify event arguments in 
 any meaningful way, and will receive arguments as-normal (in @_[ARG0 .. 
 $#_] like any other POE state).
+
+=head3 Session event unregistration
+
+FIXME
 
 =head2 Receiving events
 

@@ -52,7 +52,11 @@ has '_pluggable_pipeline' => (
 );
 
 
-### Process methods.
+sub _pluggable_destroy {
+  my ($self) = @_;
+  $self->plugin_del( $_ ) for $self->plugin_alias_list;
+}
+
 sub _pluggable_event {
   ## This should be overriden to handle Pluggable events
   ##  ( plugin_{added, removed, error} )
@@ -84,11 +88,6 @@ sub _pluggable_init {
   }
 
   $self
-}
-
-sub _pluggable_destroy {
-  my ($self) = @_;
-  $self->plugin_del( $_ ) for $self->plugin_alias_list;
 }
 
 sub _pluggable_process {
@@ -151,7 +150,7 @@ sub _pluggable_process {
       if $self == $thisplug
       or not exists $handle_ref->{$thisplug}->{$type}
       or (  ## Parens for readability. I'm not sorry.
-       not exists $handle_ref->{$thisplug}->{$type}->{$event}
+        not exists $handle_ref->{$thisplug}->{$type}->{$event}
         and not exists $handle_ref->{$thisplug}->{$type}->{all}
       );
 
@@ -227,6 +226,9 @@ sub __plugin_process_chk {
   }
 }
 
+
+### Basic plugin manipulation (add/del/get/replace ...)
+
 sub plugin_add {
   my ($self, $alias, $plugin, @args) = @_;
 
@@ -234,6 +236,11 @@ sub plugin_add {
     unless defined $alias and blessed $plugin;
 
   $self->plugin_pipe_push($alias, $plugin, @args)
+}
+
+sub plugin_alias_list {
+  my ($self) = @_;
+  keys %{ $self->_pluggable_loaded->{ALIAS} }
 }
 
 sub plugin_del {
@@ -251,94 +258,14 @@ sub plugin_get {
   confess "Expected a plugin alias or object"
     unless defined $item;
 
-  my ($item_alias, $item_plug) = $self->_get_plug($item);
+  my ($item_alias, $item_plug) = $self->__plugin_get_plug_any($item);
 
   unless (defined $item_plug) {
-    $@ = "No such plugin: $item_alias";
+    carp "No such plugin: $item_alias";
     return
   }
 
   wantarray ? ($item_plug, $item_alias) : $item_plug
-}
-
-sub plugin_alias_list {
-  my ($self) = @_;
-  keys %{ $self->_pluggable_loaded->{ALIAS} }
-}
-
-sub plugin_register {
-  my ($self, $plugin, $type, @events) = @_;
-
-  if (!grep { $_ eq $type } keys %{ $self->_pluggable_opts->{types} }) {
-    carp "Cannot register; event type $type not supported";
-    return
-  }
-
-  unless (@events) {
-    carp
-      "Expected a plugin object, a type, and a list of events";
-    return
-  }
-
-  unless (blessed $plugin) {
-    carp "Expected a blessed plugin object";
-    return
-  }
-
-  my $handles
-    = $self->_pluggable_loaded->{HANDLE}->{$plugin}->{$type} //= {};
-
-  for my $ev (@events) {
-    if (ref $ev eq 'ARRAY') {
-      $handles->{lc $_} = 1 for @$ev;
-    } else {
-      $handles->{lc $ev} = 1;
-    }
-  }
-
-  1
-}
-
-sub plugin_unregister {
-  my ($self, $plugin, $type, @events) = @_;
-
-  if (!grep { $_ eq $type } keys %{ $self->_pluggable_opts->{types} }) {
-    carp "Cannot unregister; event type $type not supported";
-    return
-  }
-
-  unless (blessed $plugin && defined $type) {
-    carp
-      "Expected a blessed plugin obj, event type, and events to unregister";
-    return
-  }
-
-  unless (@events) {
-    carp "No events specified; did you mean to plugin_del instead?";
-    return
-  }
-
-  my $handles
-    = $self->_pluggable_loaded->{HANDLE}->{$plugin}->{$type} || {};
-
-  for my $ev (@events) {
-
-    if (ref $ev eq 'ARRAY') {
-      for my $this_ev (map { lc } @$ev) {
-        unless (delete $handles->{$this_ev}) {
-          carp "Nonexistant event $this_ev cannot be unregistered";
-        }
-      }
-    } else {
-      $ev = lc $ev;
-      unless (delete $handles->{$ev}) {
-        carp "Nonexistant event $ev cannot be unregistered";
-      }
-    }
-
-  }
-
-  1
 }
 
 sub plugin_replace {
@@ -359,7 +286,8 @@ sub plugin_replace {
       unless defined $params{$_}
   }
 
-  my ($old_alias, $old_plug) = $self->_get_plug( $params{old} );
+  my ($old_alias, $old_plug)
+    = $self->__plugin_get_plug_any( $params{old} );
 
   unless (defined $old_plug) {
     $@ = "No such plugin: $old_alias";
@@ -389,12 +317,90 @@ sub plugin_replace {
 }
 
 
+### Event registration.
+
+sub subscribe {
+  my ($self, $plugin, $type, @events) = @_;
+
+  if (!grep { $_ eq $type } keys %{ $self->_pluggable_opts->{types} }) {
+    carp "Cannot subscribe; event type $type not supported";
+    return
+  }
+
+  unless (@events) {
+    carp
+      "Expected a plugin object, a type, and a list of events";
+    return
+  }
+
+  unless (blessed $plugin) {
+    carp "Expected a blessed plugin object";
+    return
+  }
+
+  my $handles
+    = $self->_pluggable_loaded->{HANDLE}->{$plugin}->{$type} //= {};
+
+  for my $ev (@events) {
+    if (ref $ev eq 'ARRAY') {
+      $handles->{lc $_} = 1 for @$ev;
+    } else {
+      $handles->{lc $ev} = 1;
+    }
+  }
+
+  1
+}
+
+sub unsubscribe {
+  my ($self, $plugin, $type, @events) = @_;
+
+  if (!grep { $_ eq $type } keys %{ $self->_pluggable_opts->{types} }) {
+    carp "Cannot unsubscribe; event type $type not supported";
+    return
+  }
+
+  unless (blessed $plugin && defined $type) {
+    carp
+      "Expected a blessed plugin obj, event type, and events to unsubscribe";
+    return
+  }
+
+  unless (@events) {
+    carp "No events specified; did you mean to plugin_del instead?";
+    return
+  }
+
+  my $handles
+    = $self->_pluggable_loaded->{HANDLE}->{$plugin}->{$type} || {};
+
+  for my $ev (@events) {
+
+    if (ref $ev eq 'ARRAY') {
+      for my $this_ev (map { lc } @$ev) {
+        unless (delete $handles->{$this_ev}) {
+          carp "Nonexistant event $this_ev cannot be unsubscribed from";
+        }
+      }
+    } else {
+      $ev = lc $ev;
+      unless (delete $handles->{$ev}) {
+        carp "Nonexistant event $ev cannot be unsubscribed from";
+      }
+    }
+
+  }
+
+  1
+}
+
+
 ### Pipeline methods.
 
 sub plugin_pipe_push {
   my ($self, $alias, $plug, @args) = @_;
 
-  if (my $existing = $self->_plugin_by_alias($alias) ) {
+  if (my $existing = $self->__plugin_by_alias($alias) ) {
     $@ = "Already have plugin $alias : $existing";
     return
   }
@@ -412,7 +418,7 @@ sub plugin_pipe_pop {
   return unless @{ $self->_pluggable_pipeline };
 
   my $plug  = pop @{ $self->_pluggable_pipeline };
-  my $alias = $self->_plugin_by_ref($plug);
+  my $alias = $self->__plugin_by_ref($plug);
 
   $self->_plug_pipe_unregister($alias, $plug, @args);
 
@@ -422,7 +428,7 @@ sub plugin_pipe_pop {
 sub plugin_pipe_unshift {
   my ($self, $alias, $plug, @args) = @_;
 
-  if (my $existing = $self->_plugin_by_alias($alias) ) {
+  if (my $existing = $self->__plugin_by_alias($alias) ) {
     $@ = "Already have plugin $alias : $existing";
     return
   }
@@ -440,7 +446,7 @@ sub plugin_pipe_shift {
   return unless @{ $self->_pluggable_pipeline };
 
   my $plug = shift @{ $self->_pluggable_pipeline };
-  my $alias = $self->_plugin_by_ref($plug);
+  my $alias = $self->__plugin_by_ref($plug);
 
   $self->_plug_pipe_unregister($alias, $plug, @args);
 
@@ -450,7 +456,7 @@ sub plugin_pipe_shift {
 sub plugin_pipe_remove {
   my ($self, $old, @unreg_args) = @_;
 
-  my ($old_alias, $old_plug) = $self->_get_plug($old);
+  my ($old_alias, $old_plug) = $self->__plugin_get_plug_any($old);
 
   unless (defined $old_plug) {
     $@ = "No such plugin: $old_alias";
@@ -474,7 +480,7 @@ sub plugin_pipe_remove {
 sub plugin_pipe_get_index {
   my ($self, $item) = @_;
 
-  my ($item_alias, $item_plug) = $self->_get_plug($item);
+  my ($item_alias, $item_plug) = $self->__plugin_get_plug_any($item);
 
   unless (defined $item_plug) {
     $@ = "No such plugin: $item_alias";
@@ -505,19 +511,21 @@ sub plugin_pipe_insert_before {
       unless defined $params{$_}
   }
 
-  my ($prev_alias, $prev_plug) = $self->_get_plug( $params{before} );
+  my ($prev_alias, $prev_plug)
+    = $self->__plugin_get_plug_any( $params{before} );
 
   unless (defined $prev_plug) {
     $@ = "No such plugin: $prev_alias";
     return
   }
 
-  if ( my $existing = $self->_plugin_by_alias($params{alias}) ) {
+  if ( my $existing = $self->__plugin_by_alias($params{alias}) ) {
     $@ = "Already have plugin $params{alias} : $existing";
     return
   }
 
-  return unless $self->_plug_pipe_register($params{alias}, $params{plugin},
+  return unless $self->_plug_pipe_register(
+    $params{alias}, $params{plugin},
     (
       ref $params{register_args} eq 'ARRAY' ?
         @{ $params{register_args} } : ()
@@ -545,19 +553,21 @@ sub plugin_pipe_insert_after {
       unless defined $params{$_}
   }
 
-  my ($next_alias, $next_plug) = $self->_get_plug( $params{after} );
+  my ($next_alias, $next_plug)
+    = $self->__plugin_get_plug_any( $params{after} );
 
   unless (defined $next_plug) {
     $@ = "No such plugin: $next_alias";
     return
   }
 
-  if ( my $existing = $self->_plugin_by_alias($params{alias}) ) {
+  if ( my $existing = $self->__plugin_by_alias($params{alias}) ) {
     $@ = "Already have plugin $params{alias} : $existing";
     return
   }
 
-  return unless $self->_plug_pipe_register($params{alias}, $params{plugin},
+  return unless $self->_plug_pipe_register(
+    $params{alias}, $params{plugin},
     (
       ref $params{register_args} eq 'ARRAY' ?
         @{ $params{register_args} } : ()
@@ -693,24 +703,24 @@ sub __plug_pipe_handle_err {
   );
 }
 
-sub _plugin_by_alias {
+sub __plugin_by_alias {
   my ($self, $item) = @_;
 
   $self->_pluggable_loaded->{ALIAS}->{$item}
 }
 
-sub _plugin_by_ref {
+sub __plugin_by_ref {
   my ($self, $item) = @_;
 
   $self->_pluggable_loaded->{OBJ}->{$item}
 }
 
-sub _get_plug {
+sub __plugin_get_plug_any {
   my ($self, $item) = @_;
 
   my ($item_alias, $item_plug) = blessed $item ?
-    ( $self->_plugin_by_ref($item), $item )
-    : ( $item, $self->_plugin_by_alias($item) ) ;
+    ( $self->__plugin_by_ref($item), $item )
+    : ( $item, $self->__plugin_by_alias($item) ) ;
 
   wantarray ? ($item_alias, $item_plug) : $item_plug
 }
@@ -793,9 +803,9 @@ Also see L</Internal events>
 
 =head2 Registration
 
-=head3 plugin_register
+=head3 subscribe
 
-  $self->plugin_register( $plugin_obj, $type, @events );
+  $self->subscribe( $plugin_obj, $type, @events );
 
 Registers a plugin object to receive C<@events> of type C<$type>.
 
@@ -804,17 +814,39 @@ This is frequently called from within the plugin's registration handler:
   ## In MyPlugin
   sub plugin_register {
     my ($self, $manager) = @_;
-    $manager->plugin_register( $self, 'NOTIFY', 'all' );
+    $manager->subscribe( $self, 'NOTIFY', 'all' );
   }
 
-Register for 'all' to receive all events.
+Subscribe to 'all' to receive all events.
+
+=head3 unsubscribe
+
+The unregister counterpart to L</subscribe>; stops delivering
+specified events to a plugin.
+
+Carries the same arguments as L</subscribe>.
+
+=head3 plugin_register
+
+The C<plugin_register> method is called on a loaded plugin when it is 
+added to the pipeline; it is passed the plugin object (C<$self>), the 
+Pluggable object, and any arguments given to L</plugin_add> (or similar 
+registration methods).
+
+Normally one might call a L</subscribe> from here to start receiving 
+events after load-time:
+
+  sub plugin_register {
+    my ($self, $manager, @args) = @_;
+    $manager->subscribe( $self, 'NOTIFY', @events );
+  }
 
 =head3 plugin_unregister
 
-The unregister counterpart to L</plugin_register>; stops delivering
-specified events to a plugin.
+The unregister counterpart to L</plugin_register>, called when the object 
+is removed from the pipeline by normal means.
 
-Carries the same arguments as L</plugin_register>.
+Carries the same arguments.
 
 =head2 Dispatch
 

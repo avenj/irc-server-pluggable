@@ -76,7 +76,7 @@ has 'session_id' => (
 );
 
 
-has '_emitter_reg_sessions' => (
+has '__emitter_reg_sessions' => (
   ## ->{ $session_id } = { refc => $ref_count, id => $id };
   lazy => 1,
   is   => 'ro',
@@ -84,7 +84,7 @@ has '_emitter_reg_sessions' => (
   default => sub { {} },
 );
 
-has '_emitter_reg_events' => (
+has '__emitter_reg_events' => (
   ## ->{ $event }->{ $session_id } = 1
   lazy => 1,
   is   => 'ro',
@@ -123,12 +123,12 @@ sub _start_emitter {
     object_states => [
 
       $self => {
-        '_start'   => '_emitter_start',
-        '_stop'    => '_emitter_stop',
-        'shutdown_emitter' => '__shutdown_emitter',
+        '_start'           => '_p_emitter_start',
+        '_stop'            => '_p_emitter_stop',
+        'shutdown_emitter' => '_p_shutdown_emitter',
 
-        'register'   => '_emitter_register',
-        'unregister' => '_emitter_unregister',
+        'register'   => '_p_emitter_register',
+        'unregister' => '_p_emitter_unregister',
 
         '_default'   => '_emitter_default',
       },
@@ -275,39 +275,39 @@ sub _trigger_object_states {
 
 sub __incr_ses_refc {
   my ($self, $sess_id) = @_;
-  ++$self->_emitter_reg_sessions->{$sess_id}->{refc}
+  ++$self->__emitter_reg_sessions->{$sess_id}->{refc}
 }
 
 sub __decr_ses_refc {
   my ($self, $sess_id) = @_;
-  --$self->_emitter_reg_sessions->{$sess_id}->{refc};
-  $self->_emitter_reg_sessions->{$sess_id}->{refc} = 0
-    unless $self->_emitter_reg_sessions->{$sess_id}->{refc} > 0
+  --$self->__emitter_reg_sessions->{$sess_id}->{refc};
+  $self->__emitter_reg_sessions->{$sess_id}->{refc} = 0
+    unless $self->__emitter_reg_sessions->{$sess_id}->{refc} > 0
 }
 
 sub __get_ses_refc {
   my ($self, $sess_id) = @_;
-  $self->_emitter_reg_sessions->{$sess_id}->{refc}
-    if exists $self->_emitter_reg_sessions->{$sess_id}
+  $self->__emitter_reg_sessions->{$sess_id}->{refc}
+    if exists $self->__emitter_reg_sessions->{$sess_id}
 }
 
 sub __reg_ses_id {
   my ($self, $sess_id) = @_;
-  $self->_emitter_reg_sessions->{$sess_id}->{id} = $sess_id
+  $self->__emitter_reg_sessions->{$sess_id}->{id} = $sess_id
 }
 
 
-sub _emitter_drop_sessions {
+sub __emitter_drop_sessions {
   my ($self) = @_;
 
-  for my $id (keys %{ $self->_emitter_reg_sessions }) {
+  for my $id (keys %{ $self->__emitter_reg_sessions }) {
     my $count = $self->__get_ses_refc($id);
 
     $poe_kernel->refcount_decrement(
       $id, 'Emitter running'
     ) while $count-- > 0;
 
-    delete $self->_emitter_reg_sessions->{$id}
+    delete $self->__emitter_reg_sessions->{$id}
   }
 
   1
@@ -329,11 +329,11 @@ sub __emitter_notify {
   my %sessions;
 
   for my $regev ('all', $event) {
-    if (exists $self->_emitter_reg_events->{$regev}) {
-      next unless keys %{ $self->_emitter_reg_events->{$regev} };
+    if (exists $self->__emitter_reg_events->{$regev}) {
+      next unless keys %{ $self->__emitter_reg_events->{$regev} };
 
       $sessions{$_} = 1
-        for values %{ $self->_emitter_reg_events->{$regev} };
+        for values %{ $self->__emitter_reg_events->{$regev} };
     }
   }
 
@@ -353,11 +353,11 @@ sub __emitter_notify {
   }
 
   ## Received emitted 'shutdown', drop sessions.
-  $self->_emitter_drop_sessions
+  $self->__emitter_drop_sessions
     if $event eq 'shutdown';
 }
 
-sub _emitter_start {
+sub _p_emitter_start {
   ## _start handler
   my ($kernel, $self)    = @_[KERNEL, OBJECT];
   my ($session, $sender) = @_[SESSION, SENDER];
@@ -379,7 +379,7 @@ sub _emitter_start {
     $self->__reg_ses_id( $s_id );
 
     ## register parent session for all notification events.
-    $self->_emitter_reg_events->{ 'all' }->{ $s_id } = 1;
+    $self->__emitter_reg_events->{ 'all' }->{ $s_id } = 1;
 
     ## Detach child session.
     $kernel->detach_myself;
@@ -417,7 +417,7 @@ sub _emitter_sigdie {
   $kernel->sig_handled;
 }
 
-sub _emitter_stop {
+sub _p_emitter_stop {
   ## _stop handler
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
@@ -433,7 +433,7 @@ sub _shutdown_emitter {
   1
 }
 
-sub __shutdown_emitter {
+sub _p_shutdown_emitter {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
   $kernel->alarm_remove_all;
@@ -445,12 +445,12 @@ sub __shutdown_emitter {
   $self->emit( 'shutdown', @_[ARG0 .. $#_] );
 
   ## Drop sessions and we're spent.
-  $self->_emitter_drop_sessions;
+  $self->__emitter_drop_sessions;
 }
 
 
 ## Handlers for listener sessions.
-sub _emitter_register {
+sub _p_emitter_register {
   my ($kernel, $self, $sender) = @_[KERNEL, OBJECT, SENDER];
   my @events = @_[ARG0 .. $#_];
 
@@ -463,7 +463,7 @@ sub _emitter_register {
 
   for my $event (@events) {
     ## Add session to registered event lists.
-    $self->_emitter_reg_events->{$event}->{$s_id} = 1;
+    $self->__emitter_reg_events->{$event}->{$s_id} = 1;
 
     ## Make sure registered session hangs around
     ##  (until _unregister or shutdown)
@@ -477,7 +477,7 @@ sub _emitter_register {
   $kernel->post( $s_id, $self->event_prefix . "registered", $self )
 }
 
-sub _emitter_unregister {
+sub _p_emitter_unregister {
   my ($kernel, $self, $sender) = @_[KERNEL, OBJECT, SENDER];
   my @events = @_[ARG0 .. $#_];
 
@@ -486,21 +486,21 @@ sub _emitter_unregister {
   my $s_id = $sender->ID;
 
   EV: for my $event (@events) {
-    unless (delete $self->_emitter_reg_events->{$event}->{$s_id}) {
+    unless (delete $self->__emitter_reg_events->{$event}->{$s_id}) {
       ## Possible we should just not give a damn?
       warn "Cannot unregister $event for $s_id -- not registered";
       next EV
     }
 
-    delete $self->_emitter_reg_events->{$event}
+    delete $self->__emitter_reg_events->{$event}
       ## No sessions left for this event.
-      unless keys %{ $self->_emitter_reg_events->{$event} };
+      unless keys %{ $self->__emitter_reg_events->{$event} };
 
     $self->__decr_ses_refc($s_id);
 
     unless ($self->__get_ses_refc($s_id)) {
       ## No events left for this session.
-      delete $self->_emitter_reg_sessions->{$s_id};
+      delete $self->__emitter_reg_sessions->{$s_id};
 
       $kernel->refcount_decrement( $s_id, 'Emitter running' )
         unless $_[SESSION] == $sender;

@@ -24,30 +24,43 @@ use namespace::clean -except => 'meta';
 ## FIXME move event_prefix / register_prefix here from Emitter
 ## FIXME allow configurable event type prefixes?
 
+has '_pluggable_reg_prefix' => (
+  init_arg => 'reg_prefix',
+  is       => 'ro',
+  isa      => Str,
+  default  => sub { 'plugin_' },
+);
+
+has '_pluggable_event_prefix' => (
+  init_arg => 'event_prefix',
+  is       => 'ro',
+  isa      => Str,
+  default  => sub { 'pluggable_' },
+);
+
 has '_pluggable_loaded' => (
-  is      => 'rw',
+  is      => 'ro',
   isa     => HashRef,
   default => sub {
-    ALIAS => {},
-    OBJ   => {},
+    ALIAS  => {},
+    OBJ    => {},
   },
 );
 
+has '_pluggable_handlers' => (
+  is      => 'ro',
+  isa     => HashRef,
+  default => sub { {} },
+);
+
 has '_pluggable_pipeline' => (
-  is      => 'rw',
+  is      => 'ro',
   isa     => ArrayRef,
   default => sub { [] },
 );
 
-sub _get_plug {
-  my ($self, $item) = @_;
 
-  my ($item_alias, $item_plug) = blessed $item ?
-    ( $self->_plugin_by_ref($item), $item )
-    : ( $item, $self->_plugin_by_alias($item) ) ;
-
-  wantarray ? ($item_alias, $item_plug) : $item_plug
-}
+### Pipeline methods.
 
 sub plugin_push {
   my ($self, $alias, $plug, @args) = @_;
@@ -64,7 +77,7 @@ sub plugin_push {
   scalar @{ $self->_pluggable_pipeline }
 }
 
-sub plugin_pop {
+sub plugin_pipe_pop {
   my ($self, @args) = @_;
 
   return unless @{ $self->_pluggable_pipeline };
@@ -77,7 +90,7 @@ sub plugin_pop {
   wantarray ? ($plug, $alias) : $plug
 }
 
-sub plugin_unshift {
+sub plugin_pipe_unshift {
   my ($self, $alias, $plug, @args) = @_;
 
   if (my $existing = $self->_plugin_by_alias($alias) ) {
@@ -92,7 +105,7 @@ sub plugin_unshift {
   scalar @{ $self->_pluggable_pipeline }
 }
 
-sub plugin_shift {
+sub plugin_pipe_shift {
   my ($self, @args) = @_;
 
   return unless @{ $self->_pluggable_pipeline };
@@ -105,7 +118,7 @@ sub plugin_shift {
   wantarray ? ($plug, $alias) : $plug
 }
 
-sub plugin_replace {
+sub plugin_pipe_replace {
   my ($self, %params) = @_;
   $params{lc $_} = delete $params{$_} for keys %params;
 
@@ -152,7 +165,7 @@ sub plugin_replace {
   }
 }
 
-sub plugin_remove {
+sub plugin_pipe_remove {
   my ($self, $old, @unreg_args) = @_;
 
   my ($old_alias, $old_plug) = $self->_get_plug($old);
@@ -176,20 +189,7 @@ sub plugin_remove {
   wantarray ? ($old_plug, $old_alias) : $old_plug
 }
 
-sub plugin_get {
-  my ($self, $item) = @_;
-
-  my ($item_alias, $item_plug) = $self->_get_plug($item);
-
-  unless (defined $item_plug) {
-    $@ = "No such plugin: $item_alias";
-    return
-  }
-
-  wantarray ? ($item_plug, $item_alias) : $item_plug
-}
-
-sub plugin_get_index {
+sub plugin_pipe_get_index {
   my ($self, $item) = @_;
 
   my ($item_alias, $item_plug) = $self->_get_plug($item);
@@ -208,7 +208,7 @@ sub plugin_get_index {
   return -1
 }
 
-sub plugin_insert_before {
+sub plugin_pipe_insert_before {
   my ($self, %params) = @_;
   $params{lc $_} = delete $params{$_} for keys %params;
   ## ->insert_before(
@@ -254,7 +254,7 @@ sub plugin_insert_before {
   1
 }
 
-sub plugin_insert_after {
+sub plugin_pipe_insert_after {
   my ($self, %params) = @_;
   $params{lc $_} = delete $params{$_} for keys %params;
 
@@ -294,10 +294,10 @@ sub plugin_insert_after {
   1
 }
 
-sub plugin_bump_up {
+sub plugin_pipe_bump_up {
   my ($self, $item, $delta) = @_;
 
-  my $idx = $self->get_index($item);
+  my $idx = $self->plugin_pipe_get_index($item);
   return -1 unless $idx >= 0;
 
   my $pos = $idx - ($delta || 1);
@@ -312,10 +312,10 @@ sub plugin_bump_up {
   $pos
 }
 
-sub plugin_bump_down {
+sub plugin_pipe_bump_down {
   my ($self, $item, $delta) = @_;
 
-  my $idx = $self->get_index($item);
+  my $idx = $self->plugin_pipe_get_index($item);
   return -1 unless $idx >= 0;
 
   my $pos = $idx + ($delta || 1);
@@ -395,7 +395,7 @@ sub _plug_pipe_unregister {
 sub _plug_pipe_handle_error {
   my ($self, $err, $plugin, $alias) = @_;
 
-  ## FIXME issue plugin_error event
+  ## FIXME issue plugin_error event + warn
 }
 
 sub _plugin_by_alias {
@@ -409,5 +409,168 @@ sub _plugin_by_ref {
 
   $self->_pluggable_loaded->{OBJ}->{$item}
 }
+
+sub _get_plug {
+  my ($self, $item) = @_;
+
+  my ($item_alias, $item_plug) = blessed $item ?
+    ( $self->_plugin_by_ref($item), $item )
+    : ( $item, $self->_plugin_by_alias($item) ) ;
+
+  wantarray ? ($item_alias, $item_plug) : $item_plug
+}
+
+
+### Process methods.
+sub __pluggable_process {
+  my ($self, $type, $event, $args) = @_;
+
+  unless (defined $type && defined $event) {
+    confess "Expected at least a type and event"
+  }
+
+  $event = lc $event;
+  my $prefix = $self->_pluggable_event_prefix;
+  $event =~ s/^\Q$prefix\E//;
+
+  ## FIXME get type_prefix from $type
+  my $meth = join '_', $type_prefix, $event;
+
+  my $retval   = EAT_NONE;
+  my $self_ret = $retval;
+
+  my @extra;
+
+  local $@;
+
+  if ( $self->can($meth) ) {
+    ## Dispatch to ourself
+    eval { $self_ret = $self->$meth($self, \(@$args), \@extra) };
+    $self->__plugin_process_chk($self, $meth, $self_ret);
+  } elsif ( $self->can('_default') ) {
+    ## Dispatch to _default
+    eval { $self_ret = $self->_default($self, $sub, \(@$args), \@extra) };
+    $self->__plugin_process_chk($self, '_default', $self_ret);
+  }
+
+  ## FIXME needs to be in the same order as O::P
+  if      (! defined $self_ret) {
+    $self_ret = EAT_NONE
+  } elsif ($self_ret == EAT_PLUGIN ) {
+    return $retval
+  } elsif ($self_ret == EAT_CLIENT ) {
+    $retval = EAT_ALL
+  } elsif ($self_ret == EAT_ALL ) {
+    return EAT_ALL
+  }
+
+  if (@extra) {
+    push @$args, @extra;
+    @extra = ();
+  }
+
+  PLUG: for my $thisplug (@{ $self->_pluggable_pipeline }) {
+    my $handlers = $self->_pluggable_handlers->{$thisplug} || {};
+
+    next PLUG if $self eq $thisplug
+      or  not defined $handlers->{$type}->{$event}
+      and not defined $handlers->{$type}->{all};
+
+    my $plug_ret   = EAT_NONE;
+    my $this_alias = ($self->plugin_get($thisplug))[1];
+
+    if      ( $thisplug->can($meth) ) {
+      eval { $plug_ret = $thisplug->$meth($self, \(@$args), \@extra) };
+      $self->__plugin_process_chk($self, $meth, $plug_ret, $this_alias);
+    } elsif ( $thisplug->can('_default') ) {
+      eval { $plug_ret = $thisplug->$meth($self, \(@$args), \@extra) };
+      $self->__plugin_process_chk($self, '_default', $plug_ret, $this_alias);
+    }
+
+    if (! defined $plug_ret) {
+      $plug_ret = EAT_NONE
+    } elsif ($plug_ret == EAT_PLUGIN) {
+      return $retval
+    } elsif ($plug_ret == EAT_CLIENT) {
+      $retval = EAT_ALL
+    } elsif ($plug_ret == EAT_ALL) {
+      return EAT_ALL
+    }
+
+    if (@extra) {
+      push @$args, @extra;
+      @extra = ();
+    }
+
+  }  ## PLUG
+
+  $retval
+}
+
+sub __plugin_process_chk {
+  my ($self, $obj, $meth, $retval, $src) = @_;
+  $src //= "plugin '$src'" : "self" ;
+
+  if ($@) {
+    chomp $@;
+    my $err = "$meth call on $src failed: $@";
+    warn $err;
+
+    ## FIXME issue plugin_error and return
+  }
+
+  if (not defined $retval ||
+   (
+        $retval != EAT_NONE
+     && $retval != EAT_PLUGIN
+     && $retval != EAT_CLIENT
+     && $retval != EAT_ALL
+   ) ) {
+
+    my $err = "$meth call on $src did not return a valid EAT_ constant";
+    warn $err;
+    ## FIXME issue plugin_error and return
+  }
+
+  1
+}
+
+sub plugin_add {
+
+}
+
+sub plugin_del {
+
+}
+
+sub plugin_get {
+  my ($self, $item) = @_;
+
+  confess "Expected a plugin alias or object"
+    unless defined $item;
+
+  my ($item_alias, $item_plug) = $self->_get_plug($item);
+
+  unless (defined $item_plug) {
+    $@ = "No such plugin: $item_alias";
+    return
+  }
+
+  wantarray ? ($item_plug, $item_alias) : $item_plug
+}
+
+sub plugin_alias_list {
+
+}
+
+sub plugin_register {
+
+}
+
+sub plugin_unregister {
+
+}
+
+
 
 1;

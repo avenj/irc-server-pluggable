@@ -149,7 +149,7 @@ sub _start_emitter {
 }
 
 
-sub _pluggable_event {
+around '_pluggable_event' => {
   my ($orig, $self) = splice @_, 0, 2;
 
   ## Overriden from Role::Pluggable
@@ -633,6 +633,12 @@ FIXME
 FIXME
 
 =head2 Receiving events
+
+FIXME
+
+=head2 Returning EAT values
+
+FIXME
 
 =head3 NOTIFY events
 

@@ -54,15 +54,9 @@ has '_pluggable_pipeline' => (
 
 ### Process methods.
 sub _pluggable_event {
-  my ($self) = @_;
-
   ## This should be overriden to handle Pluggable events
-  ##  ( plugin_{add, del, register, unregister, error} )
-  ## Non-fatal (ie not requires() ), but noisy.
-
-  warn
-   "_pluggable_event apparently not implemented in consumer ",
-   ref $self, "\n"
+  ##  ( plugin_{added, removed, error} )
+  return
 }
 
 sub _pluggable_init {
@@ -78,7 +72,9 @@ sub _pluggable_init {
   if (defined $params{types}) {
     if (ref $params{types} eq 'ARRAY') {
       $self->_pluggable_opts->{types} = {
-        map { $_ => $_ } @{ $params{types} }
+        map {
+          $_ => $_
+        } @{ $params{types} }
       };
     } elsif (ref $params{types} eq 'HASH') {
       $self->_pluggable_opts->{types} = $params{types}
@@ -102,7 +98,9 @@ sub _pluggable_process {
     confess "Expected at least a type and event"
   }
 
-  $event = lc $event;
+  $args //= [];
+
+  $event  = lc $event;
   my $prefix = $self->_pluggable_opts->{ev_prefix};
   $event =~ s/^\Q$prefix\E//;
 
@@ -336,10 +334,57 @@ sub plugin_unregister {
   1
 }
 
+sub plugin_replace {
+  my ($self, %params) = @_;
+  $params{lc $_} = delete $params{$_} for keys %params;
+
+  ## ->plugin_replace(
+  ##   old    => $obj || $alias,
+  ##   alias  => $newalias,
+  ##   plugin => $newplug,
+  ## # optional:
+  ##   unregister_args => ARRAY
+  ##   register_args   => ARRAY
+  ## )
+
+  for (qw/old alias plugin/) {
+    confess "Missing required param $_"
+      unless defined $params{$_}
+  }
+
+  my ($old_alias, $old_plug) = $self->_get_plug( $params{old} );
+
+  unless (defined $old_plug) {
+    $@ = "No such plugin: $old_alias";
+    return
+  }
+
+  my @unreg_args = ref $params{unregister_args} eq 'ARRAY' ?
+    @{ $params{unregister_args} } : () ;
+
+  $self->_plug_pipe_unregister( $old_alias, $old_plug, @unreg_args );
+
+  my ($new_alias, $new_plug) = @params{'alias','plugin'};
+
+  return unless $self->_plug_pipe_register( $new_alias, $new_plug,
+    (
+      ref $params{register_args} eq 'ARRAY' ?
+        @{ $params{register_args} } : ()
+    ),
+  );
+
+  for my $thisplug (@{ $self->_pluggable_pipeline }) {
+    if ($thisplug == $old_plug) {
+      $thisplug = $params{plugin};
+      last
+    }
+  }
+}
+
 
 ### Pipeline methods.
 
-sub plugin_push {
+sub plugin_pipe_push {
   my ($self, $alias, $plug, @args) = @_;
 
   if (my $existing = $self->_plugin_by_alias($alias) ) {
@@ -393,53 +438,6 @@ sub plugin_pipe_shift {
   $self->_plug_pipe_unregister($alias, $plug, @args);
 
   wantarray ? ($plug, $alias) : $plug
-}
-
-sub plugin_pipe_replace {
-  my ($self, %params) = @_;
-  $params{lc $_} = delete $params{$_} for keys %params;
-
-  ## ->replace(
-  ##   old    => $obj || $alias,
-  ##   alias  => $newalias,
-  ##   plugin => $newplug,
-  ## # optional:
-  ##   unregister_args => ARRAY
-  ##   register_args   => ARRAY
-  ## )
-
-  for (qw/old alias plugin/) {
-    confess "Missing required param $_"
-      unless defined $params{$_}
-  }
-
-  my ($old_alias, $old_plug) = $self->_get_plug( $params{old} );
-
-  unless (defined $old_plug) {
-    $@ = "No such plugin: $old_alias";
-    return
-  }
-
-  my @unreg_args = ref $params{unregister_args} eq 'ARRAY' ?
-    @{ $params{unregister_args} } : () ;
-
-  $self->_plug_pipe_unregister( $old_alias, $old_plug, @unreg_args );
-
-  my ($new_alias, $new_plug) = @params{'alias','plugin'};
-
-  return unless $self->_plug_pipe_register( $new_alias, $new_plug,
-    (
-      ref $params{register_args} eq 'ARRAY' ?
-        @{ $params{register_args} } : ()
-    ),
-  );
-
-  for my $thisplug (@{ $self->_pluggable_pipeline }) {
-    if ($thisplug == $old_plug) {
-      $thisplug = $params{plugin};
-      last
-    }
-  }
 }
 
 sub plugin_pipe_remove {
@@ -633,7 +631,7 @@ sub _plug_pipe_register {
   $self->_pluggable_loaded->{OBJ}->{$new_plug}    = $new_alias;
 
   $self->_pluggable_event(
-    $self->_pluggable_opts->{ev_prefix} . "plugin_add",
+    $self->_pluggable_opts->{ev_prefix} . "plugin_added",
     $new_alias,
     $new_plug
   );
@@ -667,7 +665,7 @@ sub _plug_pipe_unregister {
   delete $self->_pluggable_loaded->{HANDLE}->{$old_plug};
 
   $self->_pluggable_event(
-    $self->_pluggable_opts->{ev_prefix} . "plugin_del",
+    $self->_pluggable_opts->{ev_prefix} . "plugin_removed",
     $old_alias,
     $old_plug
   );
@@ -712,3 +710,291 @@ sub _get_plug {
 
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Role::Pluggable - Pluggable object role
+
+=head1 SYNOPSIS
+
+  package MyPluggable;
+  use Moo;
+
+  with 'IRC::Server::Pluggable::Role::Pluggable';
+
+FIXME examples
+
+=head1 DESCRIPTION
+
+A L<Moo::Role> for turning instances of your class into pluggable objects.
+
+Consumers of this role gain a plugin pipeline and methods to manipulate it,
+as well as a flexible dispatch system (see L</_pluggable_process>).
+
+This implementation is originally based on L<Object::Pluggable>.
+
+=head2 Initialization
+
+=head3 _pluggable_init
+
+  $self->_pluggable_init(
+    ## Prefix for registration events.
+    ## Defaults to 'plugin_' ('plugin_register' / 'plugin_unregister')
+    reg_prefix   => 'plugin_',
+
+    ## Prefix for dispatched internal events
+    ##  (add, del, error, register, unregister ...)
+    ## Defaults to 'plugin_ev_'
+    event_prefix => 'plugin_ev_',
+
+    ## Map type names to prefixes.
+    ## Event types are arbitrary.
+    ## Prefix is prepended when dispathing events of a particular type.
+    ## Defaults to: { NOTIFY => 'N', PROCESS => 'P' }
+    types => [
+      NOTIFY  => 'N',
+      PROCESS => 'P',
+    ];
+  );
+
+A consumer should call _pluggable_init to set up C<_pluggable_opts> 
+appropriately prior to loading plugins.
+
+=head3 _pluggable_destroy
+
+  $self->_pluggable_destroy;
+
+Shuts down the plugin pipeline, unregistering all known plugins.
+
+=head3 _pluggable_event
+
+  sub _pluggable_event {
+    my ($self, $event) = @_;
+    ## ... dispatch out with @_ perhaps
+  }
+
+C<_pluggable_event> is called for internal notifications.
+
+It should be overriden in your consuming class to do something useful with 
+the dispatched event (and any other arguments passed in).
+
+The C<$event> passed will be prefixed with the configured B<event_prefix>.
+
+Also see L</Internal events>
+
+=head2 Registration
+
+=head3 plugin_register
+
+  $self->plugin_register( $plugin_obj, $type, @events );
+
+Registers a plugin object to receive C<@events> of type C<$type>.
+
+This is frequently called from within the plugin's registration handler:
+
+  ## In MyPlugin
+  sub plugin_register {
+    my ($self, $manager) = @_;
+    $manager->plugin_register( $self, 'NOTIFY', 'all' );
+  }
+
+Register for 'all' to receive all events.
+
+=head3 plugin_unregister
+
+The unregister counterpart to L</plugin_register>; stops delivering
+specified events to a plugin.
+
+Carries the same arguments as L</plugin_register>.
+
+=head2 Dispatch
+
+=head3 _pluggable_process
+
+  my $eat = $self->_pluggable_process( $type, $event, \@args );
+  return 1 if $eat == EAT_ALL;
+
+The C<_pluggable_process> method handles dispatching.
+
+Dispatch process for C<$event> 'foo' of C<$type> 'NOTIFY':
+
+  - Prepend the known prefix for the specified type, and '_'
+    'foo' -> 'N_foo'
+  - Attempt to dispatch to $self->N_foo()
+  - If no such method, attempt to dispatch to $self->_default()
+  - If the event was not eaten (see below), dispatch to plugins
+
+"Eaten" means a handler returned a EAT_* constant from 
+L<IRC::Server::Pluggable::Constants> indicating that the event's lifetime 
+should terminate. See L<IRC::Server::Pluggable::Role::Emitter> for more on 
+how EAT values interact with higher layers.
+
+Specifically:
+
+B<If our consuming class provides a method or '_default' that returns:>
+
+    EAT_ALL:    skip plugin pipeline, return EAT_ALL
+    EAT_PLUGIN: skip plugin pipeline, return EAT_NONE
+    EAT_CLIENT: continue to plugin pipeline
+                return EAT_ALL if plugin returns EAT_PLUGIN later
+    EAT_NONE:   continue to plugin pipeline
+
+B<If one of our plugins in the pipeline returns:>
+
+    EAT_ALL:    skip further plugins, return EAT_ALL
+    EAT_CLIENT: continue to next plugin, set pending EAT_ALL
+    EAT_PLUGIN: return EAT_ALL if previous sub returned EAT_CLIENT
+                else return EAT_NONE
+    EAT_NONE:   continue to next plugin
+
+This functionality from L<Object::Pluggable> provides fine-grained control 
+over event lifetime.
+
+FIXME talk about args-as-refs?
+
+=head2 Public Methods
+
+=head3 plugin_add
+
+  $self->plugin_add( $alias, $plugin_obj, @args );
+
+Add a plugin object to the pipeline.
+
+=head3 plugin_del
+
+  $self->plugin_del( $alias_or_plugin_obj, @args );
+
+Remove a plugin from the pipeline.
+
+Takes either a plugin alias or object.
+
+=head3 plugin_get
+
+  my $plug_obj = $self->plugin_get( $alias );
+	my ($plug_obj, $plug_alias) = $self->plugin_get( $alias_or_plugin_obj );
+
+In scalar context, returns the plugin object belonging to the specified 
+alias.
+
+In list context, returns the object and alias, respectively.
+
+=head3 plugin_alias_list
+
+  my @loaded = $self->plugin_alias_list;
+
+Returns a list of loaded plugin aliases.
+
+=head3 plugin_replace
+
+  $self->plugin_replace(
+    old    => $alias_or_plugin_obj,
+    alias  => $new_alias,
+    plugin => $new_plugin_obj,
+    ## Optional:
+    register_args   => [ ],
+    unregister_args => [ ],
+  );
+
+Replace an existing plugin object with a new one.
+
+=head2 Pipeline methods
+
+=head3 plugin_pipe_push
+
+  $self->plugin_pipe_push( $alias, $plugin_obj, @args );
+
+Add a plugin to the end of the pipeline.
+
+(Use L</plugin_add> to load plugins.)
+
+=head3 plugin_pipe_pop
+
+  my $plug = $self->plugin_pipe_pop( @unregister_args );
+
+Pop the last plugin off the pipeline, passing any specified arguments to 
+L</plugin_unregister>.
+
+=head3 plugin_pipe_unshift
+
+  $self->plugin_pipe_unshift( $alias, $plugin_obj, @args );
+
+Add a plugin to the beginning of the pipeline.
+
+=head3 plugin_pipe_shift
+
+  $self->plugin_pipe_shift( @unregister_args );
+
+Shift the first plugin off the pipeline, passing any specified args to 
+L</plugin_unregister>.
+
+=head3 plugin_pipe_get_index
+
+  my $idx = $self->plugin_pipe_get_index( $alias_or_plugin_obj );
+  if ($idx < 0) {
+    ## Plugin doesn't exist
+  }
+
+Returns the position of the specified plugin in the pipeline, or -1 if it 
+cannot be located.
+
+=head3 plugin_pipe_insert_after
+
+  $self->plugin_pipe_insert_after(
+    after  => $alias_or_plugin_obj,
+    alias  => $new_alias,
+    plugin => $new_plugin_obj,
+    ## Optional:
+    register_args => [ ],
+  );
+
+Add a plugin to the pipeline after the specified previously-existing alias 
+or plugin object.
+
+=head3 plugin_pipe_insert_before
+
+  $self->plugin_pipe_insert_before(
+    before => $alias_or_plugin_obj,
+    alias  => $new_alias,
+    plugin => $new_plugin_obj,
+    ## Optional:
+    register_args => [ ],
+  );
+
+Similar to L</plugin_pipe_insert_after>, but insert before the specified 
+previously-existing plugin, not after.
+
+=head3 plugin_pipe_bump_up
+
+  $self->plugin_pipe_bump_up( $alias_or_plugin_obj, $count );
+
+Move the specified plugin 'up' C<$count> positions in the pipeline.
+
+=head3 plugin_pipe_bump_down
+
+  $self->plugin_pipe_bump_down( $alias_or_plugin_obj, $count );
+
+Move the specified plugin 'down' C<$count> positions in the pipeline.
+
+=head2 Internal events
+
+=head3 plugin_error
+
+FIXME
+
+=head3 plugin_added
+
+FIXME
+
+=head3 plugin_removed
+
+FIXME
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+Based on L<Object::Pluggable> by BINGOS, HINRIK et al.
+
+=cut

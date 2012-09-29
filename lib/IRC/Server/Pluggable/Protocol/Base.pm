@@ -377,7 +377,7 @@ sub BUILD {
       ),
 
       ## May have other object_states specified at construction time
-      ## (attrib inherited from Emitter)
+      ## (from Emitter)
       (
         $self->has_object_states ? @{ $self->object_states } : ()
       ),
@@ -431,7 +431,7 @@ sub irc_ev_peer_connected {
 
   ## FIXME
   ## A Connector is open.
-  ## Try to register with the remote end.
+  ## Dispatch an event; try to register with the remote end.
 }
 
 sub irc_ev_peer_compressed {
@@ -543,27 +543,25 @@ sub irc_ev_unknown_cmd {
 sub dispatch {
   my ($self, $event_name, @args) = @_;
 
-  ## Dispatch:
-  ## -> Try to handle via P_$event_name plugin handlers
-  ##    Return 'ATE' if P_* handler returns EAT_ALL
-  ## -> If not eaten, try to call $event_name method on $self
-  ##    (brought in by Roles, usually)
-  ##    Return 'CALL' if we called this method via $self
-  ## -> Otherwise if not eaten and no method to call,
-  ##    return 'UNKNOWN' to caller
-  ##    Caller can return 421 (unknown command), for example.
+  ## This is a cheap implementation of internal dispatch,
+  ## aimed at flexibly dispatching events synchronously
+  ## within a Protocol and making it possible to return unknown cmd
+  ## (421) as-needed.
 
+  ## Try registered plugins first.
+  ## Continue to $self if not eaten by a P_* handler.
   return DISPATCH_EATEN
     if $self->process( $event_name, @args ) == EAT_ALL;
 
+  ## Try to handle via $self method dispatch.
+  ## Return DISPATCH_UNKNOWN to caller if we lack the method.
+  ## (This will often be an unknown command.)
   if ( $self->can($event_name) ) {
     $self->$event_name(@args);
     return DISPATCH_CALLED
   } else {
     return DISPATCH_UNKNOWN
   }
-
-  1
 }
 
 sub _dispatch {

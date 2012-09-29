@@ -142,7 +142,7 @@ sub _pluggable_process {
   PLUG: for my $thisplug (@{ $self->_pluggable_pipeline }) {
     my $handlers = $self->_pluggable_loaded->{HANDLE}->{$thisplug} || {};
 
-    next PLUG if $self eq $thisplug
+    next PLUG if $self == $thisplug
       or  not defined $handlers->{$type}->{$event}
       and not defined $handlers->{$type}->{all};
 

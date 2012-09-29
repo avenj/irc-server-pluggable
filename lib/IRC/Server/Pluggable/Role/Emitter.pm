@@ -16,9 +16,12 @@ use IRC::Server::Pluggable qw/
 
 use POE;
 
-##
+## namespace::clean
 use namespace::clean -except => 'meta';
 
+
+## No reason you couldn't use a different plugin system,
+## so long as you provide compat methods and return EAT values:
 requires qw/
   _pluggable_init
   _pluggable_destroy
@@ -120,7 +123,6 @@ sub _start_emitter {
     object_states => [
 
       $self => {
-
         '_start'   => '_emitter_start',
         '_stop'    => '_emitter_stop',
         'shutdown_emitter' => '__shutdown_emitter',
@@ -135,7 +137,6 @@ sub _start_emitter {
         _dispatch_notify
 
         _emitter_sigdie
-
       / ],
 
       (
@@ -562,14 +563,23 @@ IRC::Server::Pluggable::Role::Emitter - POE-enabled Emitter role
 
 =head1 DESCRIPTION
 
-This is a L<Moo::Role> for a POE-oriented observer pattern implementation; 
+This is a L<Moo::Role> for a POE-oriented Observer Pattern implementation; 
 it is based on L<POE::Component::Syndicator> (which may be better suited
 to general purpose use).
 
-You will need the methods defined by 
-L<IRC::Server::Pluggable::Role::Pluggable>.
+Consuming this role gives your class a POE::Session capable of 
+emitting events to loaded plugins and registered sessions.
 
-  FIXME
+You will need the methods defined by 
+L<IRC::Server::Pluggable::Role::Pluggable>. It's common to consume 
+Role::Pluggable first:
+
+  package MyEmitter;
+  use Moo;
+  with 'IRC::Server::Pluggable::Role::Pluggable';
+  with 'IRC::Server::Pluggable::Role::Emitter';
+
+...but any compatible plugin system will do, see notes in source.
 
 
 =head2 Creating an Emitter
@@ -623,10 +633,6 @@ B<session_id> is our Emitter L<POE::Session> ID.
 B<_start_emitter()> should be called on our object to spawn the actual
 Emitter session.
 
-
-=head2 Registering plugins
-
-FIXME
 
 =head2 Registering sessions
 

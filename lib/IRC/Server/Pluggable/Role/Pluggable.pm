@@ -818,6 +818,28 @@ Carries the same arguments as L</plugin_register>.
 
 The C<_pluggable_process> method handles dispatching.
 
+If C<$event> is prefixed with our event prefix (see L</_pluggable_init>),
+the prefix is stripped prior to dispatch (to be replaced with a type 
+prefix matching the specified C<$type>).
+
+Arguments should be passed in as an ARRAY. During dispatch, references to 
+the arguments are passed to subs following automatically-prepended objects 
+belonging to the plugin and the pluggable caller, respectively:
+
+  my @args = qw/baz bar/;
+  $self->_pluggable_process( 'NOTIFY', 'foo', \@args );
+
+  ## In a plugin:
+  sub N_foo {
+    my ($self, $manager) = splice @_, 0, 2;
+    ## Dereferenced expected scalars:
+    my $baz = ${ $_[0] };
+    my $bar = ${ $_[1] };
+  }
+
+This allows for argument modification as an event is passed along the 
+pipeline.
+
 Dispatch process for C<$event> 'foo' of C<$type> 'NOTIFY':
 
   - Prepend the known prefix for the specified type, and '_'
@@ -851,8 +873,6 @@ B<If one of our plugins in the pipeline returns:>
 
 This functionality from L<Object::Pluggable> provides fine-grained control 
 over event lifetime.
-
-FIXME talk about args-as-refs?
 
 =head2 Public Methods
 
@@ -981,15 +1001,23 @@ Move the specified plugin 'down' C<$count> positions in the pipeline.
 
 =head3 plugin_error
 
-FIXME
+Issued via L</_pluggable_event> when an error occurs.
+
+The first argument is always the error string; if it wasn't our consumer 
+class that threw the error, the source object is included as the second 
+argument.
 
 =head3 plugin_added
 
-FIXME
+Issued via L</_pluggable_event> when a new plugin is registered.
+
+Arguments are the new plugin alias and object, respectively.
 
 =head3 plugin_removed
 
-FIXME
+Issued via L</_pluggable_event> when a plugin is unregistered.
+
+Arguments are the old plugin alias and object, respectively.
 
 =head1 AUTHOR
 

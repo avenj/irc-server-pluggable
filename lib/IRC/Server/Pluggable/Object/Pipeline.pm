@@ -128,7 +128,7 @@ sub replace {
       unless defined $params{$_}
   }
 
-  my ($old_alias, $old_plug) = $self->_get_plug($old);
+  my ($old_alias, $old_plug) = $self->_get_plug( $params{old} );
 
   unless (defined $old_plug) {
     $@ = "No such plugin: $old_alias";
@@ -136,7 +136,7 @@ sub replace {
   }
 
   my @unreg_args = ref $params{unregister_args} eq 'ARRAY' ?
-    @{ $params{unregister_args } : () ;
+    @{ $params{unregister_args} } : () ;
 
   $self->_unregister( $old_alias, $old_plug, @unreg_args );
 
@@ -235,7 +235,7 @@ sub insert_before {
     return
   }
 
-  if ( exists $self->_plugins_by_alias($params{alias}) ) {
+  if ( exists $self->_plugins_by_alias->{ $params{alias} } ) {
     $@ = "Already have plugin $params{alias} : "
          .$self->_plugins_by_alias->{ $params{alias} };
     return

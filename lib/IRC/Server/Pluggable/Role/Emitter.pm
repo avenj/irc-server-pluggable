@@ -134,7 +134,7 @@ sub _start_emitter {
       },
 
       $self => [ qw/
-        _dispatch_notify
+        __emitter_notify
 
         _emitter_sigdie
       / ],
@@ -220,7 +220,7 @@ sub emit {
   ## Async NOTIFY event dispatch.
   my ($self, $event, @args) = @_;
 
-  $self->yield( '_dispatch_notify', $event, @args );
+  $self->yield( '__emitter_notify', $event, @args );
 
   $self
 }
@@ -229,7 +229,7 @@ sub emit_now {
   ## Synchronous NOTIFY event dispatch.
   my ($self, $event, @args) = @_;
 
-  $self->call( '_dispatch_notify', $event, @args );
+  $self->call( '__emitter_notify', $event, @args );
 
   $self
 }
@@ -316,7 +316,7 @@ sub _emitter_drop_sessions {
 
 ## Our Session's handlers:
 
-sub _dispatch_notify {
+sub __emitter_notify {
   ## Dispatch a NOTIFY event
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($event, @args) = @_[ARG0 .. $#_];
@@ -337,8 +337,10 @@ sub _dispatch_notify {
     }
   }
 
+  my $meth = $prefix . $event;
+
   ## Our own session will get ->event_prefix . $event first
-  $kernel->call( $_[SESSION], $prefix.$event, @args )
+  $kernel->call( $_[SESSION], $meth, @args )
     if delete $sessions{ $_[SESSION]->ID };
 
   ## Dispatched to N_$event after Sessions have been notified:
@@ -346,7 +348,7 @@ sub _dispatch_notify {
 
   unless ($eat == EAT_ALL) {
     ## Notify registered sessions.
-    $kernel->call( $_, $prefix.$event, @args )
+    $kernel->call( $_, $meth, @args )
       for keys %sessions;
   }
 

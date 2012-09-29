@@ -94,21 +94,19 @@ sub _pluggable_destroy {
 sub _pluggable_process {
   my ($self, $type, $event, $args) = @_;
 
-  unless (defined $type && defined $event) {
+  unless (defined $event) {
     confess "Expected at least a type and event"
   }
 
   $args //= [];
 
-  $event  = lc $event;
   my $prefix = $self->_pluggable_opts->{ev_prefix};
   $event =~ s/^\Q$prefix\E//;
 
   my $type_prefix = $self->_pluggable_opts->{types}->{$type};
   my $meth = join '_', $type_prefix, $event;
 
-  my $retval   = EAT_NONE;
-  my $self_ret = $retval;
+  my $retval = my $self_ret = EAT_NONE;
 
   my @extra;
 
@@ -157,7 +155,7 @@ sub _pluggable_process {
       $self->__plugin_process_chk($self, '_default', $plug_ret, $this_alias);
     }
 
-    if (! defined $plug_ret) {
+    if      (! defined $plug_ret) {
       $plug_ret = EAT_NONE
     } elsif ($plug_ret == EAT_PLUGIN) {
       return $retval

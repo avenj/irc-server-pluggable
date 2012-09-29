@@ -152,9 +152,4 @@ sub disconnect {
 }
 
 
-## FIXME
-##  Provide a generic proxy method for various disconnect types
-##  hybrid basically does this.
-## Backend lets us set a disconnect string in is_disconnecting()
-
 1;

@@ -37,6 +37,8 @@ requires qw/
   emit_now
 
   send_to_routes
+
+  irc_ev_unknown_disconnected
 /;
 
 has '_r_pending_reg' => (
@@ -203,6 +205,9 @@ sub irc_ev_register_complete {
 
   ## Emitted from Plugin::Register when ident + host lookups finish.
 
+  ## May have disconnected before lookups in plugin finished:
+  return unless exists $self->_r_pending_reg->{ $conn->wheel_id };
+
   ## Hints hash has keys 'ident' and 'host'
   ##  (values will be undef if not found)
   ## Save to _r_pending_reg and see if we can register a User.
@@ -362,12 +367,19 @@ sub cmd_from_unknown_pass {
   $self->_r_pending_reg->{ $conn->wheel_id }->{pass} = $pass;
 }
 
+
+around 'irc_ev_unknown_disconnected' => {
+  my ($orig, $self) = splice @_, 0, 2;
+  my ($conn) = @_;
+
+  delete $self->_r_pending_reg->{ $conn->wheel_id }
+
+  $self->$orig(@_)
+};
+
+
 ## FIXME call burst methods to sync up after registration?
 ##  or call() burst handlers via Protocol?
-
-## FIXME an idle timer in Ping should issue a disconnect
-##  if the user takes longer than max idle time to register
-##  we need to be able to catch the disconnect and clear the pending_reg
 
 
 1;

@@ -1,6 +1,9 @@
 package IRC::Server::Pluggable::Emitter;
 our $VERSION = '0.000_01';
 
+## OK, this *really* ought to be a Role.
+## ... unfortunately at the moment it has to inherit from Object::Pluggable
+
 use 5.12.1;
 use strictures 1;
 

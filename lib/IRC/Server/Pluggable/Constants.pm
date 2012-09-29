@@ -50,8 +50,8 @@ Exports constants used by L<IRC::Server::Pluggable::Protocol::Base>:
   DISPATCH_CALLED  => 2
   DISPATCH_UNKNOWN => 3
 
-Exports constants from L<Object::Pluggable::Constants> (but with 
-slightly less typing):
+Exports constants used by L<IRC::Server::Pluggable::Role::Pluggable> and
+L<IRC::Server::Pluggable::Role::Emitter>:
 
   EAT_NONE   => 1
   EAT_CLIENT => 2

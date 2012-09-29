@@ -90,15 +90,12 @@ my $build = $class->new(
     'strictures'             => 1,
     'namespace::clean'       => '0.23',
 
-    'IRC::Server::Tree'      => '0.03',
     'IRC::Utils'             => 0,
 
     'Moo'                    => '1.000003',
     'MooX::Types::MooseLike' => '0.15',
 
     'Net::IP::Minimal'       => '0.04',
-
-    'Object::Pluggable'      => 0,
 
     'POE'                    => '1.3',
     'POE::Component::Client::DNS'          => 0,

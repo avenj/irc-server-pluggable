@@ -5,7 +5,7 @@ package IRC::Server::Pluggable::Object::Pipeline;
 
 use Carp;
 
-use Moo;
+use Moo::Role;
 use strictures 1;
 
 use IRC::Server::Pluggable::Types;
@@ -13,15 +13,6 @@ use IRC::Server::Pluggable::Types;
 use Scalar::Util 'blessed';
 
 use namespace::clean -except => 'meta';
-
-has '_manager' => (
-  ## pipeline_for => $pluggable_class
-  init_arg => 'pipeline_for',
-  required => 1,
-  weak_ref => 1,
-  is       => 'ro',
-  isa      => ConsumerOf['IRC::Server::Pluggable::Role::Pluggable'],
-);
 
 has '_plugin_by_alias' => (
   lazy    => 1,
@@ -57,8 +48,8 @@ sub _get_plug {
 sub push {
   my ($self, $alias, $plug, @args) = @_;
 
-  if (exists $self->_plugins_by_alias->{$alias}) {
-    $@ = "Already have plugin $alias : ".$self->_plugins_by_alias->{$alias};
+  if (my $existing = $self->_plugins_by_alias->{$alias}) {
+    $@ = "Already have plugin $alias : $existing";
     return
   }
 
@@ -85,7 +76,7 @@ sub pop {
 sub unshift {
   my ($self, $alias, $plug, @args) = @_;
 
-  if (exists $self->_plugins_by_alias->{$alias}) {
+  if (my $existing = $self->_plugins_by_alias->{$alias}) {
     $@ = "Already have plugin $alias : ".$self->_plugins_by_alias->{$alias};
     return
   }
@@ -235,9 +226,8 @@ sub insert_before {
     return
   }
 
-  if ( exists $self->_plugins_by_alias->{ $params{alias} } ) {
-    $@ = "Already have plugin $params{alias} : "
-         .$self->_plugins_by_alias->{ $params{alias} };
+  if ( my $existing = $self->_plugins_by_alias->{ $params{alias} } ) {
+    $@ = "Already have plugin $params{alias} : $existing";
     return
   }
 
@@ -261,15 +251,79 @@ sub insert_before {
 }
 
 sub insert_after {
+  my ($self, %params) = @_;
+  $params{lc $_} = delete $params{$_} for keys %params;
 
+  for (qw/after alias plugin/) {
+    confess "Missing required param $_"
+      unless defined $params{$_}
+  }
+
+  my ($next_alias, $next_plug) = $self->_get_plug( $params{after} );
+
+  unless (defined $next_plug) {
+    $@ = "No such plugin: $next_alias";
+    return
+  }
+
+  if ( my $existing = $self->_plugins_by_alias->{ $params{alias} } ) {
+    $@ = "Already have plugin $params{alias} : $existing";
+    return
+  }
+
+  return unless $self->_register($params{alias}, $params{plugin},
+    (
+      ref $params{register_args} eq 'ARRAY' ?
+        @{ $params{register_args} } : ()
+    ),
+  );
+
+  my $idx = 0;
+  for my $thisplug (@{ $self->_pipeline }) {
+    if ($thisplug == $next_plug) {
+      splice @{ $self->_pipeline } }, $idx+1, 0, $params{plugin};
+      last
+    }
+    $idx++;
+  }
+
+  1
 }
 
 sub bump_up {
+  my ($self, $item, $delta) = @_;
 
+  my $idx = $self->get_index($item);
+  return -1 unless $idx >= 0;
+
+  my $pos = $idx - ($delta || 1);
+
+  unless ($pos >= 0) {
+    carp "Negative position ($idx - $delta is $pos), bumping to head"
+  }
+
+  splice @{ $self->_pipeline }, $pos, 0,
+    splice @{ $self->_pipeline }, $idx, 1;
+
+  $pos
 }
 
 sub bump_down {
+  my ($self, $item, $delta) = @_;
 
+  my $idx = $self->get_index($item);
+  return -1 unless $idx >= 0;
+
+  my $pos = $idx + ($delta || 1);
+
+  if ($pos >= @{ $self->_pipeline }) {
+    carp "Cannot bump below end of pipeline, bumping to end"
+  }
+
+  splice @{ $self->_pipeline }, $pos, 0,
+    splice @{ $self->_pipeline }, $idx, 1;
+
+  $pos
 }
 
 sub _register {

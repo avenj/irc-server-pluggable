@@ -17,6 +17,10 @@ Emitters are POE sessions that are capable of processing events via
 plugins and emitting notifications to interested plugins or 
 external sessions.
 
+Any class that inherits from IRC::Server::Pluggable::Emitter automatically 
+spawns a POE::Session when _start_emitter is called. (This is often 
+triggered at construction time via BUILD.)
+
 Classes that inherit from IRC::Server::Pluggable::Emitter can be extended 
 by loaded plugins (synchronous action or notification-only) or registered 
 consumer sessions (notification-only).

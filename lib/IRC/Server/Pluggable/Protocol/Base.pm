@@ -322,12 +322,6 @@ sub _build_extra_states {
       [
         qw/
           irc_ev_register_complete
-
-          irc_ev_peer_numeric
-
-          irc_ev_client_cmd
-          irc_ev_peer_cmd
-          irc_ev_unknown_cmd
         /,
       ],
   ]
@@ -370,6 +364,12 @@ sub BUILD {
           irc_ev_client_cmd
           irc_ev_peer_cmd
           irc_ev_unknown_cmd
+
+          irc_ev_peer_numeric
+
+          irc_ev_client_disconnected
+          irc_ev_peer_disconnected
+          irc_ev_unknown_disconnected
       / ],
 
       ## Predefined in the base class, but subs could tweak if they like:
@@ -469,6 +469,23 @@ sub irc_ev_connection_idle {
   $self->dispatch( 'conn_is_idle', $conn );
 }
 
+sub irc_ev_peer_disconnected {
+  my ($self, $conn) = @_;
+
+  ## FIXME wrap in Disconnect role?
+}
+
+sub irc_ev_client_disconnected {
+  my ($self, $conn) = @_;
+
+  ## FIXME wrap in Disconnect role?
+}
+
+sub irc_ev_unknown_disconnected {
+  my ($self, $conn) = @_;
+
+  ## FIXME wrap in Register role?
+}
 
 sub irc_ev_peer_numeric {
   my ($kernel, $self) = @_[KERNEL, OBJECT];

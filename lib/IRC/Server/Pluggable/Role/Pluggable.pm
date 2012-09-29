@@ -343,9 +343,9 @@ sub subscribe {
 
   for my $ev (@events) {
     if (ref $ev eq 'ARRAY') {
-      $handles->{lc $_} = 1 for @$ev;
+      $handles->{$_} = 1 for @$ev;
     } else {
-      $handles->{lc $ev} = 1;
+      $handles->{$ev} = 1;
     }
   }
 
@@ -377,13 +377,12 @@ sub unsubscribe {
   for my $ev (@events) {
 
     if (ref $ev eq 'ARRAY') {
-      for my $this_ev (map { lc } @$ev) {
+      for my $this_ev (@$ev) {
         unless (delete $handles->{$this_ev}) {
           carp "Nonexistant event $this_ev cannot be unsubscribed from";
         }
       }
     } else {
-      $ev = lc $ev;
       unless (delete $handles->{$ev}) {
         carp "Nonexistant event $ev cannot be unsubscribed from";
       }

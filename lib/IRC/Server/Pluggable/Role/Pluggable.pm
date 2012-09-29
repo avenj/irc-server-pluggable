@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Object::Pipeline;
+package IRC::Server::Pluggable::Role::Pluggable;
 
 ## Based largely on Object::Pluggable:
 ##  http://www.metacpan.org/dist/Object-Pluggable
@@ -22,35 +22,30 @@ use namespace::clean -except => 'meta';
 
 
 ## FIXME move event_prefix / register_prefix here from Emitter
-## FIXME allow configurable event type prefixes?
 
-has '_pluggable_reg_prefix' => (
-  init_arg => 'reg_prefix',
-  is       => 'ro',
-  isa      => Str,
-  default  => sub { 'plugin_' },
-);
-
-has '_pluggable_event_prefix' => (
-  init_arg => 'event_prefix',
-  is       => 'ro',
-  isa      => Str,
-  default  => sub { 'pluggable_' },
+has '_pluggable_opts' => (
+  is  => 'ro',
+  isa => HashRef,
+  default => sub {
+    {
+      reg_prefix => 'plugin_',
+      ev_prefix  => 'pluggable_',
+      types      => {
+        PROCESS => 'P',
+        NOTIFY  => 'N',
+      },
+    },
+  },
 );
 
 has '_pluggable_loaded' => (
   is      => 'ro',
   isa     => HashRef,
   default => sub {
-    ALIAS  => {},
-    OBJ    => {},
+    ALIAS  => {},  ## Objs keyed on aliases
+    OBJ    => {},  ## Aliases keyed on obj
+    HANDLE => {},  ## Type/event map hashes keyed on obj
   },
-);
-
-has '_pluggable_handlers' => (
-  is      => 'ro',
-  isa     => HashRef,
-  default => sub { {} },
 );
 
 has '_pluggable_pipeline' => (
@@ -58,6 +53,286 @@ has '_pluggable_pipeline' => (
   isa     => ArrayRef,
   default => sub { [] },
 );
+
+
+### Process methods.
+sub _pluggable_event {
+  my ($self) = @_;
+  warn
+   "_pluggable_event apparently not implemented in consumer ",
+   ref $self, "\n"
+}
+
+sub _pluggable_init {
+  my ($self, %params) = @_;
+  $params{lc $_} = delete $params{$_} for keys %params;
+
+  $self->_pluggable_opts->{reg_prefix} = $params{reg_prefix}
+    if defined $params{reg_prefix};
+
+  $self->_pluggable_opts->{ev_prefix} = $params{event_prefix}
+    if defined $params{event_prefix};
+
+  if (defined $params{types}) {
+    if (ref $params{types} eq 'ARRAY') {
+      $self->_pluggable_opts->{types} = {
+        map { $_ => $_ } @{ $params{types} }
+      };
+    } elsif (ref $params{types} eq 'HASH') {
+      $self->_pluggable_opts->{types} = $params{types}
+    } else {
+      confess "Expected types to be an ARRAY or HASH"
+    }
+  }
+
+  $self
+}
+
+sub _pluggable_destroy {
+  my ($self) = @_;
+  $self->plugin_del( $_ ) for $self->plugin_alias_list;
+}
+
+sub _pluggable_process {
+  my ($self, $type, $event, $args) = @_;
+
+  unless (defined $type && defined $event) {
+    confess "Expected at least a type and event"
+  }
+
+  $event = lc $event;
+  my $prefix = $self->_pluggable_opts->{ev_prefix};
+  $event =~ s/^\Q$prefix\E//;
+
+  my $type_prefix = $self->_pluggable_opts->{types}->{$type};
+  my $meth = join '_', $type_prefix, $event;
+
+  my $retval   = EAT_NONE;
+  my $self_ret = $retval;
+
+  my @extra;
+
+  local $@;
+
+  if ( $self->can($meth) ) {
+    ## Dispatch to ourself
+    eval { $self_ret = $self->$meth($self, \(@$args), \@extra) };
+    $self->__plugin_process_chk($self, $meth, $self_ret);
+  } elsif ( $self->can('_default') ) {
+    ## Dispatch to _default
+    eval { $self_ret = $self->_default($self, $meth, \(@$args), \@extra) };
+    $self->__plugin_process_chk($self, '_default', $self_ret);
+  }
+
+  if      (! defined $self_ret) {
+    $self_ret = EAT_NONE
+  } elsif ($self_ret == EAT_PLUGIN ) {
+    return $retval
+  } elsif ($self_ret == EAT_CLIENT ) {
+    $retval = EAT_ALL
+  } elsif ($self_ret == EAT_ALL ) {
+    return EAT_ALL
+  }
+
+  if (@extra) {
+    push @$args, @extra;
+    @extra = ();
+  }
+
+  PLUG: for my $thisplug (@{ $self->_pluggable_pipeline }) {
+    my $handlers = $self->_pluggable_loaded->{HANDLE}->{$thisplug} || {};
+
+    next PLUG if $self eq $thisplug
+      or  not defined $handlers->{$type}->{$event}
+      and not defined $handlers->{$type}->{all};
+
+    my $plug_ret   = EAT_NONE;
+    my $this_alias = ($self->plugin_get($thisplug))[1];
+
+    if      ( $thisplug->can($meth) ) {
+      eval { $plug_ret = $thisplug->$meth($self, \(@$args), \@extra) };
+      $self->__plugin_process_chk($self, $meth, $plug_ret, $this_alias);
+    } elsif ( $thisplug->can('_default') ) {
+      eval { $plug_ret = $thisplug->$meth($self, \(@$args), \@extra) };
+      $self->__plugin_process_chk($self, '_default', $plug_ret, $this_alias);
+    }
+
+    if (! defined $plug_ret) {
+      $plug_ret = EAT_NONE
+    } elsif ($plug_ret == EAT_PLUGIN) {
+      return $retval
+    } elsif ($plug_ret == EAT_CLIENT) {
+      $retval = EAT_ALL
+    } elsif ($plug_ret == EAT_ALL) {
+      return EAT_ALL
+    }
+
+    if (@extra) {
+      push @$args, @extra;
+      @extra = ();
+    }
+
+  }  ## PLUG
+
+  $retval
+}
+
+sub __plugin_process_chk {
+  my ($self, $obj, $meth, $retval, $src) = @_;
+  $src = defined $src ? "plugin '$src'" : "self" ;
+
+  if ($@) {
+    chomp $@;
+    my $err = "$meth call on $src failed: $@";
+
+    warn "$err\n";
+
+    $self->_pluggable_event(
+      $self->_pluggable_opts->{ev_prefix} . "plugin_error",
+      $err,
+      ( $obj == $self ? ($obj, $src) : () ),
+    );
+
+    return
+  }
+
+  if (not defined $retval ||
+   (
+        $retval != EAT_NONE
+     && $retval != EAT_PLUGIN
+     && $retval != EAT_CLIENT
+     && $retval != EAT_ALL
+   ) ) {
+
+    my $err = "$meth call on $src did not return a valid EAT_ constant";
+
+    warn "$err\n";
+
+    $self->_pluggable_event(
+      $self->_pluggable_opts->{ev_prefix} . "plugin_error",
+      $err,
+      ( $obj == $self ? ($obj, $src) : () ),
+    );
+
+    return
+  }
+
+  1
+}
+
+sub plugin_add {
+  my ($self, $alias, $plugin, @args) = @_;
+
+  confess "Expected a plugin alias and object"
+    unless defined $alias and blessed $plugin;
+
+  $self->plugin_pipe_push($alias, $plugin, @args)
+}
+
+sub plugin_del {
+  my ($self, $alias_or_plug, @args) = @_;
+
+  confess "Expected a plugin alias"
+    unless defined $alias_or_plug;
+
+  scalar( $self->plugin_pipe_remove($alias_or_plug, @args) )
+}
+
+sub plugin_get {
+  my ($self, $item) = @_;
+
+  confess "Expected a plugin alias or object"
+    unless defined $item;
+
+  my ($item_alias, $item_plug) = $self->_get_plug($item);
+
+  unless (defined $item_plug) {
+    $@ = "No such plugin: $item_alias";
+    return
+  }
+
+  wantarray ? ($item_plug, $item_alias) : $item_plug
+}
+
+sub plugin_alias_list {
+  my ($self) = @_;
+  keys %{ $self->_pluggable_loaded->{ALIAS} }
+}
+
+sub plugin_register {
+  my ($self, $plugin, $type, @events) = @_;
+
+  if (!grep { $_ eq $type } keys %{ $self->_pluggable_opts->{types} }) {
+    carp "Cannot register; event type $type not supported";
+    return
+  }
+
+  unless (@events) {
+    carp
+      "Expected a plugin object, a type, and a list of events";
+    return
+  }
+
+  unless (blessed $plugin) {
+    carp "Expected a blessed plugin object";
+    return
+  }
+
+  my $handles
+    = $self->_pluggable_loaded->{HANDLE}->{$plugin}->{$type} //= {};
+
+  for my $ev (@events) {
+    if (ref $ev eq 'ARRAY') {
+      $handles->{lc $_} = 1 for @$ev;
+    } else {
+      $handles->{lc $ev} = 1;
+    }
+  }
+
+  1
+}
+
+sub plugin_unregister {
+  my ($self, $plugin, $type, @events) = @_;
+
+  if (!grep { $_ eq $type } keys %{ $self->_pluggable_opts->{types} }) {
+    carp "Cannot unregister; event type $type not supported";
+    return
+  }
+
+  unless (blessed $plugin && defined $type) {
+    carp
+      "Expected a blessed plugin obj, event type, and events to unregister";
+    return
+  }
+
+  unless (@events) {
+    carp "No events specified; did you mean to plugin_del instead?";
+    return
+  }
+
+  my $handles
+   = $self->_pluggable_loaded->{HANDLE}->{$plugin}->{$type} || {};
+
+  for my $ev (@events) {
+
+    if (ref $ev eq 'ARRAY') {
+      for my $this_ev (map { lc } @$ev) {
+        unless (delete $handles->{$this_ev}) {
+          carp "Nonexistant event $this_ev cannot be unregistered";
+        }
+      }
+    } else {
+      $ev = lc $ev;
+      unless (delete $handles->{$ev}) {
+        carp "Nonexistant event $ev cannot be unregistered";
+      }
+    }
+
+  }
+
+  1
+}
 
 
 ### Pipeline methods.
@@ -285,7 +560,7 @@ sub plugin_pipe_insert_after {
   my $idx = 0;
   for my $thisplug (@{ $self->_pluggable_pipeline }) {
     if ($thisplug == $next_plug) {
-      splice @{ $self->_pluggable_pipeline } }, $idx+1, 0, $params{plugin};
+      splice @{ $self->_pluggable_pipeline }, $idx+1, 0, $params{plugin};
       last
     }
     $idx++;
@@ -334,8 +609,7 @@ sub _plug_pipe_register {
   my ($self, $new_alias, $new_plug, @args) = @_;
 
   my ($retval, $err);
-  ## FIXME get register prefix
-  my $meth = $regprefix . "register" ;
+  my $meth = $self->_pluggable_opts->{reg_prefix} . "register" ;
 
   try {
     $retval = $new_plug->$meth( $self, @args )
@@ -349,14 +623,18 @@ sub _plug_pipe_register {
   }
 
   if ($err) {
-    $self->_plug_pipe_handle_error( $err, $new_plug, $new_alias );
+    $self->__plug_pipe_handle_err( $err, $new_plug, $new_alias );
     return
   }
 
   $self->_pluggable_loaded->{ALIAS}->{$new_alias} = $new_plug;
   $self->_pluggable_loaded->{OBJ}->{$new_plug}    = $new_alias;
 
-  ## FIXME issue plugin_add event
+  $self->_pluggable_event(
+    $self->_pluggable_opts->{ev_prefix} . "plugin_add",
+    $new_alias,
+    $new_plug
+  );
 
   $retval
 }
@@ -365,11 +643,10 @@ sub _plug_pipe_unregister {
   my ($self, $old_alias, $old_plug, @args) = @_;
 
   my ($retval, $err);
-  ## FIXME get regprefix
-  my $meth = $regprefix . "unregister";
+  my $meth = $self->_pluggable_opts->{reg_prefix} . "unregister" ;
 
   try {
-    $retval = $new_plug->$meth( $self, @args )
+    $retval = $old_plug->$meth( $self, @args )
   } catch {
     chomp;
     $err = "$meth call on '$old_alias' failed: $_";
@@ -380,22 +657,33 @@ sub _plug_pipe_unregister {
   }
 
   if ($err) {
-    $self->_plug_pipe_handle_error( $err, $old_plug, $old_alias );
+    $self->__plug_pipe_handle_err( $err, $old_plug, $old_alias );
   }
 
   delete $self->_pluggable_loaded->{ALIAS}->{$old_alias};
   delete $self->_pluggable_loaded->{OBJ}->{$old_plug};
-  ## FIXME clear handled also
+  delete $self->_pluggable_loaded->{HANDLE}->{$old_plug};
 
-  ## FIXME issue plugin_del event
+  $self->_pluggable_event(
+    $self->_pluggable_opts->{ev_prefix} . "plugin_del",
+    $old_alias,
+    $old_plug
+  );
 
   $retval
 }
 
-sub _plug_pipe_handle_error {
+sub __plug_pipe_handle_err {
   my ($self, $err, $plugin, $alias) = @_;
 
-  ## FIXME issue plugin_error event + warn
+  warn "$err\n";
+
+  $self->_pluggable_event(
+    $self->_pluggable_opts->{ev_prefix} . "plugin_error",
+    $err,
+    $plugin,
+    $alias
+  );
 }
 
 sub _plugin_by_alias {
@@ -419,158 +707,6 @@ sub _get_plug {
 
   wantarray ? ($item_alias, $item_plug) : $item_plug
 }
-
-
-### Process methods.
-sub __pluggable_process {
-  my ($self, $type, $event, $args) = @_;
-
-  unless (defined $type && defined $event) {
-    confess "Expected at least a type and event"
-  }
-
-  $event = lc $event;
-  my $prefix = $self->_pluggable_event_prefix;
-  $event =~ s/^\Q$prefix\E//;
-
-  ## FIXME get type_prefix from $type
-  my $meth = join '_', $type_prefix, $event;
-
-  my $retval   = EAT_NONE;
-  my $self_ret = $retval;
-
-  my @extra;
-
-  local $@;
-
-  if ( $self->can($meth) ) {
-    ## Dispatch to ourself
-    eval { $self_ret = $self->$meth($self, \(@$args), \@extra) };
-    $self->__plugin_process_chk($self, $meth, $self_ret);
-  } elsif ( $self->can('_default') ) {
-    ## Dispatch to _default
-    eval { $self_ret = $self->_default($self, $sub, \(@$args), \@extra) };
-    $self->__plugin_process_chk($self, '_default', $self_ret);
-  }
-
-  ## FIXME needs to be in the same order as O::P
-  if      (! defined $self_ret) {
-    $self_ret = EAT_NONE
-  } elsif ($self_ret == EAT_PLUGIN ) {
-    return $retval
-  } elsif ($self_ret == EAT_CLIENT ) {
-    $retval = EAT_ALL
-  } elsif ($self_ret == EAT_ALL ) {
-    return EAT_ALL
-  }
-
-  if (@extra) {
-    push @$args, @extra;
-    @extra = ();
-  }
-
-  PLUG: for my $thisplug (@{ $self->_pluggable_pipeline }) {
-    my $handlers = $self->_pluggable_handlers->{$thisplug} || {};
-
-    next PLUG if $self eq $thisplug
-      or  not defined $handlers->{$type}->{$event}
-      and not defined $handlers->{$type}->{all};
-
-    my $plug_ret   = EAT_NONE;
-    my $this_alias = ($self->plugin_get($thisplug))[1];
-
-    if      ( $thisplug->can($meth) ) {
-      eval { $plug_ret = $thisplug->$meth($self, \(@$args), \@extra) };
-      $self->__plugin_process_chk($self, $meth, $plug_ret, $this_alias);
-    } elsif ( $thisplug->can('_default') ) {
-      eval { $plug_ret = $thisplug->$meth($self, \(@$args), \@extra) };
-      $self->__plugin_process_chk($self, '_default', $plug_ret, $this_alias);
-    }
-
-    if (! defined $plug_ret) {
-      $plug_ret = EAT_NONE
-    } elsif ($plug_ret == EAT_PLUGIN) {
-      return $retval
-    } elsif ($plug_ret == EAT_CLIENT) {
-      $retval = EAT_ALL
-    } elsif ($plug_ret == EAT_ALL) {
-      return EAT_ALL
-    }
-
-    if (@extra) {
-      push @$args, @extra;
-      @extra = ();
-    }
-
-  }  ## PLUG
-
-  $retval
-}
-
-sub __plugin_process_chk {
-  my ($self, $obj, $meth, $retval, $src) = @_;
-  $src //= "plugin '$src'" : "self" ;
-
-  if ($@) {
-    chomp $@;
-    my $err = "$meth call on $src failed: $@";
-    warn $err;
-
-    ## FIXME issue plugin_error and return
-  }
-
-  if (not defined $retval ||
-   (
-        $retval != EAT_NONE
-     && $retval != EAT_PLUGIN
-     && $retval != EAT_CLIENT
-     && $retval != EAT_ALL
-   ) ) {
-
-    my $err = "$meth call on $src did not return a valid EAT_ constant";
-    warn $err;
-    ## FIXME issue plugin_error and return
-  }
-
-  1
-}
-
-sub plugin_add {
-
-}
-
-sub plugin_del {
-
-}
-
-sub plugin_get {
-  my ($self, $item) = @_;
-
-  confess "Expected a plugin alias or object"
-    unless defined $item;
-
-  my ($item_alias, $item_plug) = $self->_get_plug($item);
-
-  unless (defined $item_plug) {
-    $@ = "No such plugin: $item_alias";
-    return
-  }
-
-  wantarray ? ($item_plug, $item_alias) : $item_plug
-}
-
-sub plugin_alias_list {
-
-}
-
-sub plugin_register {
-
-}
-
-sub plugin_unregister {
-
-}
-
 
 
 1;

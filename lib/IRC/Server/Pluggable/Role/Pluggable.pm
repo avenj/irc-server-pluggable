@@ -1,5 +1,6 @@
 package IRC::Server::Pluggable::Role::Pluggable;
 
+## Moo::Role for a pluggable object.
 ## Based largely on Object::Pluggable:
 ##  http://www.metacpan.org/dist/Object-Pluggable
 
@@ -20,8 +21,6 @@ use Try::Tiny;
 ###
 use namespace::clean -except => 'meta';
 
-
-## FIXME move event_prefix / register_prefix here from Emitter
 
 has '_pluggable_opts' => (
   is  => 'ro',

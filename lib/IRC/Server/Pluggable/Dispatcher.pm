@@ -9,13 +9,14 @@ use POE;
 
 use IRC::Server::Pluggable qw/
   Constants
-  Emitter
   Types
 /;
 
 use namespace::clean -except => 'meta';
 
-extends 'IRC::Server::Pluggable::Emitter';
+
+with 'IRC::Server::Pluggable::Role::Pluggable';
+with 'IRC::Server::Pluggable::Role::Emitter';
 
 
 has 'backend_opts' => (

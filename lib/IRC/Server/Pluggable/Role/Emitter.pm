@@ -1,14 +1,13 @@
-package IRC::Server::Pluggable::Emitter;
-our $VERSION = '0.000_01';
+package IRC::Server::Pluggable::Role::Emitter;
 
-## OK, this *really* ought to be a Role.
-## ... unfortunately at the moment it has to inherit from Object::Pluggable
+## Moo::Role adding POE event emission to Role::Pluggable behavior
+## Based largely on POE::Component::Syndicator:
+##  http://www.metacpan.org/dist/POE-Component-Syndicator
 
-use 5.12.1;
-use strictures 1;
+use Moo::Role;
 
 use Carp;
-use Moo;
+use strictures 1;
 
 use IRC::Server::Pluggable qw/
   Constants
@@ -17,10 +16,15 @@ use IRC::Server::Pluggable qw/
 
 use POE;
 
+##
 use namespace::clean -except => 'meta';
 
-extends 'Object::Pluggable';
-
+requires qw/
+  _pluggable_init
+  _pluggable_destroy
+  _pluggable_process
+  _pluggable_event
+/;
 
 has 'alias' => (
   lazy => 1,
@@ -29,15 +33,6 @@ has 'alias' => (
   predicate => 'has_alias',
   writer    => 'set_alias',
   default   => sub { "$_[0]" },
-);
-
-has 'debug' => (
-  lazy => 1,
-  is   => 'ro',
-  isa  => Bool,
-  predicate => 'has_debug',
-  writer    => 'set_debug',
-  default   => sub { 0 },
 );
 
 has 'event_prefix' => (
@@ -99,7 +94,6 @@ sub _start_emitter {
   ## Call to spawn Session.
   ##   my $self = $class->new(
   ##     alias           => Emitter session alias
-  ##     debug           => Debug true/false
   ##     event_prefix    => Session event prefix (emitted_)
   ##     register_prefix => _register/_unregister prefix (Emitter_)
   ##     object_states   => Extra object_states for Session
@@ -107,21 +101,19 @@ sub _start_emitter {
   my ($self) = @_;
 
   $self->_pluggable_init(
-    prefix     => $self->event_prefix,
-    reg_prefix => $self->register_prefix,
+    event_prefix  => $self->event_prefix,
+    reg_prefix    => $self->register_prefix,
 
     types => {
 
       ## PROCESS type events are handled synchronously.
       ## Handlers begin with P_*
-      'PROCESS' => 'P',
+      PROCESS => 'P',
 
       ## NOTIFY type events are dispatched asynchronously.
       ## Handlers begin with N_*
-      'NOTIFY'  => 'N',
+      NOTIFY  => 'N',
     },
-
-    debug => $self->debug,
   );
 
   POE::Session->create(
@@ -156,10 +148,11 @@ sub _start_emitter {
   $self
 }
 
-## From Object::Pluggable:
-around '_pluggable_event' => sub {
+
+sub _pluggable_event {
   my ($orig, $self) = splice @_, 0, 2;
 
+  ## Overriden from Role::Pluggable
   ## Receives plugin_error, plugin_add etc
 
   $self->emit( @_ );
@@ -594,10 +587,6 @@ B<alias> specifies the POE::Kernel alias used for our session; defaults
 to the stringified object.
 
 Set via B<set_alias>
-
-=head4 debug
-
-FIXME
 
 =head4 event_prefix
 

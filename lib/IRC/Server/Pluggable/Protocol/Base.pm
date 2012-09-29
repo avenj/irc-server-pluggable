@@ -47,17 +47,17 @@ use POE;
 
 use IRC::Server::Pluggable qw/
   Constants
+  Types
 
   Protocol::Plugin::Register
-
-  Types
 /;
 
 
 use namespace::clean -except => 'meta';
 
 
-extends 'IRC::Server::Pluggable::Emitter';
+with 'IRC::Server::Pluggable::Role::Pluggable';
+with 'IRC::Server::Pluggable::Role::Emitter';
 
 
 ### Core attribs
@@ -326,7 +326,6 @@ sub _build_extra_states {
       ],
   ]
 }
-
 
 ## Basic behavorial roles.
 ## Protocol.pm consumes others to form a useful basic TS Protocol.

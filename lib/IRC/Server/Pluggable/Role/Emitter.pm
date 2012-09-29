@@ -324,7 +324,7 @@ sub _dispatch_notify {
   my $prefix = $self->event_prefix;
 
   ## May have event_prefix (such as $prefix.'plugin_error')
-  $event =~ s/^\Q$prefix//;
+  $event =~ s/^\Q$prefix\E//;
 
   my %sessions;
 
@@ -631,20 +631,30 @@ B<session_id> is our Emitter L<POE::Session> ID.
 =head3 _start_emitter
 
 B<_start_emitter()> should be called on our object to spawn the actual
-Emitter session.
+Emitter L<POE::Session>.
 
 
 =head2 Registering sessions
 
-FIXME
+An external L<POE::Session> can register to receive events via asynchronous 
+event dispatch by sending a C<register>:
+
+  $poe_kernel->post( $emitter->session_id,
+    'register',
+    @events
+  );
+
+Registered sessions are consumers; they cannot modify event arguments in 
+any meaningful way, and will receive arguments as-normal (in @_[ARG0 .. 
+$#_] like any other POE state).
 
 =head2 Receiving events
 
 FIXME
 
-=head2 Returning EAT values
+=head2 EAT values
 
-FIXME
+FIXME summarize our behavior, link back to Role::Pluggable details
 
 =head3 NOTIFY events
 

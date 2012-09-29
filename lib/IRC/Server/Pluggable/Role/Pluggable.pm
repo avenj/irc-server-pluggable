@@ -96,16 +96,18 @@ sub _pluggable_process {
   ## Some of the tighter code; I'm open to optimization ideas.
 
   unless (ref $args) {
+    ## No explicit 'ARRAY' check to save a string comparison
     confess "Expected a type, event, and (possibly empty) args ARRAY"
   }
 
+  ## Hmm. Should benchmark index+substr against regex, here:
   my $prefix = $self->_pluggable_opts->{ev_prefix};
   $event =~ s/^\Q$prefix\E//;
 
   my $meth = join( '_',
     (
      $self->_pluggable_opts->{types}->{$type}
-       || confess "Unknown type $type"
+       // confess "Cannot _pluggable_process unknown type $type"
     ),
     $event
   );

@@ -93,18 +93,22 @@ sub _pluggable_destroy {
 
 sub _pluggable_process {
   my ($self, $type, $event, $args) = @_;
+  ## Some of the tighter code; I'm open to optimization ideas.
 
-  unless (defined $event) {
-    confess "Expected at least a type and event"
+  unless (ref $args) {
+    confess "Expected a type, event, and (possibly empty) args ARRAY"
   }
-
-  $args //= [];
 
   my $prefix = $self->_pluggable_opts->{ev_prefix};
   $event =~ s/^\Q$prefix\E//;
 
-  my $type_prefix = $self->_pluggable_opts->{types}->{$type};
-  my $meth = join '_', $type_prefix, $event;
+  my $meth = join( '_',
+    (
+     $self->_pluggable_opts->{types}->{$type}
+       || confess "Unknown type $type"
+    ),
+    $event
+  );
 
   my $retval = my $self_ret = EAT_NONE;
 
@@ -112,7 +116,7 @@ sub _pluggable_process {
 
   local $@;
 
-  if ( $self->can($meth) ) {
+  if      ( $self->can($meth) ) {
     ## Dispatch to ourself
     eval { $self_ret = $self->$meth($self, \(@$args), \@extra) };
     $self->__plugin_process_chk($self, $meth, $self_ret);
@@ -137,12 +141,17 @@ sub _pluggable_process {
     @extra = ();
   }
 
-  PLUG: for my $thisplug (@{ $self->_pluggable_pipeline }) {
-    my $handlers = $self->_pluggable_loaded->{HANDLE}->{$thisplug} || {};
+  my $handle_ref = $self->_pluggable_loaded->{HANDLE};
 
-    next PLUG if $self == $thisplug
-      or  not defined $handlers->{$type}->{$event}
-      and not defined $handlers->{$type}->{all};
+  PLUG: for my $thisplug (@{ $self->_pluggable_pipeline }) {
+
+    next PLUG
+      if $self == $thisplug
+      or not exists $handle_ref->{$thisplug}->{$type}
+      or (  ## Parens for readability. I'm not sorry.
+       not exists $handle_ref->{$thisplug}->{$type}->{$event}
+        and not exists $handle_ref->{$thisplug}->{$type}->{all}
+      );
 
     my $plug_ret   = EAT_NONE;
     my $this_alias = ($self->plugin_get($thisplug))[1];
@@ -214,8 +223,6 @@ sub __plugin_process_chk {
 
     return
   }
-
-  1
 }
 
 sub plugin_add {
@@ -310,7 +317,7 @@ sub plugin_unregister {
   }
 
   my $handles
-   = $self->_pluggable_loaded->{HANDLE}->{$plugin}->{$type} || {};
+    = $self->_pluggable_loaded->{HANDLE}->{$plugin}->{$type} || {};
 
   for my $ev (@events) {
 

@@ -214,7 +214,7 @@ sub chg_modes {
   ## Normalize here and modify ->modes, lists, chg_status
 }
 
-## Topic proxy methods
+## Topics
 sub set_topic {
   my ($self, $topic, $setter_str) = @_;
   $setter_str //= '';

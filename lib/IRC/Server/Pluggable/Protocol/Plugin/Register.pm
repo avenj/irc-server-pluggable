@@ -70,7 +70,9 @@ sub Emitter_register {
     ],
   );
 
-  $proto->subscribe( $self, 'NOTIFY', qw/connection/ );
+  $proto->subscribe( $self, 'NOTIFY', qw/
+    connection
+  / );
 
   EAT_NONE
 }

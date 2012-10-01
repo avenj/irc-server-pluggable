@@ -47,7 +47,7 @@ sub to_hash {
 
   my $this_rpl = $self->rpl_map->{$numeric};
   confess "to_hash() called for unknown numeric $numeric"
-    unless $this_rpl;
+    unless defined $this_rpl;
 
   my %input = (
     command => $numeric,
@@ -64,7 +64,7 @@ sub to_hash {
       splice @{$params{params}}, 0, $count;
   }
 
-  if ($string =~ /%/) {
+  if (index($string, '%') >= 0) {
     ## Have extra params.
     push @{$input{params}},
       sprintf($string, @{$params{params}})

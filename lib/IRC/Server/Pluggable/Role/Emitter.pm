@@ -152,14 +152,15 @@ sub _start_emitter {
 }
 
 
-around '_pluggable_event' => {
-  my ($orig, $self) = splice @_, 0, 2;
+sub _pluggable_event {
+  my $self = shift;
 
   ## Overriden from Role::Pluggable
   ## Receives plugin_error, plugin_add etc
+  ## Redispatch via emit()
 
   $self->emit( @_ );
-};
+}
 
 
 ### Methods.
@@ -274,6 +275,8 @@ sub _trigger_object_states {
   $states
 }
 
+
+## Session ref-counting bits.
 
 sub __incr_ses_refc {
   my ($self, $sess_id) = @_;
@@ -662,6 +665,26 @@ FIXME
 
 FIXME
 
+=head3 Events delivered to this session
+
+The Emitter's Session provides a '_default' handler that redispatches 
+unknown POE-delivered events to L</process> (except for events prefixed 
+with '_', which are reserved).
+
+As a side-effect, registering the 'self' Session for some events (or 'all') 
+will cause unhandled L</NOTIFY events> to be redispatched as L</PROCESS 
+events>.
+
+To change this behavior, override the method '_emitter_default' in your 
+class:
+
+  use Moo;
+  with 'IRC::Server::Pluggable::Role::Emitter';
+  around '_emitter_default' => sub {
+    ## Drop unknown events on the floor, for example:
+    return
+  };
+
 =head2 EAT values
 
 FIXME summarize our behavior, link back to Role::Pluggable details
@@ -717,6 +740,9 @@ L</emit>.
 
 B<process()> calls registered plugin handlers for L</"PROCESS events">
 immediately; these are not dispatched to sessions.
+
+See L<IRC::Server::Pluggable::Role::Pluggable> for details on pluggable 
+event dispatch.
 
 =head3 timer
 

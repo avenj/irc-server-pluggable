@@ -20,6 +20,7 @@ use Scalar::Util 'blessed';
 use Try::Tiny;
 
 
+### namespace::clean
 use namespace::clean -except => 'meta';
 
 
@@ -261,7 +262,7 @@ sub plugin_get {
   my ($item_alias, $item_plug) = $self->__plugin_get_plug_any($item);
 
   unless (defined $item_plug) {
-    carp "No such plugin: $item_alias";
+    carp ($@ = "No such plugin: $item_alias");
     return
   }
 
@@ -623,6 +624,9 @@ sub plugin_pipe_bump_down {
 
 sub _plug_pipe_register {
   my ($self, $new_alias, $new_plug, @args) = @_;
+
+  ## Register this as a known plugin.
+  ## Try to call $reg_prefix . "register"
 
   my ($retval, $err);
   my $meth = $self->_pluggable_opts->{reg_prefix} . "register" ;

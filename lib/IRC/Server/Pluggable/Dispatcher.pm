@@ -149,17 +149,23 @@ sub _to_irc {
   ## Either an IRC::Event or a hash suitable for POE::Filter::IRCD
   ## + List of either Backend::Connect wheel IDs
   ##   or objs that can give us one
-  my ($out, @ids) = $_[ARG0 .. $#_];
-  return unless @ids;
+  my ($out, @conns) = $_[ARG0 .. $#_];
+  return unless @conns;
 
-  ## A list of wheel IDs, or objects that can give us one.
-  my $idref = [
-    map {
-      is_Object($_) ?
-        ( $_->can('route') ? $_->route : $_->wheel_id )
-        : $_
-    } @ids
-  ];
+  my %routes;
+
+  TARGET: for my $item (@conns) {
+    if ( is_Object($item) ) {
+      my $id = $item->can('route') ? $item->route
+         : $item->can('wheel_id' ) ? $item->wheel_id
+         : carp "Unknown target type $item" && next TARGET;
+      ++$routes{$id}
+    } else {
+      ++$routes{$item}
+    }
+  }
+
+  my $idref = [ keys %routes ];
 
   return
     if $self->process( 'message_to_irc', $out, $idref ) == EAT_ALL;
@@ -238,6 +244,8 @@ sub ircsock_connection_idle {
 sub ircsock_input {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
+
+  return if $conn->is_disconnecting;
 
   my $from_type =
     $conn->is_peer   ? 'peer'   :

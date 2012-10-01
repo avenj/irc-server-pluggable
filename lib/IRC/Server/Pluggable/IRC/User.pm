@@ -166,14 +166,15 @@ sub _build_full {
 
 ## These all do the same thing, but Moo triggers appear to be
 ## either a coderef or a boolean true value, with little room for
-## negotiation. (So the documentation says, at least.)
+## negotiation. Possible a subclass may want to override to do esoteric
+## things anyway:
+sub _trigger_user { $_[0]->_trigger_nick(@_[1 .. $#_]) }
+sub _trigger_host { $_[0]->_trigger_nick(@_[1 .. $#_]) }
 sub _trigger_nick {
   my ($self) = @_;
   $self->set_full( $self->_build_full )
     if $self->has_full
 }
-sub _trigger_user { $_[0]->_trigger_nick(@_[1 .. $#_]) }
-sub _trigger_host { $_[0]->_trigger_nick(@_[1 .. $#_]) }
 
 
 sub BUILD {
@@ -329,7 +330,8 @@ sub _parse_mode_str {
     }
 
     if ($char =~ /A-Z/i) {
-      push( @{ $res{ ($in_add ? 'add' : 'del') } },  $_ );
+      my $thiskey = $in_add ? 'add' : 'del';
+      push( @{ $res{$thiskey} },  $char );
       next
     }
 

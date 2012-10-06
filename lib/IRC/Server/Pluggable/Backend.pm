@@ -654,6 +654,9 @@ sub _ircsock_input {
   ## Retrieve Backend::Connect
   my $this_conn = $self->wheels->{$w_id};
 
+  ## Disconnecting? Don't care.
+  return if $this_conn->is_disconnecting;
+
   ## Adjust last seen and idle alarm
   $this_conn->seen( time );
   $kernel->delay_adjust( $this_conn->alarm_id, $this_conn->idle )

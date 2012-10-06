@@ -245,8 +245,6 @@ sub ircsock_input {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev)     = @_[ARG0, ARG1];
 
-  return if $conn->is_disconnecting;
-
   my $from_type =
     $conn->is_peer   ? 'peer'   :
     $conn->is_client ? 'client' :

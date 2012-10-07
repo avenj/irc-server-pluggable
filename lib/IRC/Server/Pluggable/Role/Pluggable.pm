@@ -100,9 +100,9 @@ sub _pluggable_process {
     confess "Expected a type, event, and (possibly empty) args ARRAY"
   }
 
-  ## Hmm. Should benchmark index+substr against regex, here:
   my $prefix = $self->_pluggable_opts->{ev_prefix};
-  $event =~ s/^\Q$prefix\E//;
+  substr($event, 0, $prefix, '')
+    if index($event, $prefix) == 0;
 
   my $meth = join( '_',
     (

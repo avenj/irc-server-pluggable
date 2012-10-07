@@ -329,7 +329,8 @@ sub __emitter_notify {
   my $prefix = $self->event_prefix;
 
   ## May have event_prefix (such as $prefix.'plugin_error')
-  $event =~ s/^\Q$prefix\E//;
+  substr($event, 0, $prefix, '')
+    if index($event, $prefix) == 0;
 
   my %sessions;
 

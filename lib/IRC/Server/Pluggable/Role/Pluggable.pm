@@ -104,13 +104,7 @@ sub _pluggable_process {
   substr($event, 0, $prefix, '')
     if index($event, $prefix) == 0;
 
-  my $meth = join( '_',
-    (
-     $self->_pluggable_opts->{types}->{$type}
-       // confess "Cannot _pluggable_process unknown type $type"
-    ),
-    $event
-  );
+  my $meth = join '_', $self->_pluggable_opts->{types}->{$type}, $event;
 
   my $retval = my $self_ret = EAT_NONE;
 
@@ -156,7 +150,7 @@ sub _pluggable_process {
       );
 
     my $plug_ret   = EAT_NONE;
-    my $this_alias = ($self->plugin_get($thisplug))[1];
+    my $this_alias = ($self->__plugin_get_plug_any($thisplug))[0];
 
     if      ( $thisplug->can($meth) ) {
       eval { $plug_ret = $thisplug->$meth($self, \(@$args), \@extra) };
@@ -255,9 +249,6 @@ sub plugin_del {
 
 sub plugin_get {
   my ($self, $item) = @_;
-
-  confess "Expected a plugin alias or object"
-    unless defined $item;
 
   my ($item_alias, $item_plug) = $self->__plugin_get_plug_any($item);
 

@@ -92,6 +92,12 @@ sub get_unpacked_addr {
     confess "Unknown socket family type"
   }
 
+  unless (wantarray) {
+    Carp::cluck(
+      "Possibly mistaken use of get_unpacked_addr, caller does not want list"
+    );
+  }
+
   ($inet_proto, $sockaddr, $sockport)
 }
 

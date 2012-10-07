@@ -779,6 +779,9 @@ sub _disconnected {
     $this_conn->wheel->shutdown_output;
   }
 
+  ## Higher layers may still have a $conn object bouncing about.
+  ## They should check ->has_wheel to determine if the Connect obj
+  ## has been disconnected (no longer has a wheel).
   $this_conn->clear_wheel;
 
   $poe_kernel->post( $self->controller,

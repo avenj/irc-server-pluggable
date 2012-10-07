@@ -170,7 +170,8 @@ sub __register_user_ready {
   my $pending_ref = $self->_r_pending_reg->{ $conn->wheel_id } || return;
 
   unless ( $conn->has_wheel ) {
-    ## Connection's wheel has disappeared.
+    ## Connection's wheel has disappeared; this user may have been 
+    ## disconnected, and its wheel cleared in Backend.
     delete $self->_r_pending_reg->{ $conn->wheel_id };
     return
   }
@@ -366,16 +367,6 @@ sub cmd_from_unknown_pass {
   my $pass = $event->params->[0];
   $self->_r_pending_reg->{ $conn->wheel_id }->{pass} = $pass;
 }
-
-
-around 'irc_ev_unknown_disconnected' => {
-  my ($orig, $self) = splice @_, 0, 2;
-  my ($conn) = @_;
-
-  delete $self->_r_pending_reg->{ $conn->wheel_id }
-
-  $self->$orig(@_)
-};
 
 
 ## FIXME call burst methods to sync up after registration?

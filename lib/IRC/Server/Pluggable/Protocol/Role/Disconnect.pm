@@ -14,6 +14,8 @@ use Moo::Role;
 use strictures 1;
 
 requires qw/
+  users
+  peers
   send_to_routes
 /;
 

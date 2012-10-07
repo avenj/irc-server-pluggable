@@ -96,7 +96,6 @@ sub _pluggable_process {
   ## Some of the tighter code; I'm open to optimization ideas.
 
   unless (ref $args) {
-    ## No explicit 'ARRAY' check to save a string comparison
     confess "Expected a type, event, and (possibly empty) args ARRAY"
   }
 
@@ -122,11 +121,14 @@ sub _pluggable_process {
     $self->__plugin_process_chk($self, '_default', $self_ret);
   }
 
-  if      (! defined $self_ret) {
-    $self_ret = EAT_NONE
-  } elsif ($self_ret == EAT_PLUGIN ) {
+  if (! defined $self_ret ) {
+    ## No-op.
+  } elsif ( $self_ret == EAT_PLUGIN ) {
+     ## Don't plugin-process, just return EAT_NONE.
+     ## (Higher levels like Emitter can still pick this up.)
     return $retval
   } elsif ($self_ret == EAT_CLIENT ) {
+     ## Plugin process, but return EAT_ALL after.
     $retval = EAT_ALL
   } elsif ($self_ret == EAT_ALL ) {
     return EAT_ALL
@@ -161,10 +163,16 @@ sub _pluggable_process {
     }
 
     if      (! defined $plug_ret) {
-      $plug_ret = EAT_NONE
+       ## No-op.
     } elsif ($plug_ret == EAT_PLUGIN) {
+       ## Stop plugin-processing.
+       ## Return EAT_ALL if we previously had a EAT_CLIENT
+       ## Return EAT_NONE otherwise
       return $retval
     } elsif ($plug_ret == EAT_CLIENT) {
+       ## Set a pending EAT_ALL.
+       ## If another plugin in the pipeline returns EAT_PLUGIN,
+       ## we'll tell higher layers like Emitter to EAT_ALL
       $retval = EAT_ALL
     } elsif ($plug_ret == EAT_ALL) {
       return EAT_ALL
@@ -744,7 +752,9 @@ A L<Moo::Role> for turning instances of your class into pluggable objects.
 Consumers of this role gain a plugin pipeline and methods to manipulate it,
 as well as a flexible dispatch system (see L</_pluggable_process>).
 
-This implementation is originally based on L<Object::Pluggable>.
+This implementation is originally based on L<Object::Pluggable>. It has 
+been turned into a Moo role with a slightly different interface and some 
+performance-related enhancements.
 
 =head2 Initialization
 

@@ -56,8 +56,7 @@ use IRC::Server::Pluggable qw/
 use namespace::clean -except => 'meta';
 
 
-with 'IRC::Server::Pluggable::Role::Pluggable';
-with 'IRC::Server::Pluggable::Role::Emitter';
+with 'MooX::Role::POE::Emitter';
 
 
 ### Core attribs

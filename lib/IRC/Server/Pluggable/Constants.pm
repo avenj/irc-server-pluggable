@@ -44,8 +44,7 @@ IRC::Server::Pluggable::Constants
 
 =head1 DESCRIPTION
 
-Exports constants used by L<IRC::Server::Pluggable::Role::Pluggable> and
-L<IRC::Server::Pluggable::Role::Emitter>:
+Exports constants used by L<MooX::Role::Pluggable>:
 
   EAT_NONE   => 1
   EAT_CLIENT => 2

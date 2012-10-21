@@ -92,8 +92,10 @@ my $build = $class->new(
 
     'IRC::Utils'             => 0,
 
-    'Moo'                    => '1.000003',
-    'MooX::Types::MooseLike' => '0.15',
+    'Moo'                      => '1.000003',
+    'MooX::Types::MooseLike'   => '0.15',
+    'MooX::Role::POE::Emitter' => 0,
+    'MooX::Role::Pluggable'    => '0.02',
 
     'Net::IP::Minimal'       => '0.04',
 

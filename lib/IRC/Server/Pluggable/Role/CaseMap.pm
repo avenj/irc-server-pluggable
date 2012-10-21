@@ -14,10 +14,8 @@ requires 'casemap';
 sub lower {
   my ($self, $name) = @_;
 
-  unless (defined $name) {
-    carp "lower() called with no channel name specified";
-    return
-  }
+  confess "lower() called with no channel name specified"
+    unless defined $name;
 
   lc_irc( $name, $self->casemap )
 }
@@ -25,10 +23,8 @@ sub lower {
 sub upper {
   my ($self, $name) = @_;
 
-  unless (defined $name) {
-    carp "upper() called with no channel name specified";
-    return
-  }
+  confess "upper() called with no channel name specified"
+    unless defined $name;
 
   uc_irc( $name, $self->casemap )
 }
@@ -38,7 +34,7 @@ sub equal {
 
   unless (defined $one && defined $two) {
     carp "equal() called without enough arguments";
-    return
+    return  ## Debatable, but hey, undef is still 'not equal' . . .
   }
 
   $self->upper($one) eq $self->upper($two) ? 1 : 0

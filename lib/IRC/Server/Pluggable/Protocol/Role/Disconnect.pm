@@ -7,6 +7,8 @@ package IRC::Server::Pluggable::Protocol::Role::Disconnect;
 ##   - cmd_from_peer_quit
 ##   - cmd_from_unknown_quit
 
+## FIXME handle squit ?
+
 use 5.12.1;
 use Carp;
 
@@ -50,7 +52,17 @@ sub cmd_from_peer_quit {
 }
 
 sub cmd_from_client_quit {
+  my ($self, $conn, $event) = @_;
 
+  my $user = $self->users->by_id( $conn->wheel_id )
+    unless defined $user;
+
+  my $message = $event->params->[0] || 'Client Quit';
+
+  $self->disconnect( $conn,
+    type => 'quit',
+    msg  => $message,
+  );
 }
 
 

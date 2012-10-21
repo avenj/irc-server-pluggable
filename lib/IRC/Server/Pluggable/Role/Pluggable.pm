@@ -2,7 +2,7 @@ package IRC::Server::Pluggable::Role::Pluggable;
 
 ## Moo::Role for a pluggable object.
 ## Based largely on Object::Pluggable:
-##  http://www.metacpan.org/dist/Object-Pluggable
+##  http://www.metacpan.org/dist/Object-Pluggable-1.29
 ## Retaining API compat is a plus, but not mandatory, given good reason.
 
 use Moo::Role;
@@ -121,7 +121,7 @@ sub _pluggable_process {
     $self->__plugin_process_chk($self, '_default', $self_ret);
   }
 
-  if (! defined $self_ret ) {
+  if      (! defined $self_ret ) {
     ## No-op.
   } elsif ( $self_ret == EAT_PLUGIN ) {
      ## Don't plugin-process, just return EAT_NONE.
@@ -143,13 +143,16 @@ sub _pluggable_process {
 
   PLUG: for my $thisplug (@{ $self->_pluggable_pipeline }) {
 
-    next PLUG
-      if $self == $thisplug
-      or not exists $handle_ref->{$thisplug}->{$type}
-      or (  ## Parens for readability. I'm not sorry.
-        not exists $handle_ref->{$thisplug}->{$type}->{$event}
-        and not exists $handle_ref->{$thisplug}->{$type}->{all}
-      );
+    if ( 
+         $self == $thisplug
+      || !exists $handle_ref->{$thisplug}->{$type}
+      || (
+             !exists $handle_ref->{$thisplug}->{$type}->{$event}
+          && !exists $handle_ref->{$thisplug}->{$type}->{all}
+         )
+    ) {
+      next PLUG
+    }
 
     my $plug_ret   = EAT_NONE;
     my $this_alias = ($self->__plugin_get_plug_any($thisplug))[0];

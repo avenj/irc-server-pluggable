@@ -1,7 +1,7 @@
 package IRC::Server::Pluggable::Role::Emitter;
 
 ## Moo::Role adding POE event emission to Role::Pluggable behavior
-## Based largely on POE::Component::Syndicator:
+## Based largely on POE::Component::Syndicator-0.06
 ##  http://www.metacpan.org/dist/POE-Component-Syndicator
 
 use Moo::Role;

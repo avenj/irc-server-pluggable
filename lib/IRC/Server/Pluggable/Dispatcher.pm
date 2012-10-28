@@ -73,7 +73,7 @@ sub BUILD {
   $self->set_object_states(
     [
       $self => {
-        'to_irc' => '_to_irc',
+        'to_irc'   => '_to_irc',
         'shutdown' => '_shutdown',
       },
 
@@ -101,6 +101,12 @@ sub BUILD {
     ],
   );
 
+  $self->set_pluggable_type_prefixes(
+    {
+      PROCESS => 'D_Proc',
+      NOTIFY  => 'D_Notify',
+    }
+  );
 
   $self->_start_emitter;
 }
@@ -148,7 +154,7 @@ sub _to_irc {
   ## Either an IRC::Event or a hash suitable for POE::Filter::IRCD
   ## + List of either Backend::Connect wheel IDs
   ##   or objs that can give us one
-  my ($out, @conns) = $_[ARG0 .. $#_];
+  my ($out, @conns) = @_[ARG0 .. $#_];
   return unless @conns;
 
   my %routes;
@@ -156,11 +162,14 @@ sub _to_irc {
   TARGET: for my $item (@conns) {
     if ( is_Object($item) ) {
       my $id = $item->can('route') ? $item->route
-         : $item->can('wheel_id' ) ? $item->wheel_id
-         : carp "Unknown target type $item" && next TARGET;
-      ++$routes{$id}
+         : $item->can('wheel_id')  ? $item->wheel_id : undef ;
+      unless (defined $id) {
+        carp "Unknown target type $item, ID undefined";
+        next TARGET
+      }
+      $routes{$id}++
     } else {
-      ++$routes{$item}
+      $routes{$item}++
     }
   }
 

@@ -41,7 +41,7 @@ sub _build_backend_class { "IRC::Server::Pluggable::Backend" }
 has 'backend' => (
   lazy      => 1,
   is        => 'ro',
-  isa       => InstanceOf['IRC::Server::Pluggable::Backend'],
+  isa       => HasMethods[qw/ send session_id /],
   predicate => 'has_backend',
   writer    => 'set_backend',
   builder   => '_build_backend',
@@ -258,7 +258,7 @@ sub ircsock_input {
     $conn->is_client ? 'client' :
                        'unknown';
 
-  if ($conn->is_peer && $ev->command =~ /^[0-9]$/) {
+  if ($conn->is_peer && $ev->command =~ /^[0-9]+$/) {
     ## Numerics from peers being routed somewhere.
 
     ## P_peer_numeric

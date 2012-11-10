@@ -133,6 +133,8 @@ sub _shutdown {
     @_[ARG0 .. $#_]
   );
 
+  ## FIXME probably not correct as of Role split
+  ## FIXME call an emitter stop directly instead ?
   $self->_yield( '_emitter_shutdown' );
 }
 

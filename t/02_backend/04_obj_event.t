@@ -4,7 +4,7 @@ use strict; use warnings FATAL => 'all' ;
 use POE::Filter::IRCD;
 
 BEGIN {
-  use_ok( 'IRC::Server::Pluggable::Backend::Event' );
+  use_ok( 'IRC::Server::Pluggable::IRC::Event' );
   use_ok( 'IRC::Server::Pluggable::Backend' );
 }
 
@@ -15,7 +15,7 @@ my $raw_line = ":server.org 001 user :Welcome to IRC\r\n";
 my $arr = $filter->get([$raw_line]);
 my $hash = shift @$arr;
 
-my $obj = new_ok( 'IRC::Server::Pluggable::Backend::Event' => [
+my $obj = new_ok( 'IRC::Server::Pluggable::IRC::Event' => [
     %$hash
   ],
 );

@@ -229,9 +229,6 @@ sub channel_has_mode {
   $chan->channel_has_mode($modechr)
 }
 
-## FIXME overridable factory method to create a Channel obj?
-## May make it easier to subclass a Channel.
-
 ### Add/clear/retrieve methods:
 sub add {
   my ($self, $chan) = @_;

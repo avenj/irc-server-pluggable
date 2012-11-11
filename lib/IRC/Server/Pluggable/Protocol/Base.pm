@@ -122,6 +122,8 @@ has 'channel_types' => (
 sub _build_channel_types {
   ## Map channel prefixes to a IRC::Channel subclass.
   ## These can control the behavior of specific channel types.
+  ## FIXME Role should use these to determine what kind of
+  ##  chan obj to construct
   {
     '&' => 'IRC::Server::Pluggable::IRC::Channel::Local',
     '#' => 'IRC::Server::Pluggable::IRC::Channel::Global',
@@ -140,7 +142,7 @@ has 'version_string' => (
 
 sub _build_version_string {
   my ($self) = @_;
-  ref $self .'-'. $VERSION
+  'irc-server-pluggable-'. $VERSION
 }
 
 

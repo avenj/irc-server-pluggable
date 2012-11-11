@@ -44,32 +44,6 @@ has 'is_relayed' => (
   default => sub { 1 },
 );
 
-
-has 'valid_modes' => (
-  lazy      => 1,
-  isa       => HashRef,
-  is        => 'ro',
-  predicate => 'has_valid_modes',
-  writer    => 'set_valid_modes',
-  builder   => '_build_valid_modes',
-);
-
-sub _build_valid_modes {
-    ## ISUPPORT CHANMODES=1,2,3,4
-    ## Channel modes fit in four categories:
-    ##  'LIST'     -> Modes that manipulate list values
-    ##  'PARAM'    -> Modes that require a parameter
-    ##  'SETPARAM' -> Modes that only require a param when set
-    ##  'SINGLE'   -> Modes that take no parameters
-    {
-      LIST     => [ 'b' ],
-      PARAM    => [ 'k' ],
-      SETPARAM => [ 'l' ],
-      SINGLE   => [ split '', 'imnpst' ],
-    }
-}
-
-
 has '_modes' => (
   ##  Channel control modes
   ##  Status modes are handled via nicknames hash and chg_status()
@@ -121,7 +95,6 @@ sub _build_list_classes {
   }
 }
 
-
 has 'lists' => (
   ## Ban lists, etc
   lazy    => 1,
@@ -147,6 +120,53 @@ sub _build_lists {
 
   $listref
 }
+
+
+has 'valid_modes' => (
+  lazy      => 1,
+  isa       => HashRef,
+  is        => 'ro',
+  predicate => 'has_valid_modes',
+  writer    => 'set_valid_modes',
+  builder   => '_build_valid_modes',
+);
+
+sub _build_valid_modes {
+    ## ISUPPORT CHANMODES=1,2,3,4
+    ## Channel modes fit in four categories:
+    ##  'LIST'     -> Modes that manipulate list values
+    ##  'PARAM'    -> Modes that require a parameter
+    ##  'SETPARAM' -> Modes that only require a param when set
+    ##  'SINGLE'   -> Modes that take no parameters
+    {
+      LIST     => [ 'b' ],
+      PARAM    => [ 'k' ],
+      SETPARAM => [ 'l' ],
+      SINGLE   => [ split '', 'imnpst' ],
+    }
+}
+
+sub add_valid_mode {
+  my ($self, $type, @modes) = @_;
+  confess "Expected a mode type and at least one mode character"
+    unless $type and @modes;
+
+  push @{ $self->valid_modes->{$type} }, @modes
+}
+
+sub mode_is_valid {
+  ## Ask the channel if this mode is valid.
+  ## (A modeless channel could always return false, f.ex)
+  my ($self, $mode) = @_;
+  confess "Expected a mode to be supplied" unless defined $mode;
+
+  my @all;
+  push @all, @{ $self->valid_modes->{$_} } for keys %{ $self->valid_modes };
+
+  return unless grep {; $_ eq $mode } @all;
+  return 1
+}
+
 
 
 ## IMPORTANT: These functions all currently expect a higher

@@ -191,6 +191,13 @@ sub _build_valid_modes {
   [ split '', 'iaows' ]
 }
 
+sub mode_is_valid {
+  my ($self, $mode) = @_;
+  confess "Expected a mode to be supplied" unless defined $mode;
+
+  return unless grep {; $_ eq $mode } @{ $self->valid_modes };
+  return 1
+}
 
 
 sub BUILD {

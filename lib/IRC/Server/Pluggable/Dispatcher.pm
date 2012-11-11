@@ -17,8 +17,6 @@ use namespace::clean -except => 'meta';
 with 'MooX::Role::POE::Emitter';
 
 
-## FIXME Roll into Protocol::Base / rework ?
-
 has 'backend_opts' => (
   required  => 1,
   is        => 'ro',
@@ -176,7 +174,11 @@ sub _to_irc {
     }
   }
 
-  $self->backend->send( $out, keys %routes )
+  my @route_ids = keys %routes;
+
+  return if $self->process( 'to_irc', $out, \@route_ids ) == EAT_ALL;
+
+  $self->backend->send( $out, @route_ids )
 }
 
 

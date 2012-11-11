@@ -192,7 +192,7 @@ sub ircsock_compressed {
 
   my $event_name = 'peer_compressed';
 
-  $self->emit_now( $event_name, $conn );
+  $self->emit( $event_name, $conn );
 }
 
 sub ircsock_connector_failure {
@@ -203,8 +203,8 @@ sub ircsock_connector_failure {
 #  my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
 
   ## Not much a plugin can do here, particularly ...
-  ## emit_now() only:
-  $self->emit_now( 'connector_failure', @_[ARG0 .. ARG3] )
+  ## emit() only:
+  $self->emit( 'connector_failure', @_[ARG0 .. ARG3] )
 }
 
 sub ircsock_connector_open {
@@ -214,7 +214,7 @@ sub ircsock_connector_open {
 
   my $event_name = 'peer_connected';
 
-  $self->emit_now( $event_name, $conn );
+  $self->emit( $event_name, $conn );
 }
 
 sub ircsock_disconnect {
@@ -231,13 +231,13 @@ sub ircsock_disconnect {
     $event_name = 'unknown_disconnected'
   }
 
-  $self->emit_now( $event_name, $conn )
+  $self->emit( $event_name, $conn )
 }
 
 sub ircsock_connection_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  $self->emit_now( 'connection_idle', @_[ARG0 .. $#_] );
+  $self->emit( 'connection_idle', @_[ARG0 .. $#_] );
 }
 
 sub ircsock_input {
@@ -255,7 +255,7 @@ sub ircsock_input {
     ## P_peer_numeric
     ## irc_ev_peer_numeric / N_peer_numeric
 
-    $self->emit_now( 'peer_numeric', $conn, $ev );
+    $self->emit( 'peer_numeric', $conn, $ev );
 
     return
   }
@@ -267,7 +267,7 @@ sub ircsock_input {
   ## _unknown_cmd
   my $event_name = join '_', $from_type, 'cmd' ;
 
-  $self->emit_now( $event_name, $conn, $ev );
+  $self->emit( $event_name, $conn, $ev );
 }
 
 sub ircsock_listener_created {
@@ -276,7 +276,7 @@ sub ircsock_listener_created {
 
   my $event_name = 'listener_created';
 
-  $self->emit_now( $event_name, $listener );
+  $self->emit( $event_name, $listener );
 }
 
 sub ircsock_listener_failure {
@@ -292,7 +292,7 @@ sub ircsock_listener_failure {
   ## ... haven't quite worked out logging yet.
   my $event_name = 'listener_failure';
 
-  $self->emit_now( $event_name,
+  $self->emit( $event_name,
     $listener,
     $op,
     $errno,
@@ -308,7 +308,7 @@ sub ircsock_listener_open {
 
   my $event_name = 'listener_accepted';
 
-  $self->emit_now( $event_name, $conn );
+  $self->emit( $event_name, $conn );
 }
 
 sub ircsock_listener_removed {
@@ -317,7 +317,7 @@ sub ircsock_listener_removed {
   ## This listener is no longer active (wheel is cleared)
   my $listener = $_[ARG0];
 
-  $self->emit_now( 'listener_removed', $listener )
+  $self->emit( 'listener_removed', $listener )
 }
 
 sub ircsock_registered {

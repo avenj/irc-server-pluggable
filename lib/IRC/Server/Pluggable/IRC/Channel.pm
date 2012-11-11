@@ -21,59 +21,12 @@ use overload
   fallback => 1 ;
 
 
-
-has 'name' => (
-  required => 1,
-  is       => 'ro',
-  isa      => Str,
-);
-
-has 'nicknames' => (
-  lazy    => 1,
-  is      => 'ro',
-  isa     => HashRef[ArrayRef],
-  writer  => 'set_nicknames',
-  default => sub { {} },
-);
-
 has 'is_relayed' => (
   lazy    => 1,
   is      => 'ro',
   isa     => Bool,
   writer  => 'set_relayed',
   default => sub { 1 },
-);
-
-has '_modes' => (
-  ##  Channel control modes
-  ##  Status modes are handled via nicknames hash and chg_status()
-  ##  List modes are handled via ->lists
-  lazy      => 1,
-  is        => 'ro',
-  isa       => HashRef,
-  writer    => '_set_modes',
-  predicate => '_has_modes',
-  default   => sub { {} },
-);
-
-has '_topic' => (
-  ## Array of topic details
-  ##  [ string, setter, TS ]
-  lazy      => 1,
-  is        => 'ro',
-  isa       => ArrayRef,
-  writer    => '_set_topic',
-  predicate => '_has_topic',
-  clearer   => '_clear_topic',
-  default   => sub { [ ] },
-);
-
-has 'ts' => (
-  is       => 'ro',
-  isa      => Num,
-  writer   => 'set_ts',
-  clearer  => 'clear_ts',
-  default  => sub { time() },
 );
 
 
@@ -120,6 +73,53 @@ sub _build_lists {
 
   $listref
 }
+
+
+has 'name' => (
+  required => 1,
+  is       => 'ro',
+  isa      => Str,
+);
+
+has 'nicknames' => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef[ArrayRef],
+  writer  => 'set_nicknames',
+  default => sub { {} },
+);
+
+has '_modes' => (
+  ##  Channel control modes
+  ##  Status modes are handled via nicknames hash and chg_status()
+  ##  List modes are handled via ->lists
+  lazy      => 1,
+  is        => 'ro',
+  isa       => HashRef,
+  writer    => '_set_modes',
+  predicate => '_has_modes',
+  default   => sub { {} },
+);
+
+has '_topic' => (
+  ## Array of topic details
+  ##  [ string, setter, TS ]
+  lazy      => 1,
+  is        => 'ro',
+  isa       => ArrayRef,
+  writer    => '_set_topic',
+  predicate => '_has_topic',
+  clearer   => '_clear_topic',
+  default   => sub { [ ] },
+);
+
+has 'ts' => (
+  is       => 'ro',
+  isa      => Num,
+  writer   => 'set_ts',
+  clearer  => 'clear_ts',
+  default  => sub { time() },
+);
 
 
 has 'valid_modes' => (

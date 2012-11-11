@@ -303,31 +303,9 @@ sub _build_numeric {
 }
 
 
-
-### States.
-has 'extra_states' => (
-  lazy    => 1,
-  is      => 'ro',
-  isa     => ArrayRef,
-  writer  => 'set_extra_states',
-  clearer => 'clear_extra_states',
-  builder => '_build_extra_states',
-  predicate => 'has_extra_states',
-);
-
-sub _build_extra_states {
-  my ($self) = @_;
-  [ $self =>
-      [
-        qw/
-          irc_ev_register_complete
-        /,
-      ],
-  ]
-}
-
 ## Basic behavorial roles.
 ## Protocol.pm consumes others to form a useful basic TS Protocol.
+## FIXME maybe all role consumption should live in Protocol?
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
 with 'IRC::Server::Pluggable::Protocol::Role::Send';
@@ -368,6 +346,8 @@ sub BUILD {
           irc_ev_client_disconnected
           irc_ev_peer_disconnected
           irc_ev_unknown_disconnected
+
+          irc_ev_register_complete
       / ],
 
       ## Predefined in the base class, but subs could tweak if they like:
@@ -376,7 +356,6 @@ sub BUILD {
       ),
 
       ## May have other object_states specified at construction time
-      ## (from Emitter)
       (
         $self->has_object_states ? @{ $self->object_states } : ()
       ),

@@ -350,11 +350,6 @@ sub BUILD {
           irc_ev_register_complete
       / ],
 
-      ## Predefined in the base class, but subs could tweak if they like:
-      (
-        $self->has_extra_states ? @{ $self->extra_states }   : ()
-      ),
-
       ## May have other object_states specified at construction time
       (
         $self->has_object_states ? @{ $self->object_states } : ()

@@ -156,11 +156,10 @@ sub user_is_moderated {
 
   my $chan = $self->by_name($chan_name) || return;
 
-  return unless $self->channel_has_mode($chan_name, 'm');
+  return 1 if $self->channel_has_mode($chan_name, 'm')
+    and not $self->status_char_for_user($user_obj, $chan_name);
 
-  return unless $self->status_char_for_user($user_obj, $chan_name);
-
-  1
+  return
 }
 
 sub user_is_present {
@@ -201,7 +200,7 @@ sub status_char_for_user {
   my ($self, $user_obj, $chan_name) = @_;
 
   ## TODO; some newer ircds seem to send '@+' ... worth looking into
-
+  ## We should be sorted highest-to-lowest:
   for my $modechr ($self->available_status_modes) {
     return $self->status_prefix_for_mode($modechr)
       if $self->user_has_status($user_obj, $chan_name, $modechr)

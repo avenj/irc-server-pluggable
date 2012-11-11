@@ -32,9 +32,6 @@ our $VERSION = 0;
 ##
 ##   users                 ::IRC::Users
 ##
-##   valid_channel_modes   HashRef
-##                          See _build_valid_channel_modes
-##
 ##   version_string        Str
 
 use 5.12.1;
@@ -129,46 +126,6 @@ sub _build_channel_types {
     '&' => 'IRC::Server::Pluggable::IRC::Channel::Local',
     '#' => 'IRC::Server::Pluggable::IRC::Channel::Global',
   }
-}
-
-## FIXME valid_channel_modes should maybe move to Channels.pm?
-has 'valid_channel_modes' => (
-  lazy      => 1,
-  isa       => HashRef,
-  is        => 'ro',
-  predicate => 'has_valid_channel_modes',
-  writer    => 'set_valid_channel_modes',
-  builder   => '_build_valid_channel_modes',
-);
-
-sub _build_valid_channel_modes {
-    ## ISUPPORT CHANMODES=1,2,3,4
-    ## Channel modes fit in four categories:
-    ##  'LIST'     -> Modes that manipulate list values
-    ##  'PARAM'    -> Modes that require a parameter
-    ##  'SETPARAM' -> Modes that only require a param when set
-    ##  'SINGLE'   -> Modes that take no parameters
-    {
-      LIST     => [ 'b' ],
-      PARAM    => [ 'k' ],
-      SETPARAM => [ 'l' ],
-      SINGLE   => [ split '', 'imnpst' ],
-    }
-}
-
-
-has 'valid_user_modes' => (
-  lazy      => 1,
-  isa       => ArrayRef,
-  is        => 'ro',
-  predicate => 'has_valid_user_modes',
-  writer    => 'set_valid_user_modes',
-  builder   => '_build_valid_user_modes',
-);
-
-sub _build_valid_user_modes {
-  ## Override to add valid user modes.
-  [ split '', 'iaows' ]
 }
 
 

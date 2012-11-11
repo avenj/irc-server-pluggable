@@ -177,6 +177,22 @@ sub _trigger_nick {
 }
 
 
+has 'valid_modes' => (
+  lazy      => 1,
+  isa       => ArrayRef,
+  is        => 'ro',
+  predicate => 'has_valid_modes',
+  writer    => 'set_valid_modes',
+  builder   => '_build_valid_modes',
+);
+
+sub _build_valid_modes {
+  ## Override to add valid user modes.
+  [ split '', 'iaows' ]
+}
+
+
+
 sub BUILD {
   my ($self) = @_;
 

@@ -36,15 +36,39 @@ has 'nicknames' => (
   default => sub { {} },
 );
 
-## FIXME move valid channel modes here
-
-has 'relayed' => (
+has 'is_relayed' => (
   lazy    => 1,
   is      => 'ro',
   isa     => Bool,
   writer  => 'set_relayed',
   default => sub { 1 },
 );
+
+
+has 'valid_modes' => (
+  lazy      => 1,
+  isa       => HashRef,
+  is        => 'ro',
+  predicate => 'has_valid_modes',
+  writer    => 'set_valid_modes',
+  builder   => '_build_valid_modes',
+);
+
+sub _build_valid_modes {
+    ## ISUPPORT CHANMODES=1,2,3,4
+    ## Channel modes fit in four categories:
+    ##  'LIST'     -> Modes that manipulate list values
+    ##  'PARAM'    -> Modes that require a parameter
+    ##  'SETPARAM' -> Modes that only require a param when set
+    ##  'SINGLE'   -> Modes that take no parameters
+    {
+      LIST     => [ 'b' ],
+      PARAM    => [ 'k' ],
+      SETPARAM => [ 'l' ],
+      SINGLE   => [ split '', 'imnpst' ],
+    }
+}
+
 
 has '_modes' => (
   ##  Channel control modes

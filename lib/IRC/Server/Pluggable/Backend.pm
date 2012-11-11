@@ -10,8 +10,9 @@ use Moo;
 use IRC::Server::Pluggable qw/
   Backend::Connect
   Backend::Connector
-  IRC::Event
   Backend::Listener
+
+  IRC::Event
 
   Types
   Utils
@@ -138,10 +139,28 @@ has 'wheels' => (
 );
 
 
-## Constants. These class names are long and I am very lazy.
-sub ListenerClass  () { 'IRC::Server::Pluggable::Backend::Listener' }
-sub ConnectorClass () { 'IRC::Server::Pluggable::Backend::Connector' }
-sub ConnectClass   () { 'IRC::Server::Pluggable::Backend::Connect' }
+has '__backend_class_prefix' => (
+  is      => 'rw',
+  default => sub { 'IRC::Server::Pluggable::Backend::' },
+);
+
+has '__backend_listener_class' => (
+  lazy    => 1,
+  is      => 'rw',
+  default => sub { $_[0]->__backend_class_prefix . 'Listener' },
+);
+
+has '__backend_connector_class' => (
+  lazy => 1,
+  is => 'rw',
+  default => sub { $_[0]->__backend_class_prefix . 'Connector' },
+);
+
+has '__backend_connect_class' => (
+  lazy => 1,
+  is => 'rw',
+  default => sub { $_[0]->__backend_class_prefix . 'Connect' },
+);
 
 
 sub spawn {
@@ -301,7 +320,7 @@ sub _accept_conn {
 
   my $w_id = $wheel->ID;
 
-  my $this_conn = ConnectClass->new(
+  my $this_conn = $self->__backend_connect_class->new(
     protocol => $protocol,
     wheel    => $wheel,
 
@@ -413,7 +432,7 @@ sub _create_listener {
 
   my $id = $wheel->ID;
 
-  my $listener = ListenerClass->new(
+  my $listener = $self->__backend_listener_class->new(
     protocol => $protocol,
     wheel => $wheel,
     addr  => $bindaddr,
@@ -545,7 +564,7 @@ sub _create_connector {
 
   my $id = $wheel->ID;
 
-  $self->connectors->{$id} = ConnectorClass->new(
+  $self->connectors->{$id} = $self->__backend_connector_class->new(
     wheel => $wheel,
     addr  => $remote_addr,
     port  => $remote_port,
@@ -606,7 +625,7 @@ sub _connector_up {
   my ($protocol, $sockaddr, $sockport)
     = get_unpacked_addr($sock_packed);
 
-  my $this_conn = ConnectClass->new(
+  my $this_conn = $self->__backend_connect_class->new(
     protocol => $protocol,
     wheel    => $wheel,
     peeraddr => $peeraddr,

@@ -8,7 +8,6 @@ use Moo;
 use POE;
 
 use IRC::Server::Pluggable qw/
-  Constants
   Types
 /;
 
@@ -17,6 +16,8 @@ use namespace::clean -except => 'meta';
 
 with 'MooX::Role::POE::Emitter';
 
+
+## FIXME Roll into Protocol::Base / rework ?
 
 has 'backend_opts' => (
   required  => 1,
@@ -175,12 +176,7 @@ sub _to_irc {
     }
   }
 
-  my $idref = [ keys %routes ];
-
-  return
-    if $self->process( 'message_to_irc', $out, $idref ) == EAT_ALL;
-
-  $self->backend->send( $out, @$idref )
+  $self->backend->send( $out, keys %routes )
 }
 
 
@@ -193,9 +189,6 @@ sub ircsock_compressed {
   ## Link is probably burstable
 
   my $event_name = 'peer_compressed';
-
-  return
-    if $self->process( $event_name, $conn ) == EAT_ALL;
 
   $self->emit_now( $event_name, $conn );
 }
@@ -219,9 +212,6 @@ sub ircsock_connector_open {
 
   my $event_name = 'peer_connected';
 
-  return
-    if $self->process( $event_name, $conn ) == EAT_ALL;
-
   $self->emit_now( $event_name, $conn );
 }
 
@@ -238,9 +228,6 @@ sub ircsock_disconnect {
   } else {
     $event_name = 'unknown_disconnected'
   }
-
-  return
-    if $self->process( $event_name, $conn ) == EAT_ALL;
 
   $self->emit_now( $event_name, $conn )
 }
@@ -266,9 +253,6 @@ sub ircsock_input {
     ## P_peer_numeric
     ## irc_ev_peer_numeric / N_peer_numeric
 
-    return
-      if $self->process( 'peer_numeric', $conn, $ev ) == EAT_ALL;
-
     $self->emit_now( 'peer_numeric', $conn, $ev );
 
     return
@@ -281,11 +265,6 @@ sub ircsock_input {
   ## _unknown_cmd
   my $event_name = join '_', $from_type, 'cmd' ;
 
-  ## process() via our plugin pipeline:
-  return
-    if $self->process( $event_name, $conn, $ev ) == EAT_ALL;
-
-  ## .. then emit_now() to registered sessions:
   $self->emit_now( $event_name, $conn, $ev );
 }
 
@@ -294,9 +273,6 @@ sub ircsock_listener_created {
   my $listener = $_[ARG0];
 
   my $event_name = 'listener_created';
-
-  return
-    if $self->process( $event_name, $listener ) == EAT_ALL;
 
   $self->emit_now( $event_name, $listener );
 }
@@ -313,13 +289,6 @@ sub ircsock_listener_failure {
   ## Possibly announced to IRC on a rehash, f.ex.
   ## ... haven't quite worked out logging yet.
   my $event_name = 'listener_failure';
-  return
-    if $self->process( $event_name,
-      $listener,
-      $op,
-      $errno,
-      $errstr
-    ) == EAT_ALL;
 
   $self->emit_now( $event_name,
     $listener,
@@ -336,9 +305,6 @@ sub ircsock_listener_open {
   ## Accepted connection.
 
   my $event_name = 'listener_accepted';
-
-  return
-    if $self->process( $event_name, $conn ) == EAT_ALL;
 
   $self->emit_now( $event_name, $conn );
 }

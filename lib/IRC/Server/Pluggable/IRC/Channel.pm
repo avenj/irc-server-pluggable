@@ -1,6 +1,6 @@
 package IRC::Server::Pluggable::IRC::Channel;
 ## Base class for Channels.
-## Overridable by Protocols.
+## Types/subclasses are mapped in Protocol.
 
 use 5.12.1;
 use strictures 1;
@@ -34,6 +34,16 @@ has 'nicknames' => (
   isa     => HashRef[ArrayRef],
   writer  => 'set_nicknames',
   default => sub { {} },
+);
+
+## FIXME move valid channel modes here
+
+has 'relayed' => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => Bool,
+  writer  => 'set_relayed',
+  default => sub { 1 },
 );
 
 has '_modes' => (

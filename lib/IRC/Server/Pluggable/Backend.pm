@@ -151,17 +151,22 @@ has '__backend_listener_class' => (
 );
 
 has '__backend_connector_class' => (
-  lazy => 1,
-  is => 'rw',
+  lazy    => 1,
+  is      => 'rw',
   default => sub { $_[0]->__backend_class_prefix . 'Connector' },
 );
 
 has '__backend_connect_class' => (
-  lazy => 1,
-  is => 'rw',
+  lazy    => 1,
+  is      => 'rw',
   default => sub { $_[0]->__backend_class_prefix . 'Connect' },
 );
 
+has '__backend_event_class' => (
+  lazy    => 1,
+  is      => 'rw',
+  default => sub { 'IRC::Server::Pluggable::IRC::Event' },
+);
 
 sub spawn {
   ## Create our object and session.
@@ -685,7 +690,7 @@ sub _ircsock_input {
   ## FIXME anti-flood code or should that be higher up ... ?
 
   ## Create obj from HASH from POE::Filter::IRCD
-  my $obj = IRC::Server::Pluggable::IRC::Event->new(
+  my $obj = $self->__backend_event_class->new(
     %$input
   );
 
@@ -745,7 +750,7 @@ sub send {
   my ($self, $out, @ids) = @_;
 
   if (is_Object($out) &&
-    $out->isa('IRC::Server::Pluggable::IRC::Event') ) {
+    $out->isa( $self->__backend_event_class ) ) {
 
     $out = {
       prefix  => $out->prefix,

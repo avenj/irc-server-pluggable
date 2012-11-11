@@ -395,7 +395,7 @@ sub _emitter_started {
   my $dispatcher = $self->dispatcher;
 
   ## Register with Dispatcher.
-  $kernel->post( $dispatcher->session_id, 'register' );
+  $kernel->post( $dispatcher->session_id, 'subscribe' );
 }
 
 

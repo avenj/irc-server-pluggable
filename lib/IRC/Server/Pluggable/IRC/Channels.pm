@@ -12,6 +12,8 @@ use strictures 1;
 use Carp;
 use Moo;
 
+use Scalar::Util 'blessed';
+
 use IRC::Server::Pluggable qw/
   Types
   Utils
@@ -125,12 +127,8 @@ sub user_is_banned {
   my ($self, $user_obj, $chan_name) = @_;
 
   my $chan = $self->by_name($chan_name) || return;
-  my $cmap = $self->casemap;
 
-  ## Consult Channel::List obj
-  return 1 if $chan->lists->{bans}
-    and $chan->lists->{bans}->keys_matching_mask($user_obj->full, $cmap);
-
+  return 1 if $chan->hostmask_is_banned( $user_obj->full, $self->casemap );
   return
 }
 
@@ -138,11 +136,8 @@ sub user_is_invited {
   my ($self, $user_obj, $chan_name) = @_;
 
   my $chan = $self->by_name($chan_name) || return;
-  my $cmap = $self->casemap;
 
-  return 1 if $chan->lists->{invite}
-    and $chan->lists->{invite}->keys_matching_ircstr($user_obj->nick, $cmap);
-
+  return 1 if $chan->user_is_invited( $user_obj->nick, $self->casemap );
   return
 }
 
@@ -177,7 +172,7 @@ sub user_has_status {
 
   my $chan = $self->by_name($chan_name) || return;
 
-  $chan->nickname_has_mode(
+  $chan->user_has_mode(
     $self->lower( $user_obj->nick ),
     $modechr
   )
@@ -234,7 +229,7 @@ sub add {
   my ($self, $chan) = @_;
 
   confess "$chan is not a IRC::Server::Pluggable::IRC::Channel"
-    unless is_Object($chan)
+    unless blessed($chan)
     and $chan->isa('IRC::Server::Pluggable::IRC::Channel');
 
   $self->_channels->{ $self->lower($chan->name) } = $chan;

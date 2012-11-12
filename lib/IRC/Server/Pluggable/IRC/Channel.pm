@@ -172,7 +172,7 @@ sub mode_is_valid {
 ## IMPORTANT: These functions all currently expect a higher
 ##  level layer to handle upper/lower case manipulation.
 ##  May reconsider this later ...
-
+##  In the meantime IRC::Channels needs proxy methods
 
 sub add_nickname {
   my ($self, $nickname, $data) = @_;
@@ -202,16 +202,6 @@ sub nicknames_as_array {
   my ($self) = @_;
 
   [ keys %{ $self->nicknames } ]
-}
-
-sub nickname_has_mode {
-  my ($self, $nickname, $modechr) = @_;
-
-  my @modes = @{ $self->nicknames->{$nickname} || return };
-
-  return unless grep { $_ eq $modechr } @modes;
-
-  1
 }
 
 sub channel_has_mode {
@@ -268,7 +258,36 @@ sub chg_modes {
   ## Normalize here and modify ->modes, lists, chg_status
 }
 
-## Topics
+## Users -- informational (bans, modes, ...)
+sub user_has_mode {
+  my ($self, $nickname, $modechr) = @_;
+
+  my @modes = @{ $self->nicknames->{$nickname} || return };
+
+  return unless grep { $_ eq $modechr } @modes;
+
+  1
+}
+
+sub user_is_invited {
+  my ($self, $nick, $cmap) = @_;
+
+  return 1 if $self->lists->{invite}
+    and $self->lists->{invite}->keys_matching_ircstr( $nick, $cmap );
+
+  return
+}
+
+sub hostmask_is_banned {
+  my ($self, $hostmask, $cmap) = @_;
+
+  return 1 if $self->lists->{bans}
+    and $self->lists->{bans}->keys_matching_mask($hostmask, $cmap);
+
+  return
+}
+
+## Topic -- manipulation and informational
 sub set_topic {
   my ($self, $topic, $setter_str) = @_;
   $setter_str //= '';

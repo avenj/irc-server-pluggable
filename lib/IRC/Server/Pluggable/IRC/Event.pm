@@ -20,13 +20,6 @@ has 'command' => (
   default   => sub { '' },
 );
 
-has 'handled' => (
-  is   => 'rw',
-  lazy => 1,
-  isa  => Bool,
-  default => sub { 0 },
-);
-
 has 'prefix' => (
   is        => 'ro',
   lazy      => 1,

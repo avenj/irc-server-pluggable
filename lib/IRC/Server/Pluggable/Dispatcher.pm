@@ -8,6 +8,7 @@ use Moo;
 use POE;
 
 use IRC::Server::Pluggable qw/
+  Constants
   Types
 /;
 

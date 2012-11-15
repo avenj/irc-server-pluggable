@@ -18,21 +18,16 @@ requires qw/
 
 sub cmd_from_peer_motd {
   my ($self, $conn, $event) = @_;
-
   ## Remote user asked for MOTD.
+  my $user = $self->users->by_name( $event->prefix ) || return;
 
-  $self->cmd_from_client_motd($conn, $event)
+  $self->yield( 'dispatch' => 'cmd_from_client_motd',
+    $conn, $event, $user
+  )
 }
 
 sub cmd_from_client_motd {
   my ($self, $conn, $event, $user) = @_;
-
-  ## Might've been dispatched from a peer,
-  ## in which case we don't have a $user obj.
-  unless (defined $user) {
-    ## If the prefix isn't a known user, someone is being silly.
-    $user = $self->users->by_name($event->prefix) || return;
-  }
 
   my $nickname = $user->nick;
   my $server   = $self->config->server_name;

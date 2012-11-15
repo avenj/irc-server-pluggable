@@ -73,6 +73,27 @@ my @base_roles = map { $base_role_prefix . $_ } qw/
 
 ### Core attribs
 
+has 'autoloaded_plugins' => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => ArrayRef,
+  writer  => 'set_autoloaded_plugins',
+  builder => '_build_autoloaded_plugins',
+);
+
+sub _build_autoloaded_plugins {
+  ## Build array-of-arrays specifiny
+  my $prefix = 'IRC::Server::Pluggable::';
+  [
+    ## [ NAME, CLASS, CONSTRUCTOR OPTS ], . . .
+
+    ## If you're handling clients, you at least want Register:
+    [ 'Register', $prefix . 'Protocol::Plugin::Register' ],
+
+  ],
+}
+
+
 ## A Dispatcher instance to register with.
 ## http://eris.cobaltirc.org/bug/1/14
 has 'dispatcher' => (
@@ -232,30 +253,6 @@ sub _build_users {
       casemap => $self->casemap,
   )
 }
-
-
-
-### Helpers.
-has 'autoloaded_plugins' => (
-  lazy    => 1,
-  is      => 'ro',
-  isa     => ArrayRef,
-  writer  => 'set_autoloaded_plugins',
-  builder => '_build_autoloaded_plugins',
-);
-
-sub _build_autoloaded_plugins {
-  ## Build array-of-arrays specifiny
-  my $prefix = 'IRC::Server::Pluggable::';
-  [
-    ## [ NAME, CLASS, CONSTRUCTOR OPTS ], . . .
-
-    ## If you're handling clients, you at least want Register:
-    [ 'Register', $prefix . 'Protocol::Plugin::Register' ],
-
-  ],
-}
-
 
 has 'numeric' => (
   ## Numeric parser (IRC::Numerics)

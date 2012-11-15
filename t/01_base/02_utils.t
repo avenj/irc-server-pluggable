@@ -95,7 +95,6 @@ is_deeply( $mhash,
       'o' => [ 'SomeUser' ],
       't' => 1,
     },
-    
     del => {
       'k' => [ 'thiskey' ],
     },
@@ -113,7 +112,6 @@ is_deeply( $mhash,
     add => {
       'h' => [ 'SomeUser' ],
     },
-    
     del => { },
   },
 );

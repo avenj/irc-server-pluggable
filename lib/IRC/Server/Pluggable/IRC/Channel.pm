@@ -223,19 +223,17 @@ sub channel_has_nickname {
 sub chg_status {
   ## ->chg_status( $nickname, $mode_to_add, $excluded_modes )
   ##  (For example, +o excludes +h on some implementations.)
+  ##  Modes currently accepted as strings.
+  ##  FIXME should probably accept arrayrefs or some kind of object also
   my ($self, $nickname, $modestr, $exclude) = @_;
 
-  confess "chg_status() called with no nickname specified"
-    unless defined $nickname;
-
-  confess "chg_status() called with no mode string specified"
-    unless defined $modestr;
+  confess "chg_status() expected at least nickname and mode string"
+    unless defined $nickname and defined $modestr;
 
   my $current;
   unless ($current = $self->nicknames->{$nickname}) {
     carp
       "chg_status() called on $nickname but not present on ".$self->name;
-
     return
   }
 
@@ -252,6 +250,9 @@ sub chg_status {
 }
 
 sub chg_modes {
+  my ($self, $channel, $mode_hash) = @_;
+  confess "chg_modes() expected a channel name and a mode_to_hash() HASH"
+    unless ref $mode_hash eq 'HASH';
   ## FIXME take a hash from mode_to_hash
   ## Modes may have certain side-effects in a Protocol,
   ##  Role::Channels should probably bridge

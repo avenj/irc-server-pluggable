@@ -111,6 +111,10 @@ my $build = $class->new(
     'Try::Tiny'              => 0,
   },
 
+  recommends => {
+    'Class::XSAccessor' => '1.05',
+  },
+
   meta_merge => {
     resources => {
       repository => 'http://github.com/avenj/irc-server-pluggable.git',

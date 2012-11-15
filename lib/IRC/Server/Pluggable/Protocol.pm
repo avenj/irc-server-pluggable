@@ -7,24 +7,25 @@ our $VERSION = 0;
 use 5.12.1;
 use strictures 1;
 
-use Moo;
-
-use namespace::clean -except => 'meta';
-
-extends 'IRC::Server::Pluggable::Protocol::Base';
-
-
-### Roles, composed in order.
-### (Base gives us Role::CaseMap and Protocol::Role::Send)
-
 sub PROTO_ROLE_PREFIX () {
   'IRC::Server::Pluggable::Protocol::Role::TS::'
 }
 
+use Moo;
+
+
+use namespace::clean -except => 'meta';
+
+
+extends 'IRC::Server::Pluggable::Protocol::Base';
+
 with PROTO_ROLE_PREFIX . 'Messages' ;
 with PROTO_ROLE_PREFIX . 'Register' ;
+
 with PROTO_ROLE_PREFIX . 'Clients'  ;
 with PROTO_ROLE_PREFIX . 'Peers'    ;
+
+with PROTO_ROLE_PREFIX . 'Channels' ;
 
 no warnings 'void';
 q{

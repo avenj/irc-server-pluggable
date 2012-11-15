@@ -264,7 +264,6 @@ sub _build_numeric {
 
 ## Basic behavorial roles.
 ## Protocol.pm consumes others to form a useful basic TS Protocol.
-## FIXME maybe all role consumption should live in Protocol?
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
 with 'IRC::Server::Pluggable::Protocol::Role::Send';
@@ -272,7 +271,7 @@ with 'IRC::Server::Pluggable::Protocol::Role::Disconnect';
 
 with 'IRC::Server::Pluggable::Protocol::Role::Motd';
 with 'IRC::Server::Pluggable::Protocol::Role::Ping';
-
+with 'IRC::Server::Pluggable::Protocol::Role::Version';
 
 
 sub BUILD {
@@ -356,6 +355,41 @@ sub _emitter_started {
   ## Register with Dispatcher.
   $kernel->post( $dispatcher->session_id, 'subscribe' );
 }
+
+
+sub dispatch {
+  my ($self, $event_name, @args) = @_;
+
+  ## This is a cheap implementation of internal dispatch,
+  ## aimed at flexibly dispatching events synchronously
+  ## within a Protocol and making it possible to return unknown cmd
+  ## (421) as-needed.
+
+  ## Try registered plugins first; they can skip dispatch early to 
+  ## override Role-defined command handlers.
+  ## Continue to $self if not eaten by a P_* handler.
+  return DISPATCH_EATEN
+    if $self->process( $event_name, @args ) == EAT_ALL;
+
+  ## Try to handle via $self method dispatch.
+  ## Return DISPATCH_UNKNOWN to caller if we lack the method.
+  ## (This will often be an unknown command.)
+  if ( $self->can($event_name) ) {
+    $self->$event_name(@args);
+    return DISPATCH_CALLED
+  } else {
+    return DISPATCH_UNKNOWN
+  }
+}
+
+sub _dispatch {
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+
+  $self->dispatch(@_[ARG0 .. $#_]);
+
+  1
+}
+
 
 
 sub irc_ev_peer_connected {
@@ -470,38 +504,6 @@ sub irc_ev_unknown_cmd {
   my $cmd = $event->command;
 
   $self->dispatch( 'cmd_from_unknown_'.lc($cmd), $conn, $event );
-}
-
-sub dispatch {
-  my ($self, $event_name, @args) = @_;
-
-  ## This is a cheap implementation of internal dispatch,
-  ## aimed at flexibly dispatching events synchronously
-  ## within a Protocol and making it possible to return unknown cmd
-  ## (421) as-needed.
-
-  ## Try registered plugins first.
-  ## Continue to $self if not eaten by a P_* handler.
-  return DISPATCH_EATEN
-    if $self->process( $event_name, @args ) == EAT_ALL;
-
-  ## Try to handle via $self method dispatch.
-  ## Return DISPATCH_UNKNOWN to caller if we lack the method.
-  ## (This will often be an unknown command.)
-  if ( $self->can($event_name) ) {
-    $self->$event_name(@args);
-    return DISPATCH_CALLED
-  } else {
-    return DISPATCH_UNKNOWN
-  }
-}
-
-sub _dispatch {
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-
-  $self->dispatch(@_[ARG0 .. $#_]);
-
-  1
 }
 
 

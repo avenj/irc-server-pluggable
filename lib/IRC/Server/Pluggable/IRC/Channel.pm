@@ -118,7 +118,7 @@ has 'ts' => (
   isa      => Num,
   writer   => 'set_ts',
   clearer  => 'clear_ts',
-  default  => sub { time() },
+  default  => sub { time },
 );
 
 
@@ -264,7 +264,7 @@ sub user_has_mode {
 
   my @modes = @{ $self->nicknames->{$nickname} || return };
 
-  return unless grep { $_ eq $modechr } @modes;
+  return unless grep {; $_ eq $modechr } @modes;
 
   1
 }
@@ -282,16 +282,17 @@ sub hostmask_is_banned {
   my ($self, $hostmask, $cmap) = @_;
 
   return 1 if $self->lists->{bans}
-    and $self->lists->{bans}->keys_matching_mask($hostmask, $cmap);
+    and $self->lists->{bans}->keys_matching_mask( $hostmask, $cmap );
 
   return
 }
 
 ## Topic -- manipulation and informational
 sub set_topic {
-  my ($self, $topic, $setter_str) = @_;
-  $setter_str //= '';
-  $self->_set_topic( [ $topic, $setter_str, time ] )
+  my ($self, $topic, $setter_str, $ts) = @_;
+  confess "set_topic() called without a topic string"
+    unless defined $topic;
+  $self->_set_topic( [ $topic, $setter_str // '', $ts // time ] )
 }
 
 sub set_topic_ts {

@@ -11,21 +11,25 @@ sub PROTO_ROLE_PREFIX () {
   'IRC::Server::Pluggable::Protocol::Role::TS::'
 }
 
+my @base_roles = map { PROTO_ROLE_PREFIX . $_ } qw/
+  Messages
+  Register
+
+  Clients
+  Peers
+
+  Channels
+/;
+
+
 use Moo;
-
-
 use namespace::clean -except => 'meta';
 
 
 extends 'IRC::Server::Pluggable::Protocol::Base';
+with $_ for @base_roles;
 
-with PROTO_ROLE_PREFIX . 'Messages' ;
-with PROTO_ROLE_PREFIX . 'Register' ;
 
-with PROTO_ROLE_PREFIX . 'Clients'  ;
-with PROTO_ROLE_PREFIX . 'Peers'    ;
-
-with PROTO_ROLE_PREFIX . 'Channels' ;
 
 no warnings 'void';
 q{

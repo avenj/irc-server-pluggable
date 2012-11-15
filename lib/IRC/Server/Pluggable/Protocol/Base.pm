@@ -55,6 +55,21 @@ use namespace::clean -except => 'meta';
 
 with 'MooX::Role::POE::Emitter';
 
+with 'IRC::Server::Pluggable::Role::CaseMap';
+
+## Basic behavorial roles.
+## Protocol.pm consumes others to form a useful basic TS Protocol.
+## (These get consumed after attribs are defined.)
+my $base_role_prefix = 'IRC::Server::Pluggable::Protocol::Role::';
+my @base_roles = map { $base_role_prefix . $_ } qw/
+  Send
+  Disconnect
+
+  Motd
+  Ping
+  Version
+/;
+
 
 ### Core attribs
 
@@ -262,16 +277,7 @@ sub _build_numeric {
 }
 
 
-## Basic behavorial roles.
-## Protocol.pm consumes others to form a useful basic TS Protocol.
-with 'IRC::Server::Pluggable::Role::CaseMap';
-
-with 'IRC::Server::Pluggable::Protocol::Role::Send';
-with 'IRC::Server::Pluggable::Protocol::Role::Disconnect';
-
-with 'IRC::Server::Pluggable::Protocol::Role::Motd';
-with 'IRC::Server::Pluggable::Protocol::Role::Ping';
-with 'IRC::Server::Pluggable::Protocol::Role::Version';
+with $_ for @base_roles;
 
 
 sub BUILD {

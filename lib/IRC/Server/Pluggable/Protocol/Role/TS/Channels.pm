@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::Channels;
+package IRC::Server::Pluggable::Protocol::Role::TS::Channels;
 
 use Carp;
 use Moo::Role;

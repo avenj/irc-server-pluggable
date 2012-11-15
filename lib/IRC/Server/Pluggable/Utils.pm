@@ -31,6 +31,8 @@ our %EXPORT_TAGS = (
   / ],
 );
 
+$EXPORT_TAGS{all} = [ map { @$_ } values %EXPORT_TAGS ];
+
 our @EXPORT;
 
 {
@@ -179,11 +181,9 @@ sub mode_to_hash {
     unless $modestr;
 
   my %args = @_;
-
-  $args{param_always} ||= [ split //, 'bkov' ];
-  $args{param_set}    ||= [ 'l' ];
-  $args{params}       ||= [ ];
-
+  $args{param_always} //= [ split //, 'bkov' ];
+  $args{param_set}    //= [ 'l' ];
+  $args{params}       //= [ ];
   for (qw/ param_always param_set params /) {
     confess "$_ should be an ARRAY"
       unless ref $args{$_} eq 'ARRAY';

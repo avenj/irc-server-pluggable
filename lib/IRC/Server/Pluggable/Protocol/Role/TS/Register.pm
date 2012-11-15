@@ -329,6 +329,9 @@ sub cmd_from_unknown_user {
   ## USERNAME HOSTNAME SERVERNAME REALNAME
   my ($username, undef, $servername, $gecos) = @{$event->params};
 
+  ## FIXME preserve servername as well?
+  ##  Not really used in modern IRCDs, but we report it on cobaltirc
+
   unless ( is_IRC_Username($username) ) {
     ## FIXME username validation
     ##  Reject/disconnect this user

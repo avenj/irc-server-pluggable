@@ -99,12 +99,25 @@ sub cmd_from_client_version {
 
 
 sub cmd_from_peer_version {
-  my ($self, $conn, $event) = @_;
+  my ($self, $conn, $event, $peer) = @_;
 
-  my $user = $self->users->by_name( $event->prefix ) || return;
+  my $dest = $event->params->[0];
+  my $server_name = $self->config->server_name;
 
-  $event->set_params([]);
-  $self->dispatch( 'cmd_from_client_version', $conn, $event, $user );
+  if (!defined $dest || $self->equals($dest, $server_name)) {
+    my $user = $self->users->by_name( $event->prefix ) || return;
+    $event->set_params([]);
+    $self->dispatch( 'cmd_from_client_version', $conn, $event, $user );
+  } else {
+    my $peer = $self->peers->by_name($dest);
+
+    unless (defined $peer) {
+      ## FIXME unknown server? should we just drop it?
+      ##  check hyb
+      return
+    }
+    $self->send_to_routes( $event, $peer->route );
+  }
 }
 
 

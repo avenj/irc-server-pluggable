@@ -49,46 +49,40 @@ use namespace::clean -except => 'meta';
 
 has 'session_id' => (
   ## Session ID for own session.
-  init_arg => undef,
-  lazy => 1,
-
-  is  => 'ro',
-
+  init_arg  => undef,
+  lazy      => 1,
+  is        => 'ro',
   writer    => 'set_session_id',
   predicate => 'has_session_id',
-
-  default => sub { undef },
+  default   => sub { undef },
 );
 
 has 'controller' => (
   ## Session ID for controller session
   ## Set by 'register' event
-  lazy => 1,
-
-  isa  => Value,
-  is   => 'ro',
-
+  lazy      => 1,
+  isa       => Value,
+  is        => 'ro',
   writer    => 'set_controller',
   predicate => 'has_controller',
 );
 
 has 'filter_irc' => (
-  lazy => 1,
-
-  isa => InstanceOf['POE::Filter'],
-  is  => 'rwp',
-
+  ## FIXME Hum. POE::Filter::IRCD is not very ircv3-friendly.
+  ## LeoNerd appears to be working on something better ...
+  ## ... may be replaced
+  lazy    => 1,
+  isa     => InstanceOf['POE::Filter'],
+  is      => 'rwp',
   default => sub {
     POE::Filter::IRCD->new( colonify => 1 )
   },
 );
 
 has 'filter_line' => (
-  lazy => 1,
-
-  isa => InstanceOf['POE::Filter'],
-  is  => 'rwp',
-
+  lazy    => 1,
+  isa     => InstanceOf['POE::Filter'],
+  is      => 'rwp',
   default => sub {
     POE::Filter::Line->new(
       InputRegexp   => '\015?\012',
@@ -98,11 +92,9 @@ has 'filter_line' => (
 );
 
 has 'filter' => (
-  lazy => 1,
-
-  isa => InstanceOf['POE::Filter'],
-  is  => 'rwp',
-
+  lazy    => 1,
+  isa     => InstanceOf['POE::Filter'],
+  is      => 'rwp',
   default => sub {
     my ($self) = @_;
     POE::Filter::Stackable->new(
@@ -114,8 +106,8 @@ has 'filter' => (
 ## IRC::Server::Pluggable::Backend::Listener objs
 ## These are listeners for a particular port.
 has 'listeners' => (
-  is  => 'rwp',
-  isa => HashRef,
+  is      => 'rwp',
+  isa     => HashRef,
   default => sub { {} },
   clearer => 1,
 );
@@ -123,8 +115,8 @@ has 'listeners' => (
 ## IRC::Server::Pluggable::Backend::Connector objs
 ## These are outgoing (peer) connectors.
 has 'connectors' => (
-  is  => 'rwp',
-  isa => HashRef,
+  is      => 'rwp',
+  isa     => HashRef,
   default => sub { {} },
   clearer => 1,
 );
@@ -132,8 +124,8 @@ has 'connectors' => (
 ## IRC::Server::Pluggable::Backend::Connect objs
 ## These are our connected wheels.
 has 'wheels' => (
-  is  => 'rwp',
-  isa => HashRef,
+  is      => 'rwp',
+  isa     => HashRef,
   default => sub { {} },
   clearer => 1,
 );
@@ -433,7 +425,7 @@ sub _create_listener {
   my $ssl = delete $args{ssl} || 0;
 
   my $wheel = POE::Wheel::SocketFactory->new(
-    SocketDomain => $protocol == 6 ? AF_INET6 : AF_INET,
+    SocketDomain => ($protocol == 6 ? AF_INET6 : AF_INET),
     BindAddress  => $bindaddr,
     BindPort     => $bindport,
     SuccessEvent => '_accept_conn',
@@ -560,7 +552,7 @@ sub _create_connector {
     if delete $args{ipv6} or ip_is_ipv6($remote_addr);
 
   my $wheel = POE::Wheel::SocketFactory->new(
-    SocketDomain   => $protocol == 6 ? AF_INET6 : AF_INET,
+    SocketDomain   => ($protocol == 6 ? AF_INET6 : AF_INET),
     SocketProtocol => 'tcp',
 
     RemoteAddress  => $remote_addr,

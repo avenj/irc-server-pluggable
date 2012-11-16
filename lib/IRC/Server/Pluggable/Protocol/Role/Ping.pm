@@ -27,9 +27,6 @@ sub conn_is_idle {
       target => $conn,
       msg    => 'Connection timeout',
     );
-    ## FIXME do we need to tell register bits to clean up?
-    ##  should probably issue disconnect events and catch
-    ##  to drop pending registrations
   }
 
   if ($conn->ping_pending) {

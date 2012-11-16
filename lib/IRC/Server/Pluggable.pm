@@ -41,12 +41,13 @@ IRC::Server::Pluggable - POE IRC server building blocks
 
 =head1 SYNOPSIS
 
-FIXME
+If you're stumbling across this on github or similar, assistance is 
+welcome!
 
 =head1 DESCRIPTION
 
 A pluggable, extensible IRCd stack using L<Moo>, L<POE>, and 
-L<Object::Pluggable>.
+L<MooX::Role::POE::Emitter>.
 
 FIXME
 

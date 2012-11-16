@@ -15,16 +15,12 @@ Goals:
 
 Emitters are POE sessions that are capable of processing events via 
 plugins and emitting notifications to interested plugins or 
-external sessions.
+external sessions; see MooX::Role::Pluggable and MooX::Role::POE::Emitter 
+(which were split out from this project).
 
-Any class that consumes IRC::Server::Pluggable::Role::Emitter automatically 
-spawns a POE::Session when _start_emitter is called. (This is often 
-triggered at construction time via BUILD.)
-
-Classes that consume IRC::Server::Pluggable::Role::Pluggable and 
-IRC::Server::Pluggable::Role::Emitter can be extended by loaded plugins 
-(synchronous action or notification-only) or registered consumer sessions 
-(notification-only).
+Dispatcher and Protocol sessions are Emitters; they can be extended by 
+loaded plugins (synchronous action or notification-only) or registered 
+consumer sessions (notification-only).
 
 ## Backend
 
@@ -76,4 +72,5 @@ These pieces are all easily subclassed to extend an existing Protocol,
 implement a new Protocol, or strip unneeded handlers from a Protocol (for 
 "IRCd-like" implementations such as services sets).
 
-A Protocol is an Emitter.
+A Protocol is an Emitter; Protocol plugins & registered listener sessions 
+can complement or override command handlers and internal events.

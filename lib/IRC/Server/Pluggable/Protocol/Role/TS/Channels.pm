@@ -22,6 +22,13 @@ requires qw/
 ## FIXME same for part
 
 sub cmd_from_client_join {
+  my ($self, $conn, $event, $user) = @_;
+
+  unless (@{ $event->params }) {
+    ## FIXME bad args rpl
+    return
+  }
+
 
 }
 
@@ -56,7 +63,7 @@ sub cmd_from_peer_part {
 #### Joinable/sendable checks.
 
 ## +b check/send
-sub _r_channels_chk_user_banned {
+sub r_channels_chk_user_banned {
   my ($self, $channels, $chan_name, $user_obj) = @_;
 
   ## This +b check allows invite-past-ban.
@@ -66,7 +73,7 @@ sub _r_channels_chk_user_banned {
   return
 }
 
-sub _r_channels_send_user_banned {
+sub r_channels_send_user_banned {
   my ($self, $user_obj, $chan_name) = @_;
 
   $self->send_numeric( 474,
@@ -78,7 +85,7 @@ sub _r_channels_send_user_banned {
 
 
 ## +i check/send
-sub _r_channels_chk_invite_only {
+sub r_channels_chk_invite_only {
   my ($self, $channels, $chan_name, $user_obj) = @_;
 
   return 1 if not $channels->user_is_invited($user_obj, $chan_name)
@@ -87,7 +94,7 @@ sub _r_channels_chk_invite_only {
   return
 }
 
-sub _r_channels_send_invite_only {
+sub r_channels_send_invite_only {
   my ($self, $user_obj, $chan_name) = @_;
 
   $self->send_numeric( 473,
@@ -99,7 +106,7 @@ sub _r_channels_send_invite_only {
 
 
 ## +l check/send
-sub _r_channels_chk_over_limit {
+sub r_channels_chk_over_limit {
   my ($self, $chan_obj) = @_;
 
   my $limit = $chan_obj->channel_has_mode('l') || return;
@@ -109,7 +116,7 @@ sub _r_channels_chk_over_limit {
   return
 }
 
-sub _r_channels_send_over_limit {
+sub r_channels_send_over_limit {
   my ($self, $user_obj, $chan_name) = @_;
 
   $self->send_numeric( 471,
@@ -119,8 +126,8 @@ sub _r_channels_send_over_limit {
   );
 }
 
-## +k send, comparison happens in _r_channels_chk_can_join
-sub _r_channels_send_bad_key {
+## +k send, comparison happens in r_channels_chk_can_join
+sub r_channels_send_bad_key {
   my ($self, $user_obj, $chan_name) = @_;
 
   $self->send_numeric( 475,
@@ -130,14 +137,14 @@ sub _r_channels_send_bad_key {
   );
 }
 
-sub _r_channels_chk_can_join {
-  ## _r_channels_chk_can_join( $user_obj, $chan_name, key => $key, . . . )
+sub r_channels_chk_can_join {
+  ## r_channels_chk_can_join( $user_obj, $chan_name, key => $key, . . . )
   ##  Return true if the User can join.
   ##  Return false and dispatches an error numeric to User if not.
   my ($self, $user_obj, $chan_name, %opts) = @_;
 
   ## Public methods can try to retrieve a user obj from nick, if needed:
-  return unless $self->__r_channels_check_user_arg($user_obj);
+  return unless $self->_r_channels_check_user_arg($user_obj);
 
   my $channels = $self->channels;
 
@@ -151,15 +158,15 @@ sub _r_channels_chk_can_join {
 
   ## Banned (+b) check
   if
-  ($self->_r_channels_chk_user_banned($channels, $chan_name, $user_obj)) {
-    $self->_r_channels_send_user_banned( $user_obj, $chan_name );
+  ($self->r_channels_chk_user_banned($channels, $chan_name, $user_obj)) {
+    $self->r_channels_send_user_banned( $user_obj, $chan_name );
     return
   }
 
   ## Invite-only (+i) check
   if
-  ($self->_r_channels_chk_invite_only($channels, $chan_name, $user_obj)) {
-    $self->_r_channels_send_invite_only( $user_obj, $chan_name );
+  ($self->r_channels_chk_invite_only($channels, $chan_name, $user_obj)) {
+    $self->r_channels_send_invite_only( $user_obj, $chan_name );
     return
   }
 
@@ -167,7 +174,7 @@ sub _r_channels_chk_can_join {
   ## Key should be passed along in params, see docs
   if ( $opts{key} && (my $ckey = $chan_obj->channel_has_mode('k')) ) {
     unless ( $opts{key} eq $ckey ) {
-      $self->_r_channels_send_bad_key(
+      $self->r_channels_send_bad_key(
         $user_obj, $chan_name
       );
       return
@@ -175,8 +182,8 @@ sub _r_channels_chk_can_join {
   }
 
   ## Limit (+l) check
-  if ( $self->_r_channels_chk_over_limit( $chan_obj ) ) {
-    $self->_r_channels_send_over_limit(
+  if ( $self->r_channels_chk_over_limit( $chan_obj ) ) {
+    $self->r_channels_send_over_limit(
       $user_obj, $chan_name
     );
     return
@@ -184,7 +191,7 @@ sub _r_channels_chk_can_join {
 
   ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
   ## In a subclass:
-  ##  around '_r_channels_chk_can_join' => sub {
+  ##  around 'r_channels_chk_can_join' => sub {
   ##    my ($orig, $self, $user, $chan_name, %opts) = @_;
   ##    ## Check if super (here) would allow this user:
   ##    return unless $self->$orig($user, $chan_name, %opts);
@@ -203,7 +210,7 @@ sub user_cannot_send_to_chan {
   ## Return an error numeric IRC::Event if not.
   ## FIXME optionally take a chan_obj instead
   my ($self, $user_obj, $chan_name) = @_;
-  $self->__r_channels_check_user_arg($user_obj);
+  $self->_r_channels_check_user_arg($user_obj);
 
   ## SERVICE can always send.
   return if $user_obj->is_flagged_as('SERVICE');
@@ -242,7 +249,7 @@ sub user_cannot_send_to_chan {
 
 #### Internals.
 
-sub __r_channels_check_user_arg {
+sub _r_channels_check_user_arg {
   my $self = shift;
   ## Allow methods to take either a user_obj or an identifier
   ## Attempt to modify caller's args

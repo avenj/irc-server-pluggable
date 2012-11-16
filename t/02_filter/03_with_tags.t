@@ -11,11 +11,11 @@ my $str = '@intent=ACTION;znc.in/extension=value;foobar'.
 
 for my $event (@{ $filter->get([ $str ]) }) {
   is_deeply( $event->{tags},
-    [
-      'intent=ACTION',
-      'znc.in/extension=value',
-      'foobar'
-    ],
+    {
+      intent => 'ACTION',
+      'znc.in/extension' => 'value',
+      foobar => undef,
+    },
     'tags look ok'
   );
   cmp_ok( $event->{prefix}, 'eq', 'test!me@test.ing', 'prefix looks ok' );

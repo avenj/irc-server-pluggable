@@ -58,7 +58,7 @@ has 'raw_line' => (
          params  => $self->params,
          (
            $self->has_tags ?
-             ( tags => $self->tags_as_array ) : ()
+             ( tags => $self->tags ) : ()
          ),
        }
       ],
@@ -74,19 +74,6 @@ has 'tags' => (
   predicate => 'has_tags',
   writer    => 'set_tags',
   default   => sub {  {}  },
-  coerce    => sub {
-    my ($value) = @_;
-    my %tags;
-
-    if (ref $value eq 'ARRAY') {
-      for my $tag_pair (@$value) {
-        my ($thistag, $thisval) = split /=/, $tag_pair; 
-        $tags{$thistag} = $thisval;
-      }
-    }
-
-    \%tags
-  },
 );
 
 sub tags_as_array {
@@ -172,12 +159,11 @@ The raw IRC line.
 
 =head2 tags
 
-IRCv3.2 message tags, as a HASH.
+IRCv3.2 message tags, as a HASH of key-value pairs.
 
 =head2 tags_as_array
 
-IRCv3.2 message tags, as an ARRAY suitable for feeding back to 
-L<IRC::Server::Pluggable::IRC::Filter>.
+IRCv3.2 message tags, as an ARRAY of tags in the form of 'key=value'
 
 =head1 AUTHOR
 

@@ -87,14 +87,20 @@ sub get {
 
       my $event = { raw_line => $raw_line };
 
-      $event->{'tags'} = [ split ';', $tags ] if $tags;
-      $event->{'prefix'} = $prefix if $prefix;
-      $event->{'command'} = uc $command;
-      $event->{'params'} = [] if defined ( $middles ) || defined ( $trailing );
+      if ($tags) {
+        for my $tag_pair (split ';', $tags) {
+          my ($thistag, $thisval) = split /=/, $tag_pair;
+          $event->{tags}->{$thistag} = $thisval
+        }
+      }
 
-      push @{$event->{'params'}}, (split /$g->{'space'}/, $middles)
+      $event->{prefix} = $prefix if $prefix;
+      $event->{command} = uc $command;
+      $event->{params} = [] if defined ( $middles ) || defined ( $trailing );
+
+      push @{$event->{params}}, (split /$g->{'space'}/, $middles)
         if defined $middles;
-      push @{$event->{'params'}}, $trailing if defined $trailing;
+      push @{$event->{params}}, $trailing if defined $trailing;
       push @$events, $event;
     } else {
       warn "Received line $raw_line that is not IRC protocol\n";
@@ -120,14 +126,20 @@ sub get_one {
 
       my $event = { raw_line => $raw_line };
 
-      $event->{'tags'} = [ split ';', $tags ] if $tags;
-      $event->{'prefix'} = $prefix if $prefix;
-      $event->{'command'} = uc $command;
-      $event->{'params'} = [] if defined ( $middles ) || defined ( $trailing );
+      if ($tags) {
+        for my $tag_pair (split ';', $tags) {
+          my ($thistag, $thisval) = split /=/, $tag_pair;
+          $event->{tags}->{$thistag} = $thisval
+        }
+      }
 
-      push @{$event->{'params'}}, (split /$g->{'space'}/, $middles)
+      $event->{prefix} = $prefix if $prefix;
+      $event->{command} = uc $command;
+      $event->{params} = [] if defined ( $middles ) || defined ( $trailing );
+
+      push @{$event->{params}}, (split /$g->{'space'}/, $middles)
         if defined $middles;
-      push @{$event->{'params'}}, $trailing if defined $trailing;
+      push @{$event->{params}}, $trailing if defined $trailing;
       push @$events, $event;
     } else {
       warn "Received line $raw_line that is not IRC protocol\n";
@@ -154,16 +166,21 @@ sub put {
       if ( _PUT_LITERAL || _checkargs($event) ) {
         my $raw_line = '';
 
-        if ( $event->{'tags'} and ref $event->{'tags'} eq 'ARRAY' ) {
-          $raw_line .= '@' . join(';', @{ $event->{'tags'} }) . ' '
-            if @{ $event->{'tags'} };
+        if ( $event->{tags} and ref $event->{tags} eq 'HASH' ) {
+          $raw_line .= '@';
+          my @tags = %{ $event->{tags} };
+          while (my ($thistag, $thisval) = splice @tags, 0, 2) {
+            $raw_line .= $thistag . ( defined $thisval ? '='.$thisval : '' );
+            $raw_line .= ';' if @tags;
+          }
+          $raw_line .= ' ';
         }
 
-        $raw_line .= (':' . $event->{'prefix'} . ' ') if exists $event->{'prefix'};
-        $raw_line .= $event->{'command'};
+        $raw_line .= (':' . $event->{prefix} . ' ') if exists $event->{prefix};
+        $raw_line .= $event->{command};
 
-        if ( $event->{'params'} and ref $event->{'params'} eq 'ARRAY' ) {
-          my $params = [ @{ $event->{'params'} } ];
+        if ( $event->{params} and ref $event->{params} eq 'ARRAY' ) {
+          my $params = [ @{ $event->{params} } ];
           $raw_line .= ' ';
           my $param = shift @$params;
           while (@$params) {
@@ -200,12 +217,12 @@ sub clone {
 # This thing is far from correct, dont use it.
 sub _checkargs {
   my $event = shift || return;
-  warn("Invalid characters in prefix: " . $event->{'prefix'} . "\n")
-    if ($event->{'prefix'} =~ m/[\x00\x0a\x0d\x20]/);
+  warn("Invalid characters in prefix: " . $event->{prefix} . "\n")
+    if ($event->{prefix} =~ m/[\x00\x0a\x0d\x20]/);
   warn("Undefined command passed.\n")
-    unless ($event->{'command'} =~ m/\S/o);
-  warn("Invalid command: " . $event->{'command'} . "\n")
-    unless ($event->{'command'} =~ m/^(?:[a-zA-Z]+|\d{3})$/o);
+    unless ($event->{command} =~ m/\S/o);
+  warn("Invalid command: " . $event->{command} . "\n")
+    unless ($event->{command} =~ m/^(?:[a-zA-Z]+|\d{3})$/o);
   foreach my $middle (@{$event->{'middles'}}) {
     warn("Invalid middle: $middle\n")
       unless ($middle =~ m/^[^\x00\x0a\x0d\x20\x3a][^\x00\x0a\x0d\x20]*$/);

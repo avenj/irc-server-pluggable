@@ -153,7 +153,7 @@ sub to_irc_now {
 sub _to_irc {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  ## Either an IRC::Event or a hash suitable for POE::Filter::IRCD
+  ## Either an IRC::Event or a hash suitable for IRC::Filter
   ## + List of either Backend::Connect wheel IDs
   ##   or objs that can give us one
   my ($out, @conns) = @_[ARG0 .. $#_];

@@ -97,7 +97,7 @@ IRC::Server::Pluggable::IRC::Event - IRC Events
     raw_line => ':some.server.org 001 user :Welcome to IRC',
   );
 
-  ## Can be fed from POE::Filter::IRCD :
+  ## Can be fed from IRC::Server::Pluggable::IRC::Filter :
   my $event = IRC::Server::Pluggable::IRC::Event->new(
    %{ $input_hash_from_filter }
   );
@@ -106,8 +106,8 @@ IRC::Server::Pluggable::IRC::Event - IRC Events
 
 These objects represent IRC events.
 
-These are created by L<IRC::Server::Pluggable::Backend> using  
-L<POE::Filter::IRCD> hashes.
+These are created by L<IRC::Server::Pluggable::Backend> using 
+L<IRC::Server::Pluggable::IRC::Filter> hashes.
 
 They are also used to feed the send() method provided by 
 L<IRC::Server::Pluggable::Backend>.

@@ -155,7 +155,8 @@ sub put {
         my $raw_line = '';
 
         if ( $event->{'tags'} and ref $event->{'tags'} eq 'ARRAY' ) {
-          $raw_line .= '@' . join(';', @{ $event->{'tags'} }) . ' ';
+          $raw_line .= '@' . join(';', @{ $event->{'tags'} }) . ' '
+            if @{ $event->{'tags'} };
         }
 
         $raw_line .= (':' . $event->{'prefix'} . ' ') if exists $event->{'prefix'};

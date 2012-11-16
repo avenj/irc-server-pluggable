@@ -55,13 +55,51 @@ has 'raw_line' => (
        {
          prefix  => $self->prefix,
          command => $self->command,
-         params  => $self->params
+         params  => $self->params,
+         (
+           $self->has_tags ?
+             ( tags => $self->tags_as_array ) : ()
+         ),
        }
       ],
     );
     $lines->[0]
   },
 );
+
+has 'tags' => (
+  is        => 'ro',
+  lazy      => 1,
+  isa       => HashRef,
+  predicate => 'has_tags',
+  writer    => 'set_tags',
+  default   => sub {  {}  },
+  coerce    => sub {
+    my ($value) = @_;
+    my %tags;
+
+    if (ref $value eq 'ARRAY') {
+      for my $tag_pair (@$value) {
+        my ($thistag, $thisval) = split /=/, $tag_pair; 
+        $tags{$thistag} = $thisval;
+      }
+    }
+
+    \%tags
+  },
+);
+
+sub tags_as_array {
+  my ($self) = @_;
+  return [] unless $self->has_tags and keys %{ $self->tags };
+
+  my $tag_array = [];
+  while (my ($thistag, $thisval) = each %{ $self->tags }) {
+    push @$tag_array, join '=', $thistag, $thisval
+  }
+
+  $tag_array
+}
 
 
 has '__filter' => (
@@ -131,6 +169,15 @@ The server prefix.
 =head2 raw_line
 
 The raw IRC line.
+
+=head2 tags
+
+IRCv3.2 message tags, as a HASH.
+
+=head2 tags_as_array
+
+IRCv3.2 message tags, as an ARRAY suitable for feeding back to 
+L<IRC::Server::Pluggable::IRC::Filter>.
 
 =head1 AUTHOR
 

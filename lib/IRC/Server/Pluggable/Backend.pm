@@ -168,6 +168,12 @@ has '__backend_event_class' => (
   default => sub { 'IRC::Server::Pluggable::IRC::Event' },
 );
 
+has '__backend_eventset_class' => (
+  lazy    => 1,
+  is      => 'rw',
+  default => sub { 'IRC::Server::Pluggable::IRC::EventSet' },
+);
+
 sub spawn {
   ## Create our object and session.
   ## Returns $self
@@ -749,14 +755,21 @@ sub send {
   ## ->send(HASH, ID [, ID .. ])
   my ($self, $out, @ids) = @_;
 
-  if (is_Object($out) &&
-    $out->isa( $self->__backend_event_class ) ) {
+  if ( is_Object($out) ) {
 
-    $out = {
-      prefix  => $out->prefix,
-      params  => $out->params,
-      command => $out->command,
-    };
+    if      ( $out->isa($self->__backend_event_class) ) {
+      $out = {
+        prefix  => $out->prefix,
+        params  => $out->params,
+        command => $out->command,
+      };
+    } elsif ( $out->isa($self->__backend_eventset_class) ) {
+      while (my $this_ev = $out->shift) {
+        $self->send( $this_ev, @ids );
+        return $self
+      }
+    }
+
   }
 
   unless (@ids && ref $out eq 'HASH') {

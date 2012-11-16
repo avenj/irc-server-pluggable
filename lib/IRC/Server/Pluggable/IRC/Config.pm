@@ -15,6 +15,15 @@ use namespace::clean -except => 'meta';
 ## FIXME
 ##  - Config::Auth for users/opers/peers?
 
+has 'admin_info' => (
+  lazy      => 1,
+  isa       => ArrayRef,
+  is        => 'ro',
+  predicate => 'has_admin_info',
+  writer    => 'set_admin_info',
+  default   => sub { [ ] },
+);
+
 has 'max_chan_length' => (
   lazy      => 1,
   isa       => Int,

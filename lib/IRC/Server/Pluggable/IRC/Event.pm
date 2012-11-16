@@ -76,6 +76,13 @@ has 'tags' => (
   default   => sub {  {}  },
 );
 
+sub get_tag {
+  my ($self, $tag) = @_;
+  return unless $self->has_tags;
+  ## A tag might have an undef value ...
+  $self->tags->{$tag}
+}
+
 sub tags_as_array {
   my ($self) = @_;
   return [] unless $self->has_tags and keys %{ $self->tags };

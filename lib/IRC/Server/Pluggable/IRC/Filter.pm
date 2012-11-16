@@ -51,24 +51,16 @@ my $irc_regex = qr/^
 $/x;
 
 sub new {
-  my $type = shift;
-  croak "$type requires an even number of parameters" if @_ % 2;
-  my $buffer = { @_ };
-  $buffer->{uc $_} = delete $buffer->{$_} for keys %{ $buffer };
-  $buffer->{BUFFER} = [];
-  return bless $buffer, $type;
+  my ($class, %params) = @_;
+  $params{uc $_} = delete $params{$_} for keys %params;
+  $params{BUFFER} = [];
+  bless \%params, $class
 }
 
 sub debug {
-  my $self = shift;
-  my $value = shift;
-
-  if ( defined $value ) {
-    $self->{DEBUG} = $value;
-     return $self->{DEBUG};
-  }
-
-  $self->{DEBUG} = $value
+  my ($self, $value) = @_;
+  return $self->{DEBUG} = $value if defined $value;
+  $self->{DEBUG}
 }
 
 sub get {
@@ -76,7 +68,7 @@ sub get {
   my $events = [];
 
   for my $raw_line (@$raw_lines) {
-    warn "->$raw_line \n" if $self->{DEBUG};
+    warn "-> $raw_line \n" if $self->{DEBUG};
 
     if ( my($tags, $prefix, $command, $middles, $trailing)
            = $raw_line =~ m/$irc_regex/ ) {
@@ -94,15 +86,18 @@ sub get {
       $event->{command} = uc $command;
       $event->{params} = [] if defined ( $middles ) || defined ( $trailing );
 
-      push @{$event->{params}}, (split /$g->{'space'}/, $middles)
+      push @{ $event->{params} }, split(/$g->{space}/, $middles)
         if defined $middles;
-      push @{$event->{params}}, $trailing if defined $trailing;
+      push @{ $event->{params} }, $trailing
+        if defined $trailing;
+
       push @$events, $event;
     } else {
       warn "Received line $raw_line that is not IRC protocol\n";
     }
   }
-  return $events;
+
+  $events
 }
 
 sub get_one_start {
@@ -115,7 +110,7 @@ sub get_one {
   my $events = [];
 
   if ( my $raw_line = shift ( @{ $self->{BUFFER} } ) ) {
-    warn "->$raw_line \n" if $self->{DEBUG};
+    warn "-> $raw_line \n" if $self->{DEBUG};
 
     if ( my($tags, $prefix, $command, $middles, $trailing)
        = $raw_line =~  m/$irc_regex/ ) {
@@ -133,9 +128,11 @@ sub get_one {
       $event->{command} = uc $command;
       $event->{params} = [] if defined ( $middles ) || defined ( $trailing );
 
-      push @{$event->{params}}, (split /$g->{'space'}/, $middles)
+      push @{ $event->{params} }, split(/$g->{space}/, $middles)
         if defined $middles;
-      push @{$event->{params}}, $trailing if defined $trailing;
+      push @{ $event->{params} }, $trailing
+        if defined $trailing;
+
       push @$events, $event;
     } else {
       warn "Received line $raw_line that is not IRC protocol\n";
@@ -157,11 +154,12 @@ sub put {
       my $colonify = defined $event->{colonify} ? 
         $event->{colonify} : $self->{COLONIFY} ;
 
-      my $raw_line = '';
+      my $raw_line;
 
-      if ( $event->{tags} and ref $event->{tags} eq 'HASH' ) {
+      if ( ref $event->{tags} eq 'HASH' ) {
           $raw_line .= '@';
           my @tags = %{ $event->{tags} };
+          ## If this is wrong, blame Aerdan; I stole the test from him.
           while (my ($thistag, $thisval) = splice @tags, 0, 2) {
             $raw_line .= $thistag . ( defined $thisval ? '='.$thisval : '' );
             $raw_line .= ';' if @tags;
@@ -185,9 +183,9 @@ sub put {
       }
 
       push @$raw_lines, $raw_line;
-      warn "<-$raw_line \n" if $self->{DEBUG};
+      warn "<- $raw_line \n" if $self->{DEBUG};
     } else {
-      warn __PACKAGE__ . " non hashref passed to put(): \"$event\"\n";
+      warn ref($self) . " non hashref passed to put(): \"$event\"\n";
       push @$raw_lines, $event if ref $event eq 'SCALAR';
     }
 
@@ -206,13 +204,74 @@ sub clone {
 
 1;
 
-__END__
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::IRC::Filter - POE::Filter::IRCD with IRCv3 knobs
+
+=head1 SYNOPSIS
+
+  my $filter = IRC::Server::Pluggable::IRC::Filter->new(colonify => 1);
+  my $array_of_lines = $filter->get( [ \%hash1, \%hash2 ... ] );
+  my $array_of_refs  = $filter->put( [ $line1, $line ... ] );
+
+=head1 DESCRIPTION
+
+A L<POE::Filter> for IRC traffic derived from L<POE::Filter::IRCD>.
+
+Adds IRCv3 tag support.
+
+=head2 get
+
+Takes an ARRAY of raw lines and returns an array of hash references with 
+the following keys:
+
+=head3 command
+
+The (uppercased) command or numeric.
+
+=head3 params
+
+An ARRAY containing the event parameters.
+
+=head3 prefix
+
+The sender prefix, if any.
+
+=head3 tags
+
+A HASH of key => value pairs matching IRCv3.2 "message tags" -- see 
+L<http://ircv3.atheme.org>.
+
+=head2 put
+
+Takes an ARRAY of hash references matching those described in L</get> 
+(documented above) and returns an ARRAY of raw IRC-formatted lines.
+
+=head3 colonify
+
+In addition to the keys described in L</get>, the B<colonify> option can be 
+specified for specific events. This controls whether or not the last 
+parameter will be colon-prefixed even if it is a single word. (Yes, IRC is 
+woefully inconsistent ...)
+
+Defaults to boolean false (off).
+
+=head2 clone
+
+Copy the filter.
+
+=head2 debug
+
+Turn on/off debug output.
 
 =head1 LICENSE
 
-Adapted with IRCv3 extensions by Jon Portnoy <avenj@cobaltirc.org>
-
 L<POE::Filter::IRCD> is copyright Chris Williams and Jonathan Steinert
+
+Adapted with IRCv3 extensions by Jon Portnoy <avenj@cobaltirc.org>
 
 This module may be used, modified, and distributed under the same terms as 
 Perl itself. 
@@ -220,16 +279,10 @@ Please see the license that came with your Perl distribution for details.
 
 =head1 SEE ALSO
 
-L<POE>
+L<IRC::Server::Pluggable>
 
 L<POE::Filter>
 
 L<POE::Filter::Stackable>
-
-L<POE::Component::Server::IRC>
-
-L<POE::Component::IRC>
-
-L<Parse::IRC>
 
 =cut

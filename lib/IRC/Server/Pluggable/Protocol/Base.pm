@@ -67,6 +67,7 @@ my @base_roles = map { $base_role_prefix . $_ } qw/
 
   Motd
   Ping
+  Stats
   Version
 /;
 

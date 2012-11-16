@@ -2,8 +2,7 @@ package IRC::Server::Pluggable::IRC::Filter;
 our $VERSION = 0;
 
 ## POE::Filter::IRCD adapted to accomodate IRCv3
-## ... changes will likely be pushed upstream once I've given them
-## a solid go
+## (also various cleanups)
 
 use strictures 1;
 use Carp;
@@ -167,10 +166,12 @@ sub put {
           $raw_line .= ' ';
       }
 
-      $raw_line .= (':' . $event->{prefix} . ' ') if exists $event->{prefix};
+      $raw_line .= ':' . $event->{prefix} . ' '
+        if exists $event->{prefix};
+
       $raw_line .= $event->{command};
 
-      if ( $event->{params} and ref $event->{params} eq 'ARRAY' ) {
+      if ( ref $event->{params} eq 'ARRAY' ) {
           my $params = [ @{ $event->{params} } ];
           $raw_line .= ' ';
           my $param = shift @$params;

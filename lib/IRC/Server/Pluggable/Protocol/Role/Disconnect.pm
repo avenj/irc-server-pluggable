@@ -278,6 +278,8 @@ sub disconnect {
 
   }
 
+  ## FIXME emit disconnected event ?
+
   ## FIXME cleanup routines as-necessary, depending on what this is
 
 }

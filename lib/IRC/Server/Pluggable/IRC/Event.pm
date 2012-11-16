@@ -6,7 +6,11 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Types;
+use IRC::Server::Pluggable qw/
+  IRC::Filter
+
+  Types
+/;
 
 use namespace::clean -except => 'meta';
 
@@ -44,8 +48,32 @@ has 'raw_line' => (
   isa       => Str,
   predicate => 'has_raw_line',
   writer    => 'set_raw_line',
-  default   => sub { '' },
+  default   => sub {
+    my ($self) = @_;
+    my $lines = $self->__filter->put(
+      [
+       {
+         prefix  => $self->prefix,
+         command => $self->command,
+         params  => $self->params
+       }
+      ],
+    );
+    $lines->[0]
+  },
 );
+
+
+has '__filter' => (
+  is      => 'rw',
+  lazy    => 1,
+  builder => '__build_filter',
+);
+
+sub __build_filter {
+  my ($self) = @_;
+  IRC::Server::Pluggable::IRC::Filter->new(colonify => 1)
+}
 
 no warnings 'void';
 q{

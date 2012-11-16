@@ -13,6 +13,7 @@ use IRC::Server::Pluggable qw/
   Backend::Listener
 
   IRC::Event
+  IRC::Filter
 
   Types
   Utils
@@ -31,7 +32,6 @@ use POE qw/
   Component::SSLify
 
   Filter::Stackable
-  Filter::IRCD
   Filter::Line
 
   Filter::Zlib::Stream
@@ -68,14 +68,11 @@ has 'controller' => (
 );
 
 has 'filter_irc' => (
-  ## FIXME Hum. POE::Filter::IRCD is not very ircv3-friendly.
-  ## LeoNerd appears to be working on something better ...
-  ## ... may be replaced
   lazy    => 1,
   isa     => InstanceOf['POE::Filter'],
   is      => 'rwp',
   default => sub {
-    POE::Filter::IRCD->new( colonify => 1 )
+    IRC::Server::Pluggable::IRC::Filter->new( colonify => 1 )
   },
 );
 
@@ -687,7 +684,6 @@ sub _ircsock_input {
   ## FIXME configurable raw events?
   ## FIXME anti-flood code or should that be higher up ... ?
 
-  ## Create obj from HASH from POE::Filter::IRCD
   my $obj = $self->__backend_event_class->new(
     %$input
   );
@@ -1008,8 +1004,8 @@ disconnection.
     $conn_id,
   );
 
-Feeds L<POE::Filter::IRCD> and sends the resultant raw IRC line to the 
-specified connection wheel ID.
+Feeds L<IRC::Server::Pluggable:IRC::Filter> and sends the resultant raw IRC 
+line to the specified connection wheel ID.
 
 =head3 session_id
 

@@ -17,11 +17,23 @@ use namespace::clean -except => 'meta';
 sub cmd_from_client_stats {
   my ($self, $conn, $event, $user) = @_;
 
+  unless (@{ $event->params }) {
+    ## FIXME bad args
+    return
+  }
 
+  my $char = substr $event->params->[0], 0, 1;
+  my $meth = 'r_stats_report_'.$char;
+  if ( $self->can($meth) ) {
+    my $eventset = $self->$meth($conn, $event, $user);
+    ## FIXME send eventset
+  } else {
+    ## FIXME unknown stats char
+  }
 }
 
 sub cmd_from_peer_stats {
-
+  ## FIXME
 }
 
 

@@ -1,8 +1,6 @@
 use Test::More tests => 3;
 use strict; use warnings FATAL => 'all' ;
 
-use POE::Filter::IRCD;
-
 BEGIN {
   use_ok( 'IRC::Server::Pluggable::IRC::Event' );
   use_ok( 'IRC::Server::Pluggable::Backend' );

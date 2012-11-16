@@ -10,10 +10,6 @@ use Carp;
 
 use parent 'POE::Filter';
 
-
-sub _PUT_LITERAL () { 1 }
-
-
 my $g = {
   space      => qr/\x20+/o,
   trailing_space  => qr/\x20*/o,
@@ -149,9 +145,7 @@ sub get_one {
   $events
 }
 
-sub get_pending {
-  return;
-}
+sub get_pending { return }
 
 sub put {
   my ($self, $events) = @_;
@@ -163,10 +157,9 @@ sub put {
       my $colonify = defined $event->{colonify} ? 
         $event->{colonify} : $self->{COLONIFY} ;
 
-      if ( _PUT_LITERAL || _checkargs($event) ) {
-        my $raw_line = '';
+      my $raw_line = '';
 
-        if ( $event->{tags} and ref $event->{tags} eq 'HASH' ) {
+      if ( $event->{tags} and ref $event->{tags} eq 'HASH' ) {
           $raw_line .= '@';
           my @tags = %{ $event->{tags} };
           while (my ($thistag, $thisval) = splice @tags, 0, 2) {
@@ -174,12 +167,12 @@ sub put {
             $raw_line .= ';' if @tags;
           }
           $raw_line .= ' ';
-        }
+      }
 
-        $raw_line .= (':' . $event->{prefix} . ' ') if exists $event->{prefix};
-        $raw_line .= $event->{command};
+      $raw_line .= (':' . $event->{prefix} . ' ') if exists $event->{prefix};
+      $raw_line .= $event->{command};
 
-        if ( $event->{params} and ref $event->{params} eq 'ARRAY' ) {
+      if ( $event->{params} and ref $event->{params} eq 'ARRAY' ) {
           my $params = [ @{ $event->{params} } ];
           $raw_line .= ' ';
           my $param = shift @$params;
@@ -189,18 +182,15 @@ sub put {
           }
           $raw_line .= ':' if $param =~ m/\x20/ or $colonify;
           $raw_line .= $param;
-        }
-
-        push @$raw_lines, $raw_line;
-        warn "<-$raw_line \n" if $self->{DEBUG};
-      } else {
-        next;
       }
 
+      push @$raw_lines, $raw_line;
+      warn "<-$raw_line \n" if $self->{DEBUG};
     } else {
       warn __PACKAGE__ . " non hashref passed to put(): \"$event\"\n";
       push @$raw_lines, $event if ref $event eq 'SCALAR';
     }
+
   }
 
   $raw_lines
@@ -212,23 +202,6 @@ sub clone {
   $nself->{$_} = $self->{$_} for keys %{ $self };
   $nself->{BUFFER} = [ ];
   return bless $nself, ref $self;
-}
-
-# This thing is far from correct, dont use it.
-sub _checkargs {
-  my $event = shift || return;
-  warn("Invalid characters in prefix: " . $event->{prefix} . "\n")
-    if ($event->{prefix} =~ m/[\x00\x0a\x0d\x20]/);
-  warn("Undefined command passed.\n")
-    unless ($event->{command} =~ m/\S/o);
-  warn("Invalid command: " . $event->{command} . "\n")
-    unless ($event->{command} =~ m/^(?:[a-zA-Z]+|\d{3})$/o);
-  foreach my $middle (@{$event->{'middles'}}) {
-    warn("Invalid middle: $middle\n")
-      unless ($middle =~ m/^[^\x00\x0a\x0d\x20\x3a][^\x00\x0a\x0d\x20]*$/);
-  }
-  warn("Invalid trailing: " . $event->{'trailing'} . "\n")
-    unless ($event->{'trailing'} =~ m/^[\x00\x0a\x0d]*$/);
 }
 
 1;

@@ -62,6 +62,8 @@ sub debug {
   $self->{DEBUG}
 }
 
+# Hum. Need to profile to figure out what we lose by
+# killing the code duplication here.
 sub get {
   my ($self, $raw_lines) = @_;
   my $events = [];
@@ -75,7 +77,7 @@ sub get {
       my $event = { raw_line => $raw_line };
 
       if ($tags) {
-        for my $tag_pair (split ';', $tags) {
+        for my $tag_pair (split /;/, $tags) {
           my ($thistag, $thisval) = split /=/, $tag_pair;
           $event->{tags}->{$thistag} = $thisval
         }
@@ -117,7 +119,7 @@ sub get_one {
       my $event = { raw_line => $raw_line };
 
       if ($tags) {
-        for my $tag_pair (split ';', $tags) {
+        for my $tag_pair (split /;/, $tags) {
           my ($thistag, $thisval) = split /=/, $tag_pair;
           $event->{tags}->{$thistag} = $thisval
         }
@@ -196,11 +198,10 @@ sub put {
 }
 
 sub clone {
-  my $self = shift;
-  my $nself = { };
-  $nself->{$_} = $self->{$_} for keys %{ $self };
-  $nself->{BUFFER} = [ ];
-  return bless $nself, ref $self;
+  my ($self) = @_;
+  my $nself = {%$self};
+  $nself->{BUFFER} = [];
+  bless $nself, ref $self
 }
 
 1;
@@ -222,7 +223,7 @@ IRC::Server::Pluggable::IRC::Filter - POE::Filter::IRCD with IRCv3 knobs
 
 A L<POE::Filter> for IRC traffic derived from L<POE::Filter::IRCD>.
 
-Adds IRCv3 tag support.
+Adds IRCv3 tag support along with some cleanup/optimization.
 
 =head2 get
 

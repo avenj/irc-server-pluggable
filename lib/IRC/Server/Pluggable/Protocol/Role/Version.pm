@@ -3,37 +3,108 @@ package IRC::Server::Pluggable::Protocol::Role::Version;
 use 5.12.1;
 use Carp;
 
-use Moo::Role;
 use strictures 1;
 
+use Moo::Role;
+requires qw/
+  config
+  dispatch
+  equal
+  peers
+  users
+/;
+
+use IRC::Server::Pluggable qw/
+  IRC::EventSet
+/;
 
 use namespace::clean -except => 'meta';
 
 
-sub _r_proto_build_isupport {
+sub r_proto_build_isupport {
+  my ($self, $eventset) = @_;
+  ## 005 ISUPPORT
+  $eventset = IRC::Server::Pluggable::IRC::EventSet->new
+    unless defined $eventset;
 
+  ## FIXME
+  $eventset->push(
+    {
+      command => '005',
+      prefix  => $self->config->server_name,
+      params  => [ 'HI, I suck and have no ISUPPORT yet.' ],
+    },
+  );
+
+  $eventset
+}
+
+sub r_proto_build_version {
+  my ($self, $eventset) = @_;
+  ## 351 VERSION
+  $eventset = IRC::Server::Pluggable::IRC::EventSet->new
+    unless defined $eventset;
+
+  ## FIXME current composed version is braindead
+  $eventset->push(
+    {
+      command => '351',
+      prefix  => $self->config->server_name,
+      params  => [ $self->version_string ],
+    },
+  );
+
+  $eventset
 }
 
 
 sub cmd_from_client_version {
-  my ($self, $conn, $event) = @_;
+  my ($self, $conn, $event, $user) = @_;
 
-  ## FIXME may be for us (no params) or remote (params being server name/mask)
+  my $server_name = $self->config->server_name;
 
   if (@{ $event->params }) {
-    ## FIXME have an arg, should be server name/mask
-    ##  need IRC::Peers method to find by mask
-    ##  relay to first or return unknown server rpl
-    return
+    my $first = $event->params->[0];
+    my $peer  = ( $self->peers->matching($first) )[0];
+    unless (defined $peer) {
+      ## No such server.
+      $self->send_to_routes(
+        $self->numeric->as_hash( 402,
+          target => $user->nick,
+          prefix => $server_name,
+          params => [ $event->params->[0] ],
+        ),
+        $user->route
+      );
+    }
+
+    unless ( $self->equal($server_name, $peer->name) ) {
+      ## Not us; relay.
+      $self->send_to_routes(
+        {
+          prefix  => $user->nick,
+          command => 'VERSION',
+          params  => $peer->name,
+        },
+        $peer->route
+      );
+      return
+    }
   }
 
-  ## No params, send back our version & ISUPPORT
+  my $version_set  = $self->r_proto_build_version;
+  my $isupport_set = $self->r_proto_build_isupport($version_set);
+  $self->send_to_routes( $isupport_set, $user->route );
 }
 
 
 sub cmd_from_peer_version {
-  ## FIXME get client and call back to cmd_from_client_version
-  ##  (with server name/mask arg dropped)
+  my ($self, $conn, $event) = @_;
+
+  my $user = $self->users->by_name( $event->prefix ) || return;
+
+  $event->set_params([]);
+  $self->dispatch( 'cmd_from_client_version', $conn, $event, $user );
 }
 
 

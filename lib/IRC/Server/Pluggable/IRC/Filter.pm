@@ -49,17 +49,35 @@ my $irc_regex = qr/^
   $g->{'trailing_space'}
 $/x;
 
+
+sub COLONIFY () { 0 }
+sub DEBUG    () { 1 }
+sub BUFFER   () { 2 }
+
+
 sub new {
   my ($class, %params) = @_;
   $params{uc $_} = delete $params{$_} for keys %params;
-  $params{BUFFER} = [];
-  bless \%params, $class
+
+  my $self = [
+    $params{COLONIFY} || 0,
+    $params{DEBUG}    || 0,
+    []  ## BUFFER
+  ];
+
+  bless $self, $class;
 }
 
 sub debug {
   my ($self, $value) = @_;
-  return $self->{DEBUG} = $value if defined $value;
-  $self->{DEBUG}
+  return $self->[DEBUG] = $value if defined $value;
+  $self->[DEBUG]
+}
+
+sub colonify {
+  my ($self, $value) = @_;
+  return $self->[COLONIFY] = $value if defined $value;
+  $self->[COLONIFY]
 }
 
 # Hum. Need to profile to figure out what we lose by
@@ -69,7 +87,7 @@ sub get {
   my $events = [];
 
   for my $raw_line (@$raw_lines) {
-    warn "-> $raw_line \n" if $self->{DEBUG};
+    warn "-> $raw_line \n" if $self->[DEBUG];
 
     if ( my($tags, $prefix, $command, $middles, $trailing)
            = $raw_line =~ m/$irc_regex/ ) {
@@ -103,15 +121,15 @@ sub get {
 
 sub get_one_start {
   my ($self, $raw_lines) = @_;
-  push @{ $self->{BUFFER} }, $_ for @$raw_lines;
+  push @{ $self->[BUFFER] }, $_ for @$raw_lines;
 }
 
 sub get_one {
   my $self = shift;
   my $events = [];
 
-  if ( my $raw_line = shift ( @{ $self->{BUFFER} } ) ) {
-    warn "-> $raw_line \n" if $self->{DEBUG};
+  if ( my $raw_line = shift ( @{ $self->[BUFFER] } ) ) {
+    warn "-> $raw_line \n" if $self->[DEBUG];
 
     if ( my($tags, $prefix, $command, $middles, $trailing)
        = $raw_line =~  m/$irc_regex/ ) {
@@ -153,7 +171,7 @@ sub put {
 
     if (ref $event eq 'HASH') {
       my $colonify = defined $event->{colonify} ? 
-        $event->{colonify} : $self->{COLONIFY} ;
+        $event->{colonify} : $self->[COLONIFY] ;
 
       my $raw_line;
 
@@ -186,7 +204,7 @@ sub put {
       }
 
       push @$raw_lines, $raw_line;
-      warn "<- $raw_line \n" if $self->{DEBUG};
+      warn "<- $raw_line \n" if $self->[DEBUG];
     } else {
       warn ref($self) . " non hashref passed to put(): \"$event\"\n";
       push @$raw_lines, $event if ref $event eq 'SCALAR';
@@ -199,8 +217,8 @@ sub put {
 
 sub clone {
   my ($self) = @_;
-  my $nself = {%$self};
-  $nself->{BUFFER} = [];
+  my $nself = [@$self];
+  $nself->[BUFFER] = [];
   bless $nself, ref $self
 }
 

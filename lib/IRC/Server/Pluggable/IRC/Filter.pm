@@ -89,7 +89,7 @@ sub get_one {
   my ($self) = @_;
   my $events = [];
 
-  if ( my $raw_line = shift ( @{ $self->[BUFFER] } ) ) {
+  if (my $raw_line = shift @{ $self->[BUFFER] }) {
     warn "-> $raw_line \n" if $self->[DEBUG];
 
     if ( my($tags, $prefix, $command, $middles, $trailing)
@@ -133,12 +133,9 @@ sub put {
   for my $event (@$events) {
 
     if ( ref $event eq 'HASH' ) {
-      my $colonify = defined $event->{colonify} ? 
-        $event->{colonify} : $self->[COLONIFY] ;
-
       my $raw_line;
 
-      if ( ref $event->{tags} eq 'HASH' ) {
+      if ( ref $event->{tags} eq 'HASH' && keys %{ $event->{tags} } ) {
           $raw_line .= '@';
           my @tags = %{ $event->{tags} };
           while (my ($thistag, $thisval) = splice @tags, 0, 2) {
@@ -153,15 +150,16 @@ sub put {
 
       $raw_line .= $event->{command};
 
-      if ( ref $event->{params} eq 'ARRAY' ) {
-          my @params = @{ $event->{params} };
+      if ( ref $event->{params} eq 'ARRAY'
+        && (my @params = @{ $event->{params} }) ) {
           $raw_line .= ' ';
           my $param = shift @params;
           while (@params) {
             $raw_line .= $param . ' ';
             $param = shift @params;
           }
-          $raw_line .= ':' if $param =~ m/\x20/ or $colonify;
+          $raw_line .= ':' if $param =~ m/\x20/
+            or $event->{colonify} or $self->[COLONIFY];
           $raw_line .= $param;
       }
 

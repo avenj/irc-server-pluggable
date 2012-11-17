@@ -2,7 +2,7 @@ package IRC::Server::Pluggable::IRC::Filter;
 our $VERSION = 0;
 
 ## POE::Filter::IRCD adapted to accomodate IRCv3
-## (also various cleanups)
+## (also various cleanups and optimizations)
 
 use strictures 1;
 use Carp;
@@ -101,9 +101,8 @@ sub get {
         }
       }
 
-      $event->{prefix} = $prefix if $prefix;
+      $event->{prefix}  = $prefix if $prefix;
       $event->{command} = uc $command;
-      $event->{params} = [] if defined ( $middles ) || defined ( $trailing );
 
       push @{ $event->{params} }, split(/$g->{space}/, $middles)
         if defined $middles;
@@ -143,9 +142,8 @@ sub get_one {
         }
       }
 
-      $event->{prefix} = $prefix if $prefix;
+      $event->{prefix}  = $prefix if $prefix;
       $event->{command} = uc $command;
-      $event->{params} = [] if defined ( $middles ) || defined ( $trailing );
 
       push @{ $event->{params} }, split(/$g->{space}/, $middles)
         if defined $middles;

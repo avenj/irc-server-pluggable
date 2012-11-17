@@ -1,5 +1,5 @@
 package IRC::Server::Pluggable::Protocol;
-our $VERSION = 0;
+our $VERSION = '0.000_01';
 
 ## Extends Protocol::Base by consuming various Protocol::Roles.
 ## (Consuming the base set of Roles should form a workable IRCD.)

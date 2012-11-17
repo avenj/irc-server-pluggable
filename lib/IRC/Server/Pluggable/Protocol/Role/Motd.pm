@@ -16,16 +16,6 @@ requires qw/
   send_to_routes
 /;
 
-sub cmd_from_peer_motd {
-  my ($self, $conn, $event) = @_;
-  ## Remote user asked for MOTD.
-  my $user = $self->users->by_name( $event->prefix ) || return;
-
-  $self->yield( 'dispatch' => 'cmd_from_client_motd',
-    $conn, $event, $user
-  )
-}
-
 sub cmd_from_client_motd {
   my ($self, $conn, $event, $user) = @_;
 
@@ -113,6 +103,17 @@ sub cmd_from_client_motd {
   1
 }
 
+sub cmd_from_peer_motd {
+  my ($self, $conn, $event) = @_;
+  ## Remote user asked for MOTD.
+  my $user = $self->users->by_name( $event->prefix ) || return;
+
+  $self->yield( 'dispatch' => 'cmd_from_client_motd',
+    $conn, $event, $user
+  )
+}
+
+
 1;
 
 =pod
@@ -131,10 +132,6 @@ IRC::Server::Pluggable::Protocol::Role::TS::Clients::Motd
 
 A L<Moo::Role> adding 'MOTD' command handlers to a
 L<IRC::Server::Pluggable::Protocol::Base> subclass.
-
-Usually consumed by
-L<IRC::Server::Pluggable::Protocol::Role::TS::Clients> via
-L<IRC::Server::Pluggable::Protocol>
 
 =head1 AUTHOR
 

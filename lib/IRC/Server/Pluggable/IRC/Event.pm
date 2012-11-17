@@ -95,6 +95,21 @@ sub tags_as_array {
   $tag_array
 }
 
+sub tags_as_string {
+  my ($self) = @_;
+  return unless $self->has_tags and keys %{ $self->tags };
+
+  my $str;
+  my @tags = %{ $event->tags };
+  while (my ($thistag, $thisval) = splice @tags, 0, 2) {
+    $str .= $thistag . 
+      ( defined $thisval ? '='.$thisval : '' ) .
+      ( @tags ? ';' : '' )
+    );
+  }
+
+  $str
+}
 
 has '__filter' => (
   is      => 'rw',

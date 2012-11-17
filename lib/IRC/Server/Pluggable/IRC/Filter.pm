@@ -260,7 +260,7 @@ Defaults to boolean false (off).
 
 =head2 clone
 
-Copy the filter.
+Copy the filter object (with a cleared buffer).
 
 =head2 debug
 

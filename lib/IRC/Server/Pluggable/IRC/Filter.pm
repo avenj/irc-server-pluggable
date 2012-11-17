@@ -155,12 +155,12 @@ sub put {
       $raw_line .= $event->{command};
 
       if ( ref $event->{params} eq 'ARRAY' ) {
-          my $params = [ @{ $event->{params} } ];
+          my @params = @{ $event->{params} };
           $raw_line .= ' ';
-          my $param = shift @$params;
-          while (@$params) {
+          my $param = shift @params;
+          while (@params) {
             $raw_line .= $param . ' ';
-            $param = shift @$params;
+            $param = shift @params;
           }
           $raw_line .= ':' if $param =~ m/\x20/ or $colonify;
           $raw_line .= $param;

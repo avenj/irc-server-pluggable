@@ -100,9 +100,9 @@ sub tags_as_string {
   return unless $self->has_tags and keys %{ $self->tags };
 
   my $str;
-  my @tags = %{ $event->tags };
+  my @tags = %{ $self->tags };
   while (my ($thistag, $thisval) = splice @tags, 0, 2) {
-    $str .= $thistag . 
+    $str .= ( $thistag . 
       ( defined $thisval ? '='.$thisval : '' ) .
       ( @tags ? ';' : '' )
     );

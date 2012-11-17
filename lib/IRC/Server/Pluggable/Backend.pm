@@ -38,7 +38,6 @@ use POE qw/
 /;
 
 use Socket qw/
-  :addrinfo
   AF_INET
   AF_INET6
   inet_ntop

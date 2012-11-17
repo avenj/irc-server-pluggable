@@ -12,11 +12,8 @@ use Data::Dumper;
 POE::Session->create(
   package_states => [
     main => [ qw/
-      
       _start
-      
       _default
-    
     / ],
   ],
 );
@@ -24,15 +21,13 @@ POE::Session->create(
 POE::Kernel->run;
 
 sub _start {
-  my $backend = IRC::Server::Pluggable::Backend->spawn(
-  
-  );
-  
+  my $backend = IRC::Server::Pluggable::Backend->spawn();
+
   POE::Kernel->post( $backend->session_id, 'register' );
 
   POE::Kernel->post( $backend->session_id,
     'create_listener',
-    bindaddr => '127.0.0.1',
+    bindaddr => '0.0.0.0',
     port     => 9500,
   );
 }

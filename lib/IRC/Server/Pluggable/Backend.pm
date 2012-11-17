@@ -41,6 +41,7 @@ use Socket qw/
   :addrinfo
   AF_INET
   AF_INET6
+  inet_ntoa inet_ntop
 /;
 
 use Try::Tiny;
@@ -187,7 +188,8 @@ sub spawn {
         'create_listener' => '_create_listener',
         'remove_listener' => '_remove_listener',
 
-        '_accept_conn' => '_accept_conn',
+        '_accept_conn_v4' => '_accept_conn_v4',
+        '_accept_conn_v6' => '_accept_conn_v6',
         '_accept_fail' => '_accept_fail',
         '_idle_alarm'  => '_idle_alarm',
 
@@ -278,22 +280,33 @@ sub _register_controller {
   $kernel->post( $self->controller, 'ircsock_registered', $self );
 }
 
-sub _accept_conn {
+sub _accept_conn_v4 {
   ## Accepted connection to a listener.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($sock, $p_addr, $p_port, $listener_id) = @_[ARG0 .. ARG3];
 
+  ## Our peer's addr.
+  $p_addr = inet_ntoa($p_addr);
+  $self->__setup_wheel($sock, $p_addr, $p_port, $listener_id)
+}
+
+sub _accept_conn_v6 {
+  ## Accepted connection to a listener.
+  my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my ($sock, $p_addr, $p_port, $listener_id) = @_[ARG0 .. ARG3];
+
+  ## Our peer's addr.
+  $p_addr = inet_ntop( AF_INET6, $p_addr );
+  $self->__setup_wheel($sock, $p_addr, $p_port, $listener_id)
+}
+
+
+sub __setup_wheel {
+  my ($self, $sock, $p_addr, $p_port, $listener_id) = @_;
+  ## FIXME
   ## Our sock addr/port.
   my $sock_packed = getsockname($sock);
   my ($protocol, $sockaddr, $sockport) = get_unpacked_addr($sock_packed);
-
-  ## Our peer's addr.
-  my $n_err;
-  ($n_err, $p_addr) = getnameinfo(
-   $p_addr,
-   NI_NUMERICHOST | NIx_NOSERV
-  );
-
   my $listener = $self->listeners->{$listener_id};
 
   if ( $listener->ssl ) {
@@ -314,7 +327,7 @@ sub _accept_conn {
   );
 
   unless ($wheel) {
-    carp "Wheel creation failure in _accept_conn";
+    carp "Wheel creation failure in __setup_wheel";
     return
   }
 
@@ -337,14 +350,14 @@ sub _accept_conn {
   $self->wheels->{$w_id} = $this_conn;
 
   $this_conn->alarm_id(
-    $kernel->delay_set(
+    $poe_kernel->delay_set(
       '_idle_alarm',
       $this_conn->idle,
       $w_id
     )
   );
 
-  $kernel->post( $self->controller,
+  $poe_kernel->post( $self->controller,
     'ircsock_listener_open',
     $this_conn
   );
@@ -425,7 +438,8 @@ sub _create_listener {
     SocketDomain => ($protocol == 6 ? AF_INET6 : AF_INET),
     BindAddress  => $bindaddr,
     BindPort     => $bindport,
-    SuccessEvent => '_accept_conn',
+    SuccessEvent => 
+      ($protocol == 6 ? '_accept_conn_v6' : '_accept_conn_v4' ),
     FailureEvent => '_accept_fail',
     Reuse        => 1,
   );
@@ -615,7 +629,7 @@ sub _connector_up {
   );
 
   unless ($wheel) {
-    carp "Wheel creation failure in _accept_conn";
+    carp "Wheel creation failure in _connector_up";
     return
   }
 

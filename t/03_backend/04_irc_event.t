@@ -1,4 +1,4 @@
-use Test::More tests => 13;
+use Test::More tests => 15;
 use strict; use warnings FATAL => 'all' ;
 
 BEGIN {
@@ -24,8 +24,8 @@ cmp_ok( $obj->params->[0], 'eq', 'user', 'param 0 looks ok' );
 cmp_ok( $obj->params->[1], 'eq', 'Welcome to IRC', 'param 1 looks ok' );
 
 
-my $tag_line = q{@intent=ACTION;znc.in/extension=value;foobar};
-$tag_line .= " PRIVMSG #somewhere :Some string\r\n";
+my $tag_line = q{@intent=ACTION;znc.in/extension=value;foobar}
+            . qq{ PRIVMSG #somewhere :Some string\r\n};
 my $parsed = $filter->get([$tag_line])->[0];
 my $tagged = IRC::Server::Pluggable::IRC::Event->new(%$parsed);
 
@@ -48,3 +48,9 @@ cmp_ok( $tagged->tags_as_string, '=~', qr/foobar/, 'tags_as_string' );
 ok( grep {; $_ eq 'intent=ACTION' } @{ $tagged->tags_as_array },
   'tags_as_array looks ok'
 );
+
+my $from_raw = new_ok( 'IRC::Server::Pluggable::IRC::Event' => [
+    raw_line => $tag_line,
+  ],
+);
+cmp_ok( $from_raw->command, 'eq', 'PRIVMSG', 'obj from raw_line looks ok' );

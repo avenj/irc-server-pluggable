@@ -16,12 +16,11 @@ use namespace::clean -except => 'meta';
 
 
 has 'command' => (
+  required  => 1,
   is        => 'ro',
-  lazy      => 1,
   isa       => Str,
   predicate => 'has_command',
   writer    => 'set_command',
-  default   => sub { '' },
 );
 
 has 'prefix' => (
@@ -50,19 +49,12 @@ has 'raw_line' => (
   writer    => 'set_raw_line',
   default   => sub {
     my ($self) = @_;
-    my $lines = $self->__filter->put(
-      [
-       {
-         prefix  => $self->prefix,
-         command => $self->command,
-         params  => $self->params,
-         (
-           $self->has_tags ?
-             ( tags => $self->tags ) : ()
-         ),
-       }
-      ],
-    );
+    my %hash;
+    for my $key (qw/prefix command params tags/) {
+      my $pred = "has_".$key;
+      $hash{$key} = $self->$key if $self->$pred;
+    }
+    my $lines = $self->__filter->put( [ \%hash ] );
     $lines->[0]
   },
 );
@@ -76,9 +68,26 @@ has 'tags' => (
   default   => sub {  {}  },
 );
 
+sub BUILDARGS {
+  my ($class, %params) = @_;
+
+  if (not defined $params{command}) {
+    if ($params{raw_line}) {
+      ## Try to create self from raw_line instead
+      my $filt = IRC::Server::Pluggable::IRC::Filter->new;
+      my $refs = $filt->get( [$params{raw_line}] );
+      %params = %{ $refs->[0] } if @$refs;
+    } else {
+      confess "Bad params; a command or a raw_line must be specified in new()"
+    }
+  }
+
+  \%params
+}
+
 sub get_tag {
   my ($self, $tag) = @_;
-  return unless $self->has_tags;
+  return unless $self->has_tags and keys %{ $self->tags };
   ## A tag might have an undef value ...
   $self->tags->{$tag}
 }

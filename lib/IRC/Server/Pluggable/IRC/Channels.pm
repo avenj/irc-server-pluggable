@@ -194,14 +194,25 @@ sub get_pub_or_secret_char {
 sub status_char_for_user {
   my ($self, $user_obj, $chan_name) = @_;
 
-  ## TODO; some newer ircds seem to send '@+' ... worth looking into
-  ## We should be sorted highest-to-lowest:
   for my $modechr ($self->available_status_modes) {
     return $self->status_prefix_for_mode($modechr)
       if $self->user_has_status($user_obj, $chan_name, $modechr)
   }
 
   return
+}
+
+sub status_char_for_user_multiprefix {
+  my ($self, $user_obj, $chan_name) = @_;
+
+  ## A CAP multi-prefix implementation would allow for @%+, @+ etc..
+  my $str;
+  for my $modechar ($self->available_status_modes) {
+    $str .= $self->status_prefix_for_mode($modechr)
+      if $self->user_has_status($user_obj, $chan_name, $modechr)
+  }
+
+  $str // ()
 }
 
 sub status_modes_for_user {

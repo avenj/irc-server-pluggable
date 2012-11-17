@@ -63,6 +63,7 @@ has 'conn' => (
 has 'flags' => (
   ## FIXME document flags:
   ##  - SERVICE
+  ## .. CAP could probably be shoe-horned in here
   lazy => 1,
   is   => 'ro',
   isa  => HashRef,

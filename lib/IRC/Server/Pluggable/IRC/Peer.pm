@@ -21,6 +21,7 @@ has 'casemap' => (
 );
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
+
 has 'conn' => (
   ## Our directly-linked peers should have a Backend::Connect
   lazy      => 1,
@@ -38,11 +39,11 @@ has 'conn' => (
   },
 );
 
-has 'name' => (
-  required => 1,
-  is       => 'ro',
-  isa      => Str,
-  writer   => 'set_name',
+has 'is_bursting' => (
+  lazy    => 1,
+  is      => rw,
+  isa     => Bool,
+  default => sub { 0 },
 );
 
 has 'linked'  => (
@@ -56,8 +57,12 @@ has 'linked'  => (
   default   => sub { {} },
 );
 
-## FIXME should we track a list of user identifiers introduced by
-##  a peer here?
+has 'name' => (
+  required => 1,
+  is       => 'ro',
+  isa      => Str,
+  writer   => 'set_name',
+);
 
 has 'route' => (
   ## Either our Connect's wheel_id or the wheel_id of the next hop peer.

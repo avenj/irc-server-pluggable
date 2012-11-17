@@ -80,51 +80,13 @@ sub colonify {
   $self->[COLONIFY]
 }
 
-# Hum. Need to profile to figure out what we lose by
-# killing the code duplication here.
-sub get {
-  my ($self, $raw_lines) = @_;
-  my $events = [];
-
-  for my $raw_line (@$raw_lines) {
-    warn "-> $raw_line \n" if $self->[DEBUG];
-
-    if ( my($tags, $prefix, $command, $middles, $trailing)
-           = $raw_line =~ m/$irc_regex/ ) {
-
-      my $event = { raw_line => $raw_line };
-
-      if ($tags) {
-        for my $tag_pair (split /;/, $tags) {
-          my ($thistag, $thisval) = split /=/, $tag_pair;
-          $event->{tags}->{$thistag} = $thisval
-        }
-      }
-
-      $event->{prefix}  = $prefix if $prefix;
-      $event->{command} = uc $command;
-
-      push @{ $event->{params} }, split(/$g->{space}/, $middles)
-        if defined $middles;
-      push @{ $event->{params} }, $trailing
-        if defined $trailing;
-
-      push @$events, $event;
-    } else {
-      warn "Received line $raw_line that is not IRC protocol\n";
-    }
-  }
-
-  $events
-}
-
 sub get_one_start {
   my ($self, $raw_lines) = @_;
   push @{ $self->[BUFFER] }, $_ for @$raw_lines;
 }
 
 sub get_one {
-  my $self = shift;
+  my ($self) = @_;
   my $events = [];
 
   if ( my $raw_line = shift ( @{ $self->[BUFFER] } ) ) {
@@ -159,7 +121,10 @@ sub get_one {
   $events
 }
 
-sub get_pending { return }
+sub get_pending {
+  my ($self) = @_;
+  @{ $self->[BUFFER] } ? [ @{ $self->[BUFFER] } ] : ()
+}
 
 sub put {
   my ($self, $events) = @_;
@@ -167,7 +132,7 @@ sub put {
 
   for my $event (@$events) {
 
-    if (ref $event eq 'HASH') {
+    if ( ref $event eq 'HASH' ) {
       my $colonify = defined $event->{colonify} ? 
         $event->{colonify} : $self->[COLONIFY] ;
 
@@ -251,6 +216,12 @@ IRC::Server::Pluggable::IRC::Filter - POE::Filter::IRCD with IRCv3 knobs
 A L<POE::Filter> for IRC traffic derived from L<POE::Filter::IRCD>.
 
 Adds IRCv3 tag support along with some cleanup/optimization.
+
+=head2 get_one_start, get_one, get_pending
+
+Implement the interface described in L<POE::Filter>.
+
+See L</get>.
 
 =head2 get
 

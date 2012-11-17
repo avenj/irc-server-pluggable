@@ -18,32 +18,32 @@ my $irc_regex = qr/^
   (?:
     \x40                # '@'-prefixed IRCv3.2 messsage tags.
     (\S+)               # Semi-colon delimited key=value list
-    $g->{'space'}
+    $g->{space}
   )?
   (?:
     \x3a                #  : comes before hand
     (\S+)               #  [prefix]
-    $g->{'space'}       #  Followed by a space
+    $g->{space}       #  Followed by a space
   )?                    # but is optional.
   (
     \d{3}|[a-zA-Z]+     #  [command]
   )                     # required.
   (?:
-    $g->{'space'}       # Strip leading space off [middle]s
+    $g->{space}       # Strip leading space off [middle]s
     (                   # [middle]s
       (?:
         [^\x00\x0a\x0d\x20\x3a]
         [^\x00\x0a\x0d\x20]*
       )                 # Match on 1 of these,
       (?:
-        $g->{'space'}
+        $g->{space}
         [^\x00\x0a\x0d\x20\x3a]
         [^\x00\x0a\x0d\x20]*
       )*                # then match as many of these as possible
     )
   )?                    # otherwise dont match at all.
   (?:
-    $g->{'space'}\x3a   # Strip off leading spacecolon for [trailing]
+    $g->{space}\x3a   # Strip off leading spacecolon for [trailing]
     ([^\x00\x0a\x0d]*)  # [trailing]
   )?                    # [trailing] is not necessary.
   $g->{'trailing_space'}
@@ -218,6 +218,17 @@ IRC::Server::Pluggable::IRC::Filter - POE::Filter::IRCD with IRCv3 knobs
   my $filter = IRC::Server::Pluggable::IRC::Filter->new(colonify => 1);
   my $array_of_lines = $filter->get( [ \%hash1, \%hash2 ... ] );
   my $array_of_refs  = $filter->put( [ $line1, $line ... ] );
+
+  ## Stacked:
+  my $ircd = IRC::Server::Pluggable::IRC::Filter->new(colonify => 1);
+  my $line = POE::Filter::Line->new(
+    InputRegexp   => '\015?\012',
+    OutputLiteral => "\015\012",
+  );
+  my $filter = POE::Filter::Stackable->new(
+    Filters => [ $line, $ircd ],
+  );
+
 
 =head1 DESCRIPTION
 

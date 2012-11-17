@@ -194,10 +194,12 @@ IRC::Server::Pluggable::IRC::Filter - POE::Filter::IRCD with IRCv3 knobs
 =head1 SYNOPSIS
 
   my $filter = IRC::Server::Pluggable::IRC::Filter->new(colonify => 1);
-  my $array_of_lines = $filter->get( [ \%hash1, \%hash2 ... ] );
+  ## Raw lines parsed to hashes:
   my $array_of_refs  = $filter->put( [ $line1, $line ... ] );
+  ## Hashes deparsed to raw lines:
+  my $array_of_lines = $filter->get( [ \%hash1, \%hash2 ... ] );
 
-  ## Stacked:
+  ## Stacked with a line filter, suitable for Wheel usage, etc:
   my $ircd = IRC::Server::Pluggable::IRC::Filter->new(colonify => 1);
   my $line = POE::Filter::Line->new(
     InputRegexp   => '\015?\012',
@@ -212,7 +214,10 @@ IRC::Server::Pluggable::IRC::Filter - POE::Filter::IRCD with IRCv3 knobs
 
 A L<POE::Filter> for IRC traffic derived from L<POE::Filter::IRCD>.
 
-Adds IRCv3 tag support along with some cleanup/optimization.
+Adds IRCv3 tag support along with some cleanups and optimization.
+
+Like any proper L<POE::Filter>, there are no POE-specific bits involved 
+here and the filter can be used stand-alone to parse IRC traffic.
 
 =head2 get_one_start, get_one, get_pending
 
@@ -222,7 +227,13 @@ See L</get>.
 
 =head2 get
 
-Takes an ARRAY of raw lines and returns an array of hash references with 
+  my $events = $filter->get( [ $line, $another, ... ] );
+  for my $event (@$events) {
+    my $cmd = $event->{command};
+    ## See below for other keys available
+  }
+
+Takes an ARRAY of raw lines and returns an ARRAY of hash references with 
 the following keys:
 
 =head3 command
@@ -243,6 +254,11 @@ A HASH of key => value pairs matching IRCv3.2 "message tags" -- see
 L<http://ircv3.atheme.org>.
 
 =head2 put
+
+  my $lines = $filter->put( [ $hash, $another_hash, ... ] );
+  for my $line (@$lines) {
+    ## Direct to socket, etc
+  }
 
 Takes an ARRAY of hash references matching those described in L</get> 
 (documented above) and returns an ARRAY of raw IRC-formatted lines.
@@ -285,5 +301,7 @@ L<POE::Filter::IRCD>
 L<POE::Filter::Line>
 
 L<POE::Filter::Stackable>
+
+L<Parse::IRC>
 
 =cut

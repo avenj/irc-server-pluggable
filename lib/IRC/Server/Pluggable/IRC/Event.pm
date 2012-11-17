@@ -89,7 +89,7 @@ sub tags_as_array {
 
   my $tag_array = [];
   while (my ($thistag, $thisval) = each %{ $self->tags }) {
-    push @$tag_array, join '=', $thistag, $thisval
+    push @$tag_array, join '=', $thistag, ($thisval // '')
   }
 
   $tag_array

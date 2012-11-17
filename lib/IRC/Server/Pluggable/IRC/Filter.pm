@@ -141,7 +141,6 @@ sub put {
       if ( ref $event->{tags} eq 'HASH' ) {
           $raw_line .= '@';
           my @tags = %{ $event->{tags} };
-          ## If this is wrong, blame Aerdan; I stole the test from him.
           while (my ($thistag, $thisval) = splice @tags, 0, 2) {
             $raw_line .= $thistag . ( defined $thisval ? '='.$thisval : '' );
             $raw_line .= ';' if @tags;
@@ -282,6 +281,10 @@ Please see the license that came with your Perl distribution for details.
 L<IRC::Server::Pluggable>
 
 L<POE::Filter>
+
+L<POE::Filter::IRCD>
+
+L<POE::Filter::Line>
 
 L<POE::Filter::Stackable>
 

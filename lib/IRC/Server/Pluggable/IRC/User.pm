@@ -60,13 +60,22 @@ has 'conn' => (
   clearer   => 'clear_conn',
 );
 
-has 'flags' => (
-  ## FIXME document flags:
-  ##  - SERVICE
-  ## .. CAP could probably be shoe-horned in here
+has '_flags' => (
+  ## FIXME document reserved keys:
+  ##  - SERVICE  Bool
   lazy => 1,
   is   => 'ro',
   isa  => HashRef,
+  default => sub { {} },
+);
+
+has '_metadata' => (
+  ## FIXME document reserved keys:
+  ##  - CAP      HASH
+  ##  - ACCOUNT  String
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
   default => sub { {} },
 );
 
@@ -211,10 +220,10 @@ sub BUILD {
 }
 
 
-sub add_channel {
+sub channel_add {
   my ($self, $channel) = @_;
 
-  confess "add_channel expects an IRC::Server::Pluggable::IRC::Channel"
+  confess "channel_add expects an IRC::Server::Pluggable::IRC::Channel"
     unless blessed $channel
     and $channel->isa('IRC::Server::Pluggable::IRC::Channel');
 
@@ -227,12 +236,29 @@ sub add_channel {
   $self
 }
 
-sub del_channel {
+sub channel_del {
   my ($self, $channel) = @_;
 
   my $name = blessed $channel ? $channel->name : $channel ;
 
   delete $self->channels->{$name}
+}
+
+sub flag_list {
+  my ($self) = @_;
+  keys %{ $self->_flags }
+}
+
+sub flag_add {
+  my ($self, @flags) = @_;
+  $self->_flags->{$_} = 1 for @flags;
+  1
+}
+
+sub flag_del {
+  my ($self, @flags) = @_;
+  delete $self->_flags->{$_} for @flags;
+  1
 }
 
 sub is_flagged_as {
@@ -242,11 +268,35 @@ sub is_flagged_as {
 
   for my $to_check (@flags) {
     push(@resultset, $to_check)
-      if $self->flags->{$to_check}
+      if $self->_flags->{$to_check}
   }
 
   @resultset
 }
+
+sub meta_add {
+  my ($self, $key, $value) = @_;
+  confess "Expected a key and value"
+    unless defined $key and defined $value;
+  $self->_metadata->{$key} = $value
+}
+
+sub meta_del {
+  my ($self, $key) = @_;
+  confess "Expected a key" unless defined $key;
+  delete $self->_metadata->{$key}
+}
+
+sub meta_item {
+  my ($self, $key) = @_;
+  $self->_metadata->{$key}
+}
+
+sub meta_keys {
+  my ($self) = @_;
+  keys %{ $self->_metadata }
+}
+
 
 sub set_modes {
   my ($self, $data) = @_;
@@ -474,6 +524,9 @@ Pass a HASH with 'add' and 'del' ARRAYs:
     del => [ 'i' ],
   } );
 
+=head2 Methods
+
+FIXME
 
 =head1 AUTHOR
 

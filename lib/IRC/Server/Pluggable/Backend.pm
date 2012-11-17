@@ -188,13 +188,14 @@ sub spawn {
         'create_listener' => '_create_listener',
         'remove_listener' => '_remove_listener',
 
-        '_accept_conn_v4' => '_accept_conn_v4',
-        '_accept_conn_v6' => '_accept_conn_v6',
+        '_accept_conn_v4' => '_accept_conn',
+        '_accept_conn_v6' => '_accept_conn',
         '_accept_fail' => '_accept_fail',
         '_idle_alarm'  => '_idle_alarm',
 
         'create_connector'  => '_create_connector',
-        '_connector_up'     => '_connector_up',
+        '_connector_up_v4'  => '_connector_up',
+        '_connector_up_v6'  => '_connector_up',
         '_connector_failed' => '_connector_failed',
 
         '_ircsock_input'    => '_ircsock_input',
@@ -280,31 +281,18 @@ sub _register_controller {
   $kernel->post( $self->controller, 'ircsock_registered', $self );
 }
 
-sub _accept_conn_v4 {
+sub _accept_conn {
   ## Accepted connection to a listener.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($sock, $p_addr, $p_port, $listener_id) = @_[ARG0 .. ARG3];
 
   ## Our peer's addr.
-  $p_addr = inet_ntoa($p_addr);
-  $self->__setup_wheel($sock, $p_addr, $p_port, $listener_id)
-}
+  if ($_[STATE] eq '_accept_conn_v4') {
+    $p_addr = inet_ntoa($p_addr);
+  } else {
+    $p_addr = inet_ntop( AF_INET6, $p_addr );
+  }
 
-sub _accept_conn_v6 {
-  ## Accepted connection to a listener.
-  my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($sock, $p_addr, $p_port, $listener_id) = @_[ARG0 .. ARG3];
-
-  ## Our peer's addr.
-  $p_addr = inet_ntop( AF_INET6, $p_addr );
-  $self->__setup_wheel($sock, $p_addr, $p_port, $listener_id)
-}
-
-
-sub __setup_wheel {
-  my ($self, $sock, $p_addr, $p_port, $listener_id) = @_;
-  ## FIXME
-  ## Our sock addr/port.
   my $sock_packed = getsockname($sock);
   my ($protocol, $sockaddr, $sockport) = get_unpacked_addr($sock_packed);
   my $listener = $self->listeners->{$listener_id};
@@ -569,7 +557,8 @@ sub _create_connector {
     RemoteAddress  => $remote_addr,
     RemotePort     => $remote_port,
 
-    SuccessEvent   => '_connector_up',
+    SuccessEvent   => 
+      ( $protocol == 6 ? '_connector_up_v6' : '_connector_up_v4' ),
     FailureEvent   => '_connector_failed',
 
     (defined $args{bindaddr} ?
@@ -601,10 +590,11 @@ sub _connector_up {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($sock, $peeraddr, $peerport, $c_id) = @_[ARG0 .. ARG3];
 
-  my $n_err;
-  ($n_err, $peeraddr) = getnameinfo( $peeraddr,
-    NI_NUMERICHOST | NIx_NOSERV
-  );
+  if ($_[STATE] eq '_connector_up_v4') {
+    $peeraddr = inet_ntoa( $peeraddr );
+  } else {
+    $peeraddr = inet_ntop( AF_INET6, $peeraddr );
+  }
 
   ## No need to try to connect out any more; remove from connectors pool
   my $ct = delete $self->connectors->{$c_id};

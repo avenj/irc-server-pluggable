@@ -41,7 +41,7 @@ use Socket qw/
   :addrinfo
   AF_INET
   AF_INET6
-  inet_ntoa inet_ntop
+  inet_ntop
 /;
 
 use Try::Tiny;
@@ -287,11 +287,8 @@ sub _accept_conn {
   my ($sock, $p_addr, $p_port, $listener_id) = @_[ARG0 .. ARG3];
 
   ## Our peer's addr.
-  if ($_[STATE] eq '_accept_conn_v4') {
-    $p_addr = inet_ntoa($p_addr);
-  } else {
-    $p_addr = inet_ntop( AF_INET6, $p_addr );
-  }
+  my $type = $_[STATE] eq '_accept_conn_v6' ? AF_INET6 : AF_INET;
+  $p_addr = inet_ntop( $type, $p_addr );
 
   my $sock_packed = getsockname($sock);
   my ($protocol, $sockaddr, $sockport) = get_unpacked_addr($sock_packed);
@@ -590,11 +587,8 @@ sub _connector_up {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($sock, $peeraddr, $peerport, $c_id) = @_[ARG0 .. ARG3];
 
-  if ($_[STATE] eq '_connector_up_v4') {
-    $peeraddr = inet_ntoa( $peeraddr );
-  } else {
-    $peeraddr = inet_ntop( AF_INET6, $peeraddr );
-  }
+  my $type = $_[STATE] eq '_connector_up_v6' ? AF_INET6 : AF_INET;
+  $peeraddr = inet_ntop( $type, $peeraddr );
 
   ## No need to try to connect out any more; remove from connectors pool
   my $ct = delete $self->connectors->{$c_id};

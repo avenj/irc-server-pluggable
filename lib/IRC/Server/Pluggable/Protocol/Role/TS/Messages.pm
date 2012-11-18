@@ -68,8 +68,6 @@ sub handle_message_relay {
       unless defined $params{$req};
   }
 
-  my $err_set = IRC::Server::Pluggable::IRC::EventSet->new;
-
   ## FIXME notices should return no error at all
   ##  see http://tools.ietf.org/html/rfc2812#section-3.3
 
@@ -80,11 +78,15 @@ sub handle_message_relay {
   my $target_array = ref $params{targets} eq 'ARRAY' ?
     $params{targets} : [ $params{targets} ];
 
+  my ($targetset, $err_set) = $self->r_msgs_parse_targets(@$target_array);
+
   my $tcount;
-  my $targetset = $self->r_msgs_parse_targets(@$target_array);
   DEST: for my $target (keys %$targetset) {
     my ($t_type, @t_params) = @{ $targetset->{$target} };
     ## FIXME sanity checks, build EventSet if we hit errors
+    ## FIXME as much target verif. as possible should probably move to
+    ##  r_msgs_parse_targets or some verification proxy method
+    ##  (We get our error EventSet from r_msgs_parse_targets anyway)
     ##  - 481 if prefix nick not an oper and target is host/servermask
     ##  - 413 if target is a mask and doesn't contain a .
     ##  - 414 if target is a mask and doesn't look like a mask?
@@ -242,37 +244,52 @@ sub r_msgs_parse_targets {
 
   my %targets;
 
+  my $err_set = IRC::Server::Pluggable::IRC::EventSet->new;
+
+  ## Hum. Do not really like this.
+  ## Switch to some lightweight obj interface instead?
+
   TARGET: for my $target (@targets) {
 
     my $t_prefix = substr($target, 0, 1);
-    if (grep { $t_prefix eq $_ } @chan_prefixes) {
+ 
+    if (grep {; $t_prefix eq $_ } @chan_prefixes) {
       ## Message to channel target.
       $targets{$target} = [ 'channel' ];
       next TARGET
     }
-    if (grep { $t_prefix eq $_ } @status_prefixes) {
+ 
+    if (grep {; $t_prefix eq $_ } @status_prefixes) {
       ## Message to status target.
       my $c_prefix = substr($target, 1, 1);
       unless (grep { $c_prefix eq $_ } @chan_prefixes) {
         ## FIXME @ prefix but not a channel?
+        ## Not sure of any IRCDs with syntax along those lines ...
+        ## ... add error hash ?
       }
-      ## FIXME
+      ## Change target to bare channel name.
+      ## Preserve bare channel + status prefix character.
+      $targets{$target}
+        = [ 'channel_prefixed', substr($target, 1), $t_prefix ] ;
+      next TARGET
     }
 
-    if ($target =~ /^\${2}(.+)$/) {
+    if (index($target, '$$') == 0) {
       ## Server mask - $$mask
-      $targets{$target} = [ 'servermask', $1 ];
-      next TARGET
+      my $mask = substr($target, 2);
+      ## FIXME err if $mask has no length?
+      $targets{$target} = [ 'servermask', $mask ];
     }
 
-    if ($target =~ /^\$\#(.+)$/) {
+    if (index($target, '$#') == 0) {
       ## Host mask - $#mask
-      $targets{$target} = [ 'hostmask', $1 ];
+      my $mask = substr($target, 2);
+      $targets{$target} = [ 'hostmask', $mask ];
       next TARGET
     }
 
-    if ($target =~ /@/) {
-      ## nick@server
+    if (index($target, '@') >= 0) {
+      ## nick@server (we think)
       my ($nick, $server) = split /@/, $target, 2;
       my $host;
       ($nick, $host) = split /%/, $nick, 2 if $nick =~ /%/;
@@ -280,6 +297,8 @@ sub r_msgs_parse_targets {
         'nick_fully_qualified',
         $nick, $server, $host
       ];
+      ## FIXME error hash if no valid args?
+      ##  See notes in handle_message_relay also
       next TARGET
     }
 
@@ -288,7 +307,7 @@ sub r_msgs_parse_targets {
   } ## TARGET
 
 
-  \%targets
+  wantarray ? (\%targets, $err_set) : \%targets
 }
 
 

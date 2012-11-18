@@ -91,23 +91,13 @@ sub _r_msgs_accumulate_targets_hostmask {
   wantarray ? @routes : \@routes
 }
 
-sub _r_msgs_accumulate_targets_statustype {
+
+sub r_msgs_accumulate_targets_statustype {
   ## Status-prefixed targets, ie. @#channel-like targets
 
 }
 
-
-sub _r_msgs_can_send_to_nick {
-
-}
-
-sub _r_msgs_can_send {
-  ## FIXME
-  ##  For a channel, Role::Channels provides user_can_send_to_chan
-  ##  Should we provide user_can_send_to_user ?
-}
-
-sub _r_msgs_parse_targets {
+sub r_msgs_parse_targets {
   my ($self, @targets) = @_;
   ## Borrowed from POE::Component::Server::IRC's target parser,
   ## which is reasonably clever.
@@ -272,6 +262,13 @@ sub handle_message_relay {
     }
   } ## DEST
 }
+
+
+sub user_cannot_send_to_user {
+  ## FIXME
+  ##  User-to-user counterpart to Channels->user_cannot_send_to_chan
+}
+
 
 sub cmd_from_client_privmsg {
   my ($self, $conn, $ev, $user) = @_;

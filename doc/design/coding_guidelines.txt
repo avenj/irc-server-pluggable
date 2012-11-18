@@ -46,7 +46,14 @@
 - Provide behavior that could be considered 'core'
   or is commonly required by other modules
 
-- Private methods should be prefixed with _r_
+- Behavior should be easily overridable by subclasses in all
+  cases where it might make sense to do so; i.e. methods should be
+  split up logically such that behavior can be modified without
+  too much pain
+
+- Private/utility methods should be prefixed with either:
+    r_$method   -- Intended to be subclass-overridable
+    _r_$method  -- Not intended for override
   and uniquely named (descriptive names preferred)
 
 

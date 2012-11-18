@@ -50,6 +50,15 @@ welcome!
 A pluggable, extensible IRCd stack using L<Moo>, L<POE>, and 
 L<MooX::Role::POE::Emitter>.
 
+  ::Protocol (Emitter)   <-- ::Protocol::Base
+  |   \
+  |    - ::Protocol::Role::  (Roles)
+  |
+   \ ::Dispatcher (Emitter)
+     |
+      \ ::Backend  (Session / Component)
+
+
 FIXME
 
 =head1 AUTHOR

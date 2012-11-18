@@ -44,11 +44,17 @@ is_deeply( $tagged->tags,
 );
 cmp_ok( $tagged->get_tag('intent'), 'eq', 'ACTION', 'get_tag looks ok' );
 
-## These need improvement:
-cmp_ok( $tagged->tags_as_string, '=~', qr/foobar/, 'tags_as_string' )
-  or diag "Got string ".$tagged->tags_as_string;
+ok(
+  $tagged->tags_as_string =~ qr/intent=ACTION(?:[;\s]|$)/ &&
+  $tagged->tags_as_string =~ qr/znc\.in\/extension=value(?:[;\s]|$)/ &&
+  $tagged->tags_as_string =~ qr/foobar(?:[;\s]|$)/,
+  'tags_as_string'
+) or diag "Got string ".$tagged->tags_as_string;
 
-ok( grep {; $_ eq 'intent=ACTION' } @{ $tagged->tags_as_array },
+ok(
+  (grep {; $_ eq 'foobar' } @{ $tagged->tags_as_array }) &&
+  (grep {; $_ eq 'znc.in/extension=value' } @{ $tagged->tags_as_array }) &&
+  (grep {; $_ eq 'intent=ACTION' } @{ $tagged->tags_as_array }),
   'tags_as_array looks ok'
 ) or diag explain $tagged->tags_as_array;
 

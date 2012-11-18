@@ -88,6 +88,26 @@ sub unshift {
   unshift @$self, map { $self->_valid_ev($_) } @events
 }
 
+sub consume {
+  my ($self, $evset) = @_;
+  confess "Expected an IRC::Server::Pluggable::IRC::EventSet"
+    unless blessed $evset
+    and $evset->isa('IRC::Server::Pluggable::IRC::EventSet');
+
+  while (my $ev = $evset->shift) {
+    $self->push($ev)
+  }
+}
+
+sub combine {
+  my ($self, $evset) = @_;
+  confess "Expected an IRC::Server::Pluggable::IRC::EventSet"
+    unless blessed $evset
+    and $evset->isa('IRC::Server::Pluggable::IRC::EventSet');
+
+  $self->push($_) for $evset->list;
+}
+
 1;
 
 =head1 NAME

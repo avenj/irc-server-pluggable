@@ -35,131 +35,22 @@ requires qw/
   send_to_routes
 /;
 
-## FIXME also see _state_parse_msg_targets in PCSI
-##  + cmd_message / peer_message
-## some helpful pointers.
 
-sub _r_msgs_accumulate_targets_channel {
-  ## Accumulate a list of route IDs for a channel target
-  ## including routes to applicable local users
-  my ($self, $chan_name) = @_;
+sub cmd_from_client_privmsg {
+  my ($self, $conn, $ev, $user) = @_;
 
-  unless (blessed $chan) {
-    $chan = $self->channels->by_name($chan);
-  }
-
-  ## Should never be called for nonexistant chans:
-  confess "Expected an IRC::Channel but got $chan"
-    unless blessed $chan
-    and $chan->isa('IRC::Server:Pluggable::IRC::Channel');
-
-  my %routes;
-  for my $nick (@{ $chan_obj->nicknames_as_array }) {
-    my $user  = $self->users->by_name($nick);
-    $routes{ $user->route() } ||= 1;
-  }
-
-  my @routes = keys %routes;
-  wantarray ? @routes : \@routes
+  $self->handle_message_relay(
+    type     => 'privmsg',
+    src_conn => $conn,
+    prefix   => $user->nick,
+    targets  => FIXME get params
+  );
 }
 
-sub _r_msgs_accumulate_targets_servermask {
-  ## $$mask targets
-  my ($self, $mask) = @_;
-  my @peers = $self->peers->matching($mask);
+sub cmd_from_client_notice {}
 
-  my %routes;
-  for my $peer (@peers) {
-    $routes{ $peer->route() } ||= 1;
-  }
-
-  my @routes = keys %routes;
-  wantarray ? @routes : \@routes
-}
-
-sub _r_msgs_accumulate_targets_hostmask {
-  ## $#mask targets
-  my ($self, $mask) = @_;
-  my @users = $self->users->nuh_matching($mask);
-
-  my %routes;
-  for my $user (@users) {
-    $routes{ $user->route() } ||= 1;
-  }
-
-  my @routes = keys %routes;
-  wantarray ? @routes : \@routes
-}
-
-
-sub r_msgs_accumulate_targets_statustype {
-  ## Status-prefixed targets, ie. @#channel-like targets
-
-}
-
-sub r_msgs_parse_targets {
-  my ($self, @targets) = @_;
-  ## Borrowed from POE::Component::Server::IRC's target parser,
-  ## which is reasonably clever.
-  ## Turns a list of targets into a hash:
-  ##  $target => [ $type, @args ]
-  ## Valid types:
-  ##   channel
-  ##   channel_prefixed
-  ##   servermask
-  ##   hostmask
-  ##   nick
-  ##   nick_fully_qualified
-
-  my @chan_prefixes = keys %{ $self->channel_types };
-  ## FIXME get status prefixes from ->channels
-
-  my %targets;
-
-  TARGET: for my $target (@targets) {
-
-    my $t_prefix = substr($target, 0, 1);
-    for my $prefix (@chan_prefixes) {
-      if ($t_prefix eq $prefix) {
-        $targets{$target} = [ 'channel' ];
-        next TARGET
-      }
-    }
-
-    ## FIXME similar to above but check for valid status prefixes
-
-    ##   preceeding valid chan prefixes, preserve both as args
-    if ($target =~ /^\${2}(.+)$/) {
-      ## Server mask - $$mask
-      $targets{$target} = [ 'servermask', $1 ];
-      next TARGET
-    }
-
-    if ($target =~ /^\$\#(.+)$/) {
-      ## Host mask - $#mask
-      $targets{$target} = [ 'hostmask', $1 ];
-      next TARGET
-    }
-
-    if ($target =~ /@/) {
-      ## nick@server
-      my ($nick, $server) = split /@/, $target, 2;
-      my $host;
-      ($nick, $host) = split /%/, $nick, 2 if $nick =~ /%/;
-      $targets{$target} = [
-        'nick_fully_qualified',
-        $nick, $server, $host
-      ];
-      next TARGET
-    }
-
-    ## Fall through to nickname
-    $targets{$target} = [ 'nick' ];
-  } ## TARGET
-
-
-  \%targets
-}
+sub cmd_from_peer_privmsg {}
+sub cmd_from_peer_notice {}
 
 sub handle_message_relay {
   ## handle_message_relay(
@@ -190,7 +81,7 @@ sub handle_message_relay {
     $params{targets} : [ $params{targets} ];
 
   my $tcount;
-  my $targetset = $self->_r_msgs_parse_targets(@$target_array);
+  my $targetset = $self->r_msgs_parse_targets(@$target_array);
   DEST: for my $target (keys %$targetset) {
     my ($t_type, @t_params) = @{ $targetset->{$target} };
     ## FIXME sanity checks, build EventSet if we hit errors
@@ -210,8 +101,9 @@ sub handle_message_relay {
     $tcount++;
     ## FIXME 407 + last if $tcount > maxtargets
 
-   ## FIXME always delete originator, ie. src_conn->wheel_id
+    ## FIXME always delete originator, ie. src_conn->wheel_id from routes
 
+    ## FIXME should be no code in here -- dispatch out from here
     for ($t_type) {
       when ("channel") {
         ## - 401 if channel nonexistant
@@ -225,8 +117,8 @@ sub handle_message_relay {
           ) unless $params{type} eq 'notice';
           next DEST
         }
-        ## - call _r_msgs_accumulate_targets_channel to get routes
-        my %routes = $self->_r_msgs_accumulate_targets_channel($chan);
+        ## - call r_msgs_accumulate_targets_channel to get routes
+        my %routes = $self->r_msgs_accumulate_targets_channel($chan);
         ## - delete originator ($params{src_conn}->wheel_id)
         delete $routes{ $params{src_conn}->wheel_id() };
         ## FIXME
@@ -269,22 +161,135 @@ sub user_cannot_send_to_user {
   ##  User-to-user counterpart to Channels->user_cannot_send_to_chan
 }
 
+## FIXME also see _state_parse_msg_targets in PCSI
+##  + cmd_message / peer_message
+## some helpful pointers.
 
-sub cmd_from_client_privmsg {
-  my ($self, $conn, $ev, $user) = @_;
+sub r_msgs_accumulate_targets_channel {
+  ## Accumulate a list of route IDs for a channel target
+  ## including routes to applicable local users
+  my ($self, $chan_name) = @_;
 
-  $self->handle_message_relay(
-    type     => 'privmsg',
-    src_conn => $conn,
-    prefix   => $user->nick,
-    targets  => FIXME get params
-  );
+  unless (blessed $chan) {
+    $chan = $self->channels->by_name($chan);
+  }
+
+  ## Should never be called for nonexistant chans:
+  confess "Expected an IRC::Channel but got $chan"
+    unless blessed $chan
+    and $chan->isa('IRC::Server:Pluggable::IRC::Channel');
+
+  my %routes;
+  for my $nick (@{ $chan_obj->nicknames_as_array }) {
+    my $user  = $self->users->by_name($nick);
+    $routes{ $user->route() } = 1;
+  }
+
+  my @routes = keys %routes;
+  wantarray ? @routes : \@routes
 }
 
-sub cmd_from_client_notice {}
+sub r_msgs_accumulate_targets_servermask {
+  ## $$mask targets
+  my ($self, $mask) = @_;
+  my @peers = $self->peers->matching($mask);
 
-sub cmd_from_peer_privmsg {}
-sub cmd_from_peer_notice {}
+  my %routes;
+  for my $peer (@peers) {
+    $routes{ $peer->route() } = 1;
+  }
+
+  my @routes = keys %routes;
+  wantarray ? @routes : \@routes
+}
+
+sub r_msgs_accumulate_targets_hostmask {
+  ## $#mask targets
+  my ($self, $mask) = @_;
+  my @users = $self->users->nuh_matching($mask);
+
+  my %routes;
+  for my $user (@users) {
+    $routes{ $user->route() } = 1;
+  }
+
+  my @routes = keys %routes;
+  wantarray ? @routes : \@routes
+}
+
+
+sub r_msgs_accumulate_targets_statustype {
+  ## Status-prefixed targets, ie. @#channel-like targets
+
+}
+
+sub r_msgs_parse_targets {
+  my ($self, @targets) = @_;
+  ## Borrowed from POE::Component::Server::IRC's target parser,
+  ## which is reasonably clever.
+  ## Turns a list of targets into a hash:
+  ##  $target => [ $type, @args ]
+  ## Valid types:
+  ##   channel
+  ##   channel_prefixed
+  ##   servermask
+  ##   hostmask
+  ##   nick
+  ##   nick_fully_qualified
+
+  my @chan_prefixes   = keys %{ $self->channel_types };
+  my @status_prefixes = $self->channels->available_status_modes;
+
+  my %targets;
+
+  TARGET: for my $target (@targets) {
+
+    my $t_prefix = substr($target, 0, 1);
+    if (grep { $t_prefix eq $_ } @chan_prefixes) {
+      ## Message to channel target.
+      $targets{$target} = [ 'channel' ];
+      next TARGET
+    }
+    if (grep { $t_prefix eq $_ } @status_prefixes) {
+      ## Message to status target.
+      my $c_prefix = substr($target, 1, 1);
+      unless (grep { $c_prefix eq $_ } @chan_prefixes) {
+        ## FIXME @ prefix but not a channel?
+      }
+      ## FIXME
+    }
+
+    if ($target =~ /^\${2}(.+)$/) {
+      ## Server mask - $$mask
+      $targets{$target} = [ 'servermask', $1 ];
+      next TARGET
+    }
+
+    if ($target =~ /^\$\#(.+)$/) {
+      ## Host mask - $#mask
+      $targets{$target} = [ 'hostmask', $1 ];
+      next TARGET
+    }
+
+    if ($target =~ /@/) {
+      ## nick@server
+      my ($nick, $server) = split /@/, $target, 2;
+      my $host;
+      ($nick, $host) = split /%/, $nick, 2 if $nick =~ /%/;
+      $targets{$target} = [
+        'nick_fully_qualified',
+        $nick, $server, $host
+      ];
+      next TARGET
+    }
+
+    ## Fall through to nickname
+    $targets{$target} = [ 'nick' ];
+  } ## TARGET
+
+
+  \%targets
+}
 
 
 1;

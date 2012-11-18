@@ -21,6 +21,8 @@ requires qw/
 ## FIXME join methods, call Channels->add_user_to_channel?
 ## FIXME same for part
 
+## FIXME need an eye towards subclassibility, extended-join as well ..
+
 sub cmd_from_client_join {
   my ($self, $conn, $event, $user) = @_;
 

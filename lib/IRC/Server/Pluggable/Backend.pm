@@ -495,19 +495,15 @@ sub _remove_listener {
     return
   }
 
-  if (defined $args{listener}) {
+  if (defined $args{listener} && $self->listeners->{ $args{listener} }) {
+    my $listener = delete $self->listeners->{ $args{listener} };
 
-    if ($self->listeners->{ $args{listener} }) {
-      my $listener = delete $self->listeners->{ $args{listener} };
+    $listener->clear_wheel;
 
-      $listener->clear_wheel;
-
-      $kernel->post( $self->controller,
-        'ircsock_listener_removed',
-        $listener
-      );
-    }
-
+    $kernel->post( $self->controller,
+      'ircsock_listener_removed',
+      $listener
+    );
   }
 
 }
@@ -753,6 +749,9 @@ sub send {
         $self->send( $this_ev, @ids );
         return $self
       }
+    } else {
+      confess "No idea what I was passed . . . ",
+        "expected Event or EventSet or subclass thereof"
     }
 
   }

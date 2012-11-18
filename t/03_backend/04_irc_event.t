@@ -32,6 +32,7 @@ my $tagged = IRC::Server::Pluggable::IRC::Event->new(%$parsed);
 $tag_line =~ s/\r\n//;
 
 cmp_ok( $tagged->raw_line, 'eq', $tag_line, 'raw_line looks ok' );
+
 ok( $tagged->has_tags, 'has_tags looks ok' );
 is_deeply( $tagged->tags,
   +{
@@ -44,10 +45,12 @@ is_deeply( $tagged->tags,
 cmp_ok( $tagged->get_tag('intent'), 'eq', 'ACTION', 'get_tag looks ok' );
 
 ## These need improvement:
-cmp_ok( $tagged->tags_as_string, '=~', qr/foobar/, 'tags_as_string' );
+cmp_ok( $tagged->tags_as_string, '=~', qr/foobar/, 'tags_as_string' )
+  or diag "Got string ".$tagged->tags_as_string;
+
 ok( grep {; $_ eq 'intent=ACTION' } @{ $tagged->tags_as_array },
   'tags_as_array looks ok'
-);
+) or diag explain $tagged->tags_as_array;
 
 my $from_raw = new_ok( 'IRC::Server::Pluggable::IRC::Event' => [
     raw_line => $tag_line,

@@ -158,8 +158,10 @@ sub put {
             $raw_line .= $param . ' ';
             $param = shift @params;
           }
-          $raw_line .= ':' if $param =~ m/\x20/
-            or $event->{colonify} or $self->[COLONIFY];
+          $raw_line .= ':'
+            if $self->[COLONIFY]
+            or $event->{colonify}
+            or $param =~ m/\x20/;
           $raw_line .= $param;
       }
 

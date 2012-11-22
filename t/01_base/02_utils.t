@@ -84,16 +84,19 @@ is_deeply(
 
 ## mode_to_hash
 my $mhash;
-ok( $mhash = mode_to_hash(  '+ot-k',
-    params => [ qw/SomeUser thiskey/ ],
+ok( $mhash = mode_to_hash(  '+ot-k+l',
+    params => [ qw/SomeUser thiskey 10/ ],
   ), 'mode_to_hash() (default param_ opts)'
 );
 
 is_deeply( $mhash,
   {
     add => {
-      'o' => [ 'SomeUser' ],
+      'o' =>
+        [ 'SomeUser' ],
       't' => 1,
+      'l' =>
+        [ 10 ],
     },
     del => {
       'k' => [ 'thiskey' ],

@@ -11,6 +11,8 @@ use Scalar::Util 'blessed';
 
 use namespace::clean -except => 'meta';
 
+## FIXME hum, *very* possible this should move to Role::Messages
+
 ### Basic message relay rules:
 ## One-to-one:
 ##  * User to local user
@@ -87,13 +89,16 @@ sub handle_message_relay {
     ## FIXME as much target verif. as possible should probably move to
     ##  r_msgs_parse_targets or some verification proxy method
     ##  (We get our error EventSet from r_msgs_parse_targets anyway)
+    ##   (add r_msgs_verify_args or some such?)
+    ##
     ##  - 481 if prefix nick not an oper and target is host/servermask
     ##  - 413 if target is a mask and doesn't contain a .
     ##  - 414 if target is a mask and doesn't look like a mask?
     ##     pcsi uses !~ /\x2E.*[\x2A\x3F]+.*$/
     ##  - 401 if channel / nick doesn't exist
     ##  - 402 if nick_fully_qualified and peer doesn't exist
-    ##  - incr target count and 407 if we're over max targets
+    ##  - incr target count and 407+last if we're over max targets
+    ##
     ## FIXME call appropriate methods to accumulate routes as-needed
     ##  pcsi uses some funkyness in dispatching send_output ...
     ## FIXME sort out full/nickname prefix situation

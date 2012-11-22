@@ -189,8 +189,10 @@ sub mode_to_hash {
       unless ref $args{$_} eq 'ARRAY';
   }
 
-  my $modes = { add => {}, del => {} };
+  my %param_always = map {; $_ => 1 } @{ $args{param_always} };
+  my %param_set    = map {; $_ => 1 } @{ $args{param_set} };
 
+  my $modes = { add => {}, del => {} };
   my @chunks = split //, $modestr;
 
   my $in = '+';
@@ -202,11 +204,13 @@ sub mode_to_hash {
 
     if ($in eq '+') {
 
-      if ( (grep { $_ eq $chunk } @{$args{param_always}}) ||
-           (grep { $_ eq $chunk } @{$args{param_set}})  ) {
+      if (exists $param_always{$chunk} || exists $param_set{$chunk}) {
         ## Modes that have params always or when set.
         ## Value for this mode will be an ARRAY with one value.
-        $modes->{add}->{$chunk} = [ shift @{$args{params}} ];
+        my $param = shift @{ $args{params} };
+        carp "$chunk is in param_always or param_set but no param defined?"
+          unless defined $param;
+        $modes->{add}->{$chunk} = [ $param ];
       } else {
         ## ... otherwise, simple boolean true
         $modes->{add}->{$chunk} = 1;
@@ -214,8 +218,11 @@ sub mode_to_hash {
 
     } else {
 
-      if (grep { $_ eq $chunk } @{$args{param_always}}) {
-        $modes->{del}->{$chunk} = [ shift @{$args{params}} ];
+      if (exists $param_always{$chunk}) {
+        my $param = shift @{ $args{params} };
+        carp "$chunk is in param_always modes but no param defined?"
+          unless defined $param;
+        $modes->{del}->{$chunk} = [ $param ];
       } else {
         $modes->{del}->{$chunk} = 1;
       }

@@ -5,6 +5,8 @@ use strictures 1;
 
 use IRC::Server::Pluggable qw/
   IRC::EventSet
+
+  Utils
 /;
 
 use Scalar::Util 'blessed';
@@ -34,6 +36,7 @@ requires qw/
   channel_types
   peers
   users
+  user_cannot_send_to_chan
   send_to_routes
 /;
 
@@ -70,47 +73,49 @@ sub handle_message_relay {
       unless defined $params{$req};
   }
 
-  ## FIXME notices should return no error at all
-  ##  see http://tools.ietf.org/html/rfc2812#section-3.3
+  $params{type} = lc $params{type};
 
-  ## FIXME
-  ##  Parse targets
-  ##  Call handlers as-needed
-  ##  Accumulate EventSet
+  unless (blessed $params{src_conn} &&
+      $params{src_conn}->isa('IRC::Server::Pluggable::Backend::Connect')) {
+    confess "Cannot handle_message_relay;",
+      "Expected 'src_conn' to be an IRC::Server::Pluggable::Backend::Connect"
+    ## FIXME handle src eq spoofed?
+  }
+
   my $target_array = ref $params{targets} eq 'ARRAY' ?
     $params{targets} : [ $params{targets} ];
 
   my ($targetset, $err_set) = $self->r_msgs_parse_targets(@$target_array);
 
+  my $max_msg_targets = $self->config->max_msg_targets;
+
   my $tcount;
   DEST: for my $target (keys %$targetset) {
     my ($t_type, @t_params) = @{ $targetset->{$target} };
     ## FIXME sanity checks, build EventSet if we hit errors
-    ## FIXME as much target verif. as possible should probably move to
-    ##  r_msgs_parse_targets or some verification proxy method
-    ##  (We get our error EventSet from r_msgs_parse_targets anyway)
-    ##   (add r_msgs_verify_args or some such?)
     ##
     ##  - 481 if prefix nick not an oper and target is host/servermask
     ##  - 413 if target is a mask and doesn't contain a .
     ##  - 414 if target is a mask and doesn't look like a mask?
     ##     pcsi uses !~ /\x2E.*[\x2A\x3F]+.*$/
-    ##  - 401 if channel / nick doesn't exist
     ##  - 402 if nick_fully_qualified and peer doesn't exist
-    ##  - incr target count and 407+last if we're over max targets
     ##
     ## FIXME call appropriate methods to accumulate routes as-needed
-    ##  pcsi uses some funkyness in dispatching send_output ...
     ## FIXME sort out full/nickname prefix situation
 
     ## Organized vaguely by usage frequency ...
 
     $tcount++;
-    ## FIXME 407 + last if $tcount > maxtargets
+    if ($count > $max_msg_targets) {
+      ## FIXME push 407
+      last DEST
+    }
 
     ## FIXME always delete originator, ie. src_conn->wheel_id from routes
 
-    ## FIXME should be no code in here -- dispatch out from here
+    ## FIXME Very probably too much code in here.
+    ##  Maybe dispatch out to methods; overhead could be worth it.
+
     for ($t_type) {
       when ("channel") {
         ## - 401 if channel nonexistant
@@ -121,15 +126,28 @@ sub handle_message_relay {
               params => [ $target ],
               target => $params{prefix},
             )
-          ) unless $params{type} eq 'notice';
+          );
           next DEST
         }
-        ## - call r_msgs_accumulate_targets_channel to get routes
+
         my %routes = $self->r_msgs_accumulate_targets_channel($chan);
-        ## - delete originator ($params{src_conn}->wheel_id)
+
         delete $routes{ $params{src_conn}->wheel_id() };
-        ## FIXME
-        ## - find out if this user can send
+
+        my $user_obj = $self->users->by_name( parse_user($params{prefix}) );
+        if (defined $user_obj &&
+          (my $err = $self->user_cannot_send_to_chan($user_obj, $target)) ) {
+          $err_set->push($err);
+          next DEST
+        }
+
+        my $out = {
+          command => $params{type},
+          prefix  => FIXME construct proper prefix?
+          params  => [ $target, $params{string} ],
+        };
+
+        $self->send_to_routes( $out, keys %routes )
       }
 
       when ("nick") {
@@ -141,25 +159,76 @@ sub handle_message_relay {
               params => [ $target ],
               target => $params{prefix},
             )
-          ) unless $params{type} eq 'notice';
+          );
           next DEST
         }
         ## FIXME
       }
 
       when ("nick_fully_qualified") {
+        my ($nick, $server, $host) = @t_params;
+        my $user;
+        unless ($user = $self->users->by_name($nick)) {
+          $err_set->push(
+            $self->numeric->to_hash( 401,
+              prefix => $self->config->server_name,
+              params => [ $target ],
+              target => $params{prefix},
+            )
+          );
+          next DEST
+        }
+
+        if (defined $host && lc($host) ne lc($user->host) ) {
+          $err_set->push(
+            $self->numeric->to_hash( 401,
+              prefix => $self->config->server_name,
+              params => [ $target ],
+              target => $params{prefix},
+            )
+          );
+          next DEST
+        }
+
+        my $peer;
+        ## Might be us, might be remote.
+        unless (lc($server) eq lc($self->config->server_name) ||
+             ($peer = $self->peers->by_name($server)) ) {
+          $err_set->push(
+            $self->numeric->to_hash( 402,
+              prefix => $self->config->server_name,
+              params => [ $server ],
+              target => $params{prefix},
+            )
+          );
+          next DEST
+        }
+        ## FIXME check cannot_send_to_user if local?
+        ##  Relay to peer if not us
       }
 
       when ("channel_prefixed") {
+        ## FIXME 401 if nonexistant channel
       }
 
       when ("servermask") {
+        ## FIXME add relevant local users if we match also
+        ## FIXME 481 if not an oper
       }
 
       when ("hostmask") {
+        ## FIXME 481 if not an oper
       }
     }
   } ## DEST
+
+  ## FIXME send err_set if we have one and this isn't a NOTICE
+  ## Notices should return no error at all
+  ##  see http://tools.ietf.org/html/rfc2812#section-3.3
+  unless ($params{type} eq 'notice') {
+    $self->send_to_routes( $err_set, $params{src_conn}->wheel_id )
+  }
+  ## FIXME hooks for events to spoofed clients?
 }
 
 
@@ -167,6 +236,7 @@ sub user_cannot_send_to_user {
   ## FIXME
   ##  User-to-user counterpart to Channels->user_cannot_send_to_chan
 }
+
 
 ## FIXME also see _state_parse_msg_targets in PCSI
 ##  + cmd_message / peer_message
@@ -189,7 +259,7 @@ sub r_msgs_accumulate_targets_channel {
   my %routes;
   for my $nick (@{ $chan_obj->nicknames_as_array }) {
     my $user  = $self->users->by_name($nick);
-    $routes{ $user->route() } = 1;
+    $routes{ $user->route() }++
   }
 
   my @routes = keys %routes;
@@ -203,7 +273,7 @@ sub r_msgs_accumulate_targets_servermask {
 
   my %routes;
   for my $peer (@peers) {
-    $routes{ $peer->route() } = 1;
+    $routes{ $peer->route() }++
   }
 
   my @routes = keys %routes;
@@ -217,7 +287,7 @@ sub r_msgs_accumulate_targets_hostmask {
 
   my %routes;
   for my $user (@users) {
-    $routes{ $user->route() } = 1;
+    $routes{ $user->route() }++;
   }
 
   my @routes = keys %routes;
@@ -227,7 +297,14 @@ sub r_msgs_accumulate_targets_hostmask {
 
 sub r_msgs_accumulate_targets_statustype {
   ## Status-prefixed targets, ie. @#channel-like targets
-
+  my ($self, $status, $chan) = @_;
+  my $mode = $self->channels->status_mode_for_prefix($status_prefix);
+  unless ($mode) {
+    carp "Cannot accumulate targets; ",
+     "no mode for status prefix $status available for $chan";
+    return
+  }
+  ## FIXME query Channels obj for users with relevant mode
 }
 
 sub r_msgs_parse_targets {
@@ -302,7 +379,7 @@ sub r_msgs_parse_targets {
         'nick_fully_qualified',
         $nick, $server, $host
       ];
-      ## FIXME error hash if no valid args?
+      ## FIXME push error if no valid args?
       ##  See notes in handle_message_relay also
       next TARGET
     }

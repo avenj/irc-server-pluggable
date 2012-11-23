@@ -89,6 +89,9 @@ sub handle_message_relay {
 
   my $max_msg_targets = $self->config->max_msg_targets;
 
+  ## May or may not have a source User obj for originator:
+  my $user_obj = $self->users->by_name( parse_user($params{prefix}) );
+
   my $tcount;
   DEST: for my $target (keys %$targetset) {
     my ($t_type, @t_params) = @{ $targetset->{$target} };
@@ -102,6 +105,8 @@ sub handle_message_relay {
     ##
     ## FIXME call appropriate methods to accumulate routes as-needed
     ## FIXME sort out full/nickname prefix situation
+    ##  Full when delivered to local users
+    ##  Nick-only (or ID?) when delivered to peers
 
     ## Organized vaguely by usage frequency ...
 
@@ -117,9 +122,10 @@ sub handle_message_relay {
     ##  Maybe dispatch out to methods; overhead could be worth it.
 
     for ($t_type) {
+
       when ("channel") {
-        ## - 401 if channel nonexistant
         unless (my $chan = $self->channels->by_name($t_params[0])) {
+          ## No such channel (401)
           $err_set->push(
             $self->numeric->to_hash( 401,
               prefix => $self->config->server_name,
@@ -131,24 +137,32 @@ sub handle_message_relay {
         }
 
         my %routes = $self->r_msgs_accumulate_targets_channel($chan);
-
         delete $routes{ $params{src_conn}->wheel_id() };
 
-        my $user_obj = $self->users->by_name( parse_user($params{prefix}) );
+        ## If we don't have a user_obj, it's likely safe to assume that
+        ## this is a spoofed message-from-server or suchlike.
+        ## If we do, see if they can send.
         if (defined $user_obj &&
           (my $err = $self->user_cannot_send_to_chan($user_obj, $target)) ) {
           $err_set->push($err);
           next DEST
         }
 
-        my $out = {
+        my %out = (
           command => $params{type},
-          prefix  => FIXME construct proper prefix?
           params  => [ $target, $params{string} ],
-        };
+        );
 
-        $self->send_to_routes( $out, keys %routes )
+        for my $id (keys %routes) {
+          my $route_type = $self->r_msgs_get_route_type($id) || next;
+          my $src_prefix =
+            $self->r_msgs_gen_prefix_for_type($route_type, $user_obj)
+            || $params{prefix};
+
+          $self->send_to_routes({ prefix => $src_prefix, %out }, $id );
+        }
       }
+
 
       when ("nick") {
         my $user;
@@ -164,6 +178,7 @@ sub handle_message_relay {
         }
         ## FIXME
       }
+
 
       when ("nick_fully_qualified") {
         my ($nick, $server, $host) = @t_params;
@@ -207,14 +222,17 @@ sub handle_message_relay {
         ##  Relay to peer if not us
       }
 
+
       when ("channel_prefixed") {
         ## FIXME 401 if nonexistant channel
       }
+
 
       when ("servermask") {
         ## FIXME add relevant local users if we match also
         ## FIXME 481 if not an oper
       }
+
 
       when ("hostmask") {
         ## FIXME 481 if not an oper
@@ -235,6 +253,39 @@ sub handle_message_relay {
 sub user_cannot_send_to_user {
   ## FIXME
   ##  User-to-user counterpart to Channels->user_cannot_send_to_chan
+}
+
+
+sub r_msgs_get_route_type {
+  my ($route_id) = @_;
+  ## FIXME this should move to a more generalized role ...
+  ## Determine a remote route's type given just an ID.
+  ## If we have a user_obj to work with, determine a prefix, also.
+
+  my $route_type;
+  if (my $user = $self->users->by_id($route_id)) {
+    $route_type = 'user';
+  } elsif (my $peer = $self->peers->by_id($route_id)) {
+    $route_type = 'peer';
+  } else {
+    carp "r_msgs_get_route_type cannot find ID $route_id";
+    return
+  }
+
+  $route_type
+}
+
+sub r_msgs_gen_prefix_for_type {
+  my ($route_type, $user_obj) = @_;
+
+  ## FIXME this is 'classic' behavior ...
+  ##  ... TS6 subclass should override to use ID prefix
+  if (defined $user_obj) {
+    return $route_type eq 'user' ? $user_obj->full
+      : $user_obj->nick ;
+  }
+
+  return
 }
 
 
@@ -259,6 +310,7 @@ sub r_msgs_accumulate_targets_channel {
   my %routes;
   for my $nick (@{ $chan_obj->nicknames_as_array }) {
     my $user  = $self->users->by_name($nick);
+    ## An override would want to skip deaf users here, etc.
     $routes{ $user->route() }++
   }
 

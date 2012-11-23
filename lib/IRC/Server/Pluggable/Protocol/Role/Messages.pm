@@ -242,7 +242,7 @@ sub handle_message_relay {
   ## FIXME send err_set if we have one and this isn't a NOTICE
   ## Notices should return no error at all
   ##  see http://tools.ietf.org/html/rfc2812#section-3.3
-  unless ($params{type} eq 'notice') {
+  if ($err_set->has_events && $params{type} ne 'notice') {
     $self->send_to_routes( $err_set, $params{src_conn}->wheel_id )
   }
   ## FIXME hooks for events to spoofed clients?
@@ -277,8 +277,6 @@ sub r_msgs_get_route_type {
 sub r_msgs_gen_prefix_for_type {
   my ($route_type, $user_obj) = @_;
 
-  ## FIXME this is 'classic' behavior ...
-  ##  ... TS6 subclass should override to use ID prefix
   if (defined $user_obj) {
     return $route_type eq 'user' ? $user_obj->full
       : $user_obj->nick ;
@@ -286,11 +284,6 @@ sub r_msgs_gen_prefix_for_type {
 
   return
 }
-
-
-## FIXME also see _state_parse_msg_targets in PCSI
-##  + cmd_message / peer_message
-## some helpful pointers.
 
 sub r_msgs_accumulate_targets_channel {
   ## Accumulate a list of route IDs for a channel target

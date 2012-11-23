@@ -63,6 +63,11 @@ sub clone {
   dclone($self)
 }
 
+sub has_events {
+  my ($self) = @_;
+  @$self
+}
+
 sub list {
   my ($self) = @_;
   wantarray ? @$self : [ @$self ]

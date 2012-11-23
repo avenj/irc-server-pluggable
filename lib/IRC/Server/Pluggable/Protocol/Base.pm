@@ -38,7 +38,7 @@ our $VERSION = '0.000_01';
 
 ## Basic behavorial roles.
 ## Protocol.pm consumes others to form a useful basic TS Protocol.
-## (These get consumed after attribs are defined.)
+## (These get consumed after attribs are defined; they shouldn't conflict.)
 my $base_role_prefix = 'IRC::Server::Pluggable::Protocol::Role::';
 my @base_roles = map { $base_role_prefix . $_ } qw/
   Send
@@ -274,7 +274,7 @@ sub _build_numeric {
 }
 
 
-with $_ for @base_roles;
+with @base_roles;
 
 
 sub BUILD {

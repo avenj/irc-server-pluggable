@@ -26,8 +26,7 @@ use namespace::clean -except => 'meta';
 
 
 extends 'IRC::Server::Pluggable::Protocol::Base';
-with $_ for @base_roles;
-
+with @base_roles;
 
 
 no warnings 'void';

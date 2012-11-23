@@ -1,4 +1,6 @@
 package IRC::Server::Pluggable::Protocol::Base;
+use 5.12.1;
+use strictures 1;
 our $VERSION = '0.000_01';
 
 ## Base class for Protocol sessions.
@@ -34,12 +36,23 @@ our $VERSION = '0.000_01';
 ##
 ##   version_string        Str
 
-use 5.12.1;
-use strictures 1;
+## Basic behavorial roles.
+## Protocol.pm consumes others to form a useful basic TS Protocol.
+## (These get consumed after attribs are defined.)
+my $base_role_prefix = 'IRC::Server::Pluggable::Protocol::Role::';
+my @base_roles = map { $base_role_prefix . $_ } qw/
+  Send
+  Disconnect
+
+  Messages
+  Motd
+  Ping
+  Stats
+  Version
+/;
 
 use Carp;
 use Moo;
-
 use POE;
 
 use IRC::Server::Pluggable qw/
@@ -56,20 +69,6 @@ use namespace::clean -except => 'meta';
 with 'MooX::Role::POE::Emitter';
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
-
-## Basic behavorial roles.
-## Protocol.pm consumes others to form a useful basic TS Protocol.
-## (These get consumed after attribs are defined.)
-my $base_role_prefix = 'IRC::Server::Pluggable::Protocol::Role::';
-my @base_roles = map { $base_role_prefix . $_ } qw/
-  Send
-  Disconnect
-
-  Motd
-  Ping
-  Stats
-  Version
-/;
 
 
 ### Core attribs

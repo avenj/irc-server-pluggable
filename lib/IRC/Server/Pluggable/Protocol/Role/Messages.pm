@@ -64,7 +64,6 @@ sub handle_message_relay {
   ##  string   => $string,
   ##  targets  => [ @targets ],
   ##  type     => $type,
-  ## FIXME do we need anything else ?
   ## )
   my ($self, %params) = @_;
 

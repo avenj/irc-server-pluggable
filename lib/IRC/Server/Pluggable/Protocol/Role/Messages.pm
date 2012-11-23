@@ -35,6 +35,7 @@ requires qw/
   channels
   channel_types
   peers
+  process
   users
   user_cannot_send_to_chan
   send_to_routes
@@ -89,7 +90,8 @@ sub handle_message_relay {
   my $max_msg_targets = $self->config->max_msg_targets;
 
   ## May or may not have a source User obj for originator:
-  my $user_obj = $self->users->by_name( parse_user($params{prefix}) );
+  my ($parsed_prefix) = parse_user($params{prefix});
+  my $user_obj = $self->users->by_name($parsed_prefix);
 
   my $tcount;
   DEST: for my $target (keys %$targetset) {
@@ -109,19 +111,22 @@ sub handle_message_relay {
 
     ## Organized vaguely by usage frequency ...
 
-    $tcount++;
-    if ($count > $max_msg_targets) {
-      ## FIXME push 407
+    if (++$tcount > $max_msg_targets) {
+      $err_set->push(
+        $self->numeric->to_hash( 407,
+          prefix => $self->config->server_name,
+          params => [ $target ],
+          target => $parsed_prefix,
+        );
+      );
       last DEST
     }
 
     ## FIXME always delete originator, ie. src_conn->wheel_id from routes
 
-    ## FIXME Very probably too much code in here.
-    ##  Maybe dispatch out to methods; overhead could be worth it.
-
     for ($t_type) {
 
+      ## Message to channel, simple.
       when ("channel") {
         unless (my $chan = $self->channels->by_name($t_params[0])) {
           ## No such channel (401)
@@ -129,7 +134,7 @@ sub handle_message_relay {
             $self->numeric->to_hash( 401,
               prefix => $self->config->server_name,
               params => [ $target ],
-              target => $params{prefix},
+              target => $parsed_prefix,
             )
           );
           next DEST
@@ -158,11 +163,22 @@ sub handle_message_relay {
             $self->r_msgs_gen_prefix_for_type($route_type, $user_obj)
             || $params{prefix};
 
-          $self->send_to_routes({ prefix => $src_prefix, %out }, $id );
+          my $ref = { prefix => $src_prefix, %out };
+
+          ## FIXME Document preprocessing hooks
+          ##  Could be used to support IRCv3 intent translation f.ex
+          $self->process( 'message_relay_to_channel',
+            $ref,
+            $route_type,
+            $target,
+            $id
+          );
+
+          $self->send_to_routes($ref, $id);
         }
       }
 
-
+      ## Message to nickname.
       when ("nick") {
         my $user;
         unless ($user = $self->users->by_name($t_params[0])) {
@@ -170,7 +186,7 @@ sub handle_message_relay {
             $self->numeric->to_hash( 401,
               prefix => $self->config->server_name,
               params => [ $target ],
-              target => $params{prefix},
+              target => $parsed_prefix,
             )
           );
           next DEST
@@ -178,7 +194,7 @@ sub handle_message_relay {
         ## FIXME
       }
 
-
+      ## Message to nick@server or nick%host@server
       when ("nick_fully_qualified") {
         my ($nick, $server, $host) = @t_params;
         my $user;
@@ -187,18 +203,20 @@ sub handle_message_relay {
             $self->numeric->to_hash( 401,
               prefix => $self->config->server_name,
               params => [ $target ],
-              target => $params{prefix},
+              target => $parsed_prefix,
             )
           );
           next DEST
         }
 
         if (defined $host && lc($host) ne lc($user->host) ) {
+          ## May or may not have a host.
+          ## If we do and this user isn't a match, 401:
           $err_set->push(
             $self->numeric->to_hash( 401,
               prefix => $self->config->server_name,
               params => [ $target ],
-              target => $params{prefix},
+              target => $parsed_prefix,
             )
           );
           next DEST
@@ -212,7 +230,7 @@ sub handle_message_relay {
             $self->numeric->to_hash( 402,
               prefix => $self->config->server_name,
               params => [ $server ],
-              target => $params{prefix},
+              target => $parsed_prefix,
             )
           );
           next DEST
@@ -223,7 +241,27 @@ sub handle_message_relay {
 
 
       when ("channel_prefixed") {
-        ## FIXME 401 if nonexistant channel
+        my ($channel, $status_prefix) = @t_params;
+
+        my $chan_obj;
+
+        unless ($chan_obj = $self->channels->by_name($channel)) {
+          $err_set->push(
+            $self->numeric->to_hash( 401,
+              prefix => $self->config->server_name,
+              params => [ $channel ],
+              target => $parsed_prefix,
+            )
+          );
+          next DEST
+        }
+
+        my %routes = $self->r_msgs_accumulate_targets_statustype(
+          $status_prefix,
+          $chan_obj
+        );
+        ## FIXME
+        ## FIXME what're the can-send rules here ...?
       }
 
 
@@ -306,8 +344,7 @@ sub r_msgs_accumulate_targets_channel {
     $routes{ $user->route() }++
   }
 
-  my @routes = keys %routes;
-  wantarray ? @routes : \@routes
+  %routes
 }
 
 sub r_msgs_accumulate_targets_servermask {
@@ -320,8 +357,7 @@ sub r_msgs_accumulate_targets_servermask {
     $routes{ $peer->route() }++
   }
 
-  my @routes = keys %routes;
-  wantarray ? @routes : \@routes
+  %routes
 }
 
 sub r_msgs_accumulate_targets_hostmask {
@@ -334,26 +370,33 @@ sub r_msgs_accumulate_targets_hostmask {
     $routes{ $user->route() }++;
   }
 
-  my @routes = keys %routes;
-  wantarray ? @routes : \@routes
+  %routes
 }
 
 
 sub r_msgs_accumulate_targets_statustype {
   ## Status-prefixed targets, ie. @#channel-like targets
-  my ($self, $status, $chan) = @_;
+  my ($self, $status, $chan_obj) = @_;
+
   my $mode = $self->channels->status_mode_for_prefix($status_prefix);
   unless ($mode) {
     carp "Cannot accumulate targets; ",
-     "no mode for status prefix $status available for $chan";
+     "no mode for status prefix $status available for $chan_obj";
     return
   }
-  ## FIXME query Channels obj for users with relevant mode
+
+  my %routes;
+  for my $user ($chan_obj->nicknames_as_array) {
+    $routes{ $user->route() }++
+      if $chan_obj->user_has_mode($user->nick, $mode)
+  }
+
+  %routes
 }
 
 sub r_msgs_parse_targets {
   my ($self, @targets) = @_;
-  ## Borrowed from POE::Component::Server::IRC's target parser,
+  ## Concept borrowed from POE::Component::Server::IRC's target parser,
   ## which is reasonably clever.
   ## Turns a list of targets into a hash:
   ##  $target => [ $type, @args ]
@@ -371,9 +414,6 @@ sub r_msgs_parse_targets {
   my %targets;
 
   my $err_set = IRC::Server::Pluggable::IRC::EventSet->new;
-
-  ## Hum. Do not really like this.
-  ## Switch to some lightweight obj interface instead?
 
   TARGET: for my $target (@targets) {
 

@@ -1,9 +1,14 @@
 package IRC::Server::Pluggable::Protocol::Role::TS::Messages;
 
-use Moo::Role;
+use 5.12.1;
 use strictures 1;
 
+use Carp;
+use Moo::Role;
+
 use IRC::Server::Pluggable qw/
+  Constants
+
   IRC::EventSet
 
   Utils
@@ -49,7 +54,7 @@ sub cmd_from_client_privmsg {
     type     => 'privmsg',
     src_conn => $conn,
     prefix   => $user->nick,
-    targets  => FIXME get params
+    targets  => '',## FIXME get params
   );
 }
 
@@ -69,8 +74,8 @@ sub handle_message_relay {
   my ($self, %params) = @_;
 
   for my $req (qw/prefix src_conn string targets type/) {
-    confess "missing argument '$req =>'";
-      unless defined $params{$req};
+    confess "missing required argument $req"
+      unless defined $params{$req}
   }
 
   $params{type} = lc $params{type};
@@ -96,18 +101,10 @@ sub handle_message_relay {
   my $tcount;
   DEST: for my $target (keys %$targetset) {
     my ($t_type, @t_params) = @{ $targetset->{$target} };
-    ## FIXME sanity checks, build EventSet if we hit errors
-    ##
-    ##  - 481 if prefix nick not an oper and target is host/servermask
+    ## FIXME
     ##  - 413 if target is a mask and doesn't contain a .
     ##  - 414 if target is a mask and doesn't look like a mask?
     ##     pcsi uses !~ /\x2E.*[\x2A\x3F]+.*$/
-    ##  - 402 if nick_fully_qualified and peer doesn't exist
-    ##
-    ## FIXME call appropriate methods to accumulate routes as-needed
-    ## FIXME sort out full/nickname prefix situation
-    ##  Full when delivered to local users
-    ##  Nick-only (or ID?) when delivered to peers
 
     ## Organized vaguely by usage frequency ...
 
@@ -117,7 +114,7 @@ sub handle_message_relay {
           prefix => $self->config->server_name,
           params => [ $target ],
           target => $parsed_prefix,
-        );
+        )
       );
       last DEST
     }
@@ -127,8 +124,9 @@ sub handle_message_relay {
     for ($t_type) {
 
       ## Message to channel, simple.
-      when ("channel") {
-        unless (my $chan = $self->channels->by_name($t_params[0])) {
+      when ('channel') {
+        my $chan;
+        unless ($chan = $self->channels->by_name($t_params[0])) {
           ## No such channel (401)
           $err_set->push(
             $self->numeric->to_hash( 401,
@@ -141,7 +139,6 @@ sub handle_message_relay {
         }
 
         my %routes = $self->r_msgs_accumulate_targets_channel($chan);
-        delete $routes{ $params{src_conn}->wheel_id() };
 
         ## If we don't have a user_obj, it's likely safe to assume that
         ## this is a spoofed message-from-server or suchlike.
@@ -157,6 +154,16 @@ sub handle_message_relay {
           params  => [ $target, $params{string} ],
         );
 
+        delete $routes{ $params{src_conn}->wheel_id() };
+        ## FIXME Document preprocessing hooks
+        ##  Could be used to support IRCv3 intent translation f.ex
+        ##  (P_message_* handlers doing their own relay & EAT_CLIENT)
+        next DEST if $self->process( 'message_to_chanmember',
+            \%out,
+            $target,
+            \%routes
+        ) == EAT_ALL;
+
         for my $id (keys %routes) {
           my $route_type = $self->r_msgs_get_route_type($id) || next;
           my $src_prefix =
@@ -165,21 +172,12 @@ sub handle_message_relay {
 
           my $ref = { prefix => $src_prefix, %out };
 
-          ## FIXME Document preprocessing hooks
-          ##  Could be used to support IRCv3 intent translation f.ex
-          $self->process( 'message_relay_to_channel',
-            $ref,
-            $route_type,
-            $target,
-            $id
-          );
-
           $self->send_to_routes($ref, $id);
         }
       }
 
       ## Message to nickname.
-      when ("nick") {
+      when ('nick') {
         my $user;
         unless ($user = $self->users->by_name($t_params[0])) {
           $err_set->push(
@@ -191,11 +189,28 @@ sub handle_message_relay {
           );
           next DEST
         }
-        ## FIXME
+
+        ## FIXME check for cannot_send
+
+        my $src_prefix = $user->has_conn ? $user->full : $user->nick ;
+        my $ref = {
+          prefix  => $src_prefix,
+          command => $params{type},
+          params  => [ $target, $params{string} ],
+        };
+
+        next DEST if $self->process( 'message_to_user',
+          $ref,
+          $target,
+          $user
+        ) == EAT_ALL;
+
+        $self->send_to_routes( $ref, $user->route )
       }
 
+
       ## Message to nick@server or nick%host@server
-      when ("nick_fully_qualified") {
+      when ('nick_fully_qualified') {
         my ($nick, $server, $host) = @t_params;
         my $user;
         unless ($user = $self->users->by_name($nick)) {
@@ -235,12 +250,13 @@ sub handle_message_relay {
           );
           next DEST
         }
-        ## FIXME check cannot_send_to_user if local?
+        ## FIXME check cannot_send_to_user only if local...?
         ##  Relay to peer if not us
       }
 
 
-      when ("channel_prefixed") {
+      ## Message to prefixed channel (e.g. @#channel)
+      when ('channel_prefixed') {
         my ($channel, $status_prefix) = @t_params;
 
         my $chan_obj;
@@ -260,24 +276,26 @@ sub handle_message_relay {
           $status_prefix,
           $chan_obj
         );
+        delete $routes{ $params{src_conn}->wheel_id() };
         ## FIXME
         ## FIXME what're the can-send rules here ...?
       }
 
 
-      when ("servermask") {
+      ## Message to $$servermask
+      when ('servermask') {
         ## FIXME add relevant local users if we match also
         ## FIXME 481 if not an oper
       }
 
 
-      when ("hostmask") {
+      ## Message to $#hostmask
+      when ('hostmask') {
         ## FIXME 481 if not an oper
       }
     }
   } ## DEST
 
-  ## FIXME send err_set if we have one and this isn't a NOTICE
   ## Notices should return no error at all
   ##  see http://tools.ietf.org/html/rfc2812#section-3.3
   if ($err_set->has_events && $params{type} ne 'notice') {
@@ -294,7 +312,7 @@ sub user_cannot_send_to_user {
 
 
 sub r_msgs_get_route_type {
-  my ($route_id) = @_;
+  my ($self, $route_id) = @_;
   ## FIXME this should move to a more generalized role ...
   ## Determine a remote route's type given just an ID.
   ## If we have a user_obj to work with, determine a prefix, also.
@@ -313,7 +331,7 @@ sub r_msgs_get_route_type {
 }
 
 sub r_msgs_gen_prefix_for_type {
-  my ($route_type, $user_obj) = @_;
+  my ($self, $route_type, $user_obj) = @_;
 
   if (defined $user_obj) {
     return $route_type eq 'user' ? $user_obj->full
@@ -326,7 +344,7 @@ sub r_msgs_gen_prefix_for_type {
 sub r_msgs_accumulate_targets_channel {
   ## Accumulate a list of route IDs for a channel target
   ## including routes to applicable local users
-  my ($self, $chan_name) = @_;
+  my ($self, $chan) = @_;
 
   unless (blessed $chan) {
     $chan = $self->channels->by_name($chan);
@@ -338,7 +356,7 @@ sub r_msgs_accumulate_targets_channel {
     and $chan->isa('IRC::Server:Pluggable::IRC::Channel');
 
   my %routes;
-  for my $nick (@{ $chan_obj->nicknames_as_array }) {
+  for my $nick (@{ $chan->nicknames_as_array }) {
     my $user  = $self->users->by_name($nick);
     ## An override would want to skip deaf users here, etc.
     $routes{ $user->route() }++
@@ -378,7 +396,7 @@ sub r_msgs_accumulate_targets_statustype {
   ## Status-prefixed targets, ie. @#channel-like targets
   my ($self, $status, $chan_obj) = @_;
 
-  my $mode = $self->channels->status_mode_for_prefix($status_prefix);
+  my $mode = $self->channels->status_mode_for_prefix($status);
   unless ($mode) {
     carp "Cannot accumulate targets; ",
      "no mode for status prefix $status available for $chan_obj";
@@ -467,6 +485,8 @@ sub r_msgs_parse_targets {
       ##  See notes in handle_message_relay also
       next TARGET
     }
+
+    ## FIXME support local-server nick%host also?
 
     ## Fall through to nickname
     $targets{$target} = [ 'nick' ];

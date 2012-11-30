@@ -142,12 +142,13 @@ has 'wheel_id' => (
 
 has 'wheel' => (
   ## Actual POE::Wheel
-  required => 1,
-  isa      => InstanceOf['POE::Wheel'],
-  is       => 'ro',
-  clearer  => 'clear_wheel',
-  writer   => 'set_wheel',
-  trigger  => sub {
+  required  => 1,
+  isa       => InstanceOf['POE::Wheel'],
+  is        => 'ro',
+  clearer   => 'clear_wheel',
+  writer    => 'set_wheel',
+  predicate => 'has_wheel',
+  trigger   => sub {
     my ($self, $wheel) = @_;
     $self->set_wheel_id( $wheel->ID )
   },

@@ -7,8 +7,7 @@ use strictures 1;
 use Carp;
 
 sub import {
-  my $self = shift;
-  my @modules = @_;
+  my ($self, @modules) = @_;
 
   my $pkg = caller;
 

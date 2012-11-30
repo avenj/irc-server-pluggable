@@ -171,7 +171,7 @@ sub spawn {
 
   $args{lc $_} = delete $args{$_} for keys %args;
 
-  my $self = $class->new;
+  my $self = ref $class ? $class : $class->new;
 
   my $sess_id = POE::Session->create(
     object_states => [
@@ -311,7 +311,7 @@ sub _accept_conn {
   );
 
   unless ($wheel) {
-    carp "Wheel creation failure in __setup_wheel";
+    carp "Wheel creation failure in _accept_conn";
     return
   }
 
@@ -694,8 +694,7 @@ sub _ircsock_error {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($errstr, $w_id) = @_[ARG2, ARG3];
 
-  my $this_conn;
-  return unless $this_conn = $self->wheels->{$w_id};
+  my $this_conn = $self->wheels->{$w_id} || return;
 
   $self->_disconnected(
     $w_id,

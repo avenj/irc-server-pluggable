@@ -334,8 +334,7 @@ sub r_msgs_gen_prefix_for_type {
   my ($self, $route_type, $user_obj) = @_;
 
   if (defined $user_obj) {
-    return $route_type eq 'user' ? $user_obj->full
-      : $user_obj->nick ;
+    return $route_type eq 'user' ? $user_obj->full : $user_obj->nick
   }
 
   return

@@ -13,87 +13,72 @@ use namespace::clean -except => 'meta';
 
 has 'addr' => (
   required => 1,
-
-  isa => Str,
-  is  => 'ro',
-
-  writer => 'set_addr',
+  isa      => Str,
+  is       => 'ro',
+  writer   => 'set_addr',
 );
 
 has 'bindaddr' => (
-  lazy => 1,
-
-  isa => Str,
-  is  => 'ro',
-
+  lazy      => 1,
+  isa       => Str,
+  is        => 'ro',
   predicate => 'has_bindaddr',
   writer    => 'set_bindaddr',
-
   default => sub { '' },
 );
 
 has 'args' => (
-  lazy => 1,
-
-  isa => Defined,
-  is  => 'ro',
-
-  writer => 'set_args',
-
+  ## FIXME are we using this?
+  lazy    => 1,
+  isa     => Defined,
+  is      => 'ro',
+  writer  => 'set_args',
   default => sub { {} },
 );
 
 has 'port' => (
   required => 1,
-
-  isa => Int,
-  is  => 'ro',
-
-  writer => 'set_port',
+  isa      => Int,
+  is       => 'ro',
+  writer   => 'set_port',
 );
 
 has 'protocol' => (
   required => 1,
-
-  isa => InetProtocol,
-  is  => 'ro',
-
-  writer => 'set_protocol',
+  isa      => InetProtocol,
+  is       => 'ro',
+  writer   => 'set_protocol',
 );
 
 has 'ssl' => (
-  isa => Bool,
-  is  => 'ro',
-
+  isa       => Bool,
+  is        => 'ro',
   predicate => 'has_ssl',
   writer    => 'set_ssl',
-
-  default => sub { 0 },
+  default   => sub { 0 },
 );
 
 has 'wheel_id' => (
   lazy => 1,
-
-  isa => Defined,
-  is  => 'ro',
-
-  writer => 'set_wheel_id',
+  isa  => Defined,
+  is   => 'ro',
+  writer    => 'set_wheel_id',
+  predicate => 'has_wheel_id',
 );
 
 has 'wheel' => (
-  required => 1,
-
-  isa => InstanceOf['POE::Wheel'],
-  is  => 'ro',
-
-  clearer => 'clear_wheel',
-  writer  => 'set_wheel',
-
-  trigger => sub {
+  required  => 1,
+  isa       => InstanceOf['POE::Wheel'],
+  is        => 'ro',
+  clearer   => 'clear_wheel',
+  writer    => 'set_wheel',
+  predicate => 'has_wheel',
+  trigger   => sub {
     my ($self, $wheel) = @_;
     $self->set_wheel_id( $wheel->ID )
   },
 );
+
 
 1;
 

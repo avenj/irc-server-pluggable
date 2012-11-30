@@ -16,9 +16,7 @@ use IRC::Server::Pluggable qw/
 
 use Scalar::Util 'blessed';
 
-use namespace::clean -except => 'meta';
-
-## FIXME hum, *very* possible this should move to Role::Messages
+use namespace::clean;
 
 ### Basic message relay rules:
 ## One-to-one:
@@ -40,7 +38,6 @@ requires qw/
   channels
   channel_types
   peers
-  process
   users
   user_cannot_send_to_chan
   send_to_routes
@@ -125,8 +122,8 @@ sub handle_message_relay {
 
       ## Message to channel, simple.
       when ('channel') {
-        my $chan;
-        unless ($chan = $self->channels->by_name($t_params[0])) {
+        my $chan_obj;
+        unless ($chan_obj = $self->channels->by_name($t_params[0])) {
           ## No such channel (401)
           $err_set->push(
             $self->numeric->to_hash( 401,
@@ -138,42 +135,9 @@ sub handle_message_relay {
           next DEST
         }
 
-        my %routes = $self->r_msgs_accumulate_targets_channel($chan);
-
-        ## If we don't have a user_obj, it's likely safe to assume that
-        ## this is a spoofed message-from-server or suchlike.
-        ## If we do, see if they can send.
-        if (defined $user_obj &&
-          (my $err = $self->user_cannot_send_to_chan($user_obj, $target)) ) {
-          $err_set->push($err);
-          next DEST
-        }
-
-        my %out = (
-          command => $params{type},
-          params  => [ $target, $params{string} ],
+        $self->r_msgs_relay_to_channel(
+          $target, $err_set, \%params, $chan_obj, $user_obj
         );
-
-        delete $routes{ $params{src_conn}->wheel_id() };
-        ## FIXME Document preprocessing hooks
-        ##  Could be used to support IRCv3 intent translation f.ex
-        ##  (P_message_* handlers doing their own relay & EAT_CLIENT)
-        next DEST if $self->process( 'message_to_chanmember',
-            \%out,
-            $target,
-            \%routes
-        ) == EAT_ALL;
-
-        for my $id (keys %routes) {
-          my $route_type = $self->r_msgs_get_route_type($id) || next;
-          my $src_prefix =
-            $self->r_msgs_gen_prefix_for_type($route_type, $user_obj)
-            || $params{prefix};
-
-          my $ref = { prefix => $src_prefix, %out };
-
-          $self->send_to_routes($ref, $id);
-        }
       }
 
       ## Message to nickname.
@@ -198,12 +162,6 @@ sub handle_message_relay {
           command => $params{type},
           params  => [ $target, $params{string} ],
         };
-
-        next DEST if $self->process( 'message_to_user',
-          $ref,
-          $target,
-          $user
-        ) == EAT_ALL;
 
         $self->send_to_routes( $ref, $user->route )
       }
@@ -309,6 +267,44 @@ sub user_cannot_send_to_user {
   ## FIXME
   ##  User-to-user counterpart to Channels->user_cannot_send_to_chan
 }
+
+
+sub r_msgs_relay_to_channel {
+  my ($self, $target, $err_set, $params, $chan_obj, $user_obj) = @_;
+  my %routes = $self->r_msgs_accumulate_targets_channel($chan_obj);
+
+  ## Could override to provide v3 intents<-> translation f.ex
+
+  ## If we don't have a user_obj, it's likely safe to assume that
+  ## this is a spoofed message-from-server or suchlike.
+  ## If we do, see if they can send.
+  if (defined $user_obj &&
+     (my $err = $self->user_cannot_send_to_chan($user_obj, $target)) ) {
+    $err_set->push($err);
+    next DEST
+  }
+
+  my %out = (
+     command => $params->{type},
+     params  => [ $target, $params->{string} ],
+  );
+
+  delete $routes{ $params->{src_conn}->wheel_id };
+
+  for my $id (keys %routes) {
+    my $route_type = $self->r_msgs_get_route_type($id) || next;
+    my $src_prefix =
+      $self->r_msgs_gen_prefix_for_type($route_type, $user_obj)
+      || $params->{prefix};
+
+    my $ref = { prefix => $src_prefix, %out };
+
+    $self->send_to_routes($ref, $id);
+  }
+
+  \%routes
+}
+
 
 
 sub r_msgs_get_route_type {

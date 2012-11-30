@@ -1,10 +1,12 @@
 package IRC::Server::Pluggable;
 our $VERSION = '0.000_01';
 
-use 5.12.1;
 use strictures 1;
 
-use Carp;
+use Carp 'confess';
+use Module::Runtime 'use_module';
+
+use namespace::clean;
 
 sub import {
   my ($self, @modules) = @_;
@@ -28,6 +30,14 @@ sub import {
     if @failed;
 
   1
+}
+
+sub create {
+  my (undef, $module) = splice @_, 0, 2;
+  confess "Expected a module name and optional params"
+    unless defined $module;
+  my $real = join '::', __PACKAGE__, $module;
+  use_module($real)->new(@_)
 }
 
 

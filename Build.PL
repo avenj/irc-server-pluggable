@@ -92,7 +92,7 @@ my $build = $class->new(
 
     'IRC::Utils'             => 0,
 
-#    'Module::Runtime'        => 0,
+    'Module::Runtime'        => 0,
 
     'Moo'                      => '1.000003',
     'MooX::Types::MooseLike'   => '0.15',

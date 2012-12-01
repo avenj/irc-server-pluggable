@@ -1,5 +1,11 @@
 package IRC::Server::Pluggable::Dispatcher;
 
+## FIXME
+##  Hum.
+##  All of this should be torn out and moved into
+##  either Backend (to_irc bits) or a Protocol::Role
+##  (ircsock_* handlers)
+
 use 5.12.1;
 use strictures 1;
 

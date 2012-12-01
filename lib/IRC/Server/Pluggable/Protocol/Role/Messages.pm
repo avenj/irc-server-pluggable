@@ -116,102 +116,26 @@ sub handle_message_relay {
       last DEST
     }
 
-    ## FIXME always delete originator, ie. src_conn->wheel_id from routes
-
     for ($t_type) {
-
-      ## Message to channel, simple.
       when ('channel') {
-        my $chan_obj;
-        unless ($chan_obj = $self->channels->by_name($t_params[0])) {
-          ## No such channel (401)
-          $err_set->push(
-            $self->numeric->to_hash( 401,
-              prefix => $self->config->server_name,
-              params => [ $target ],
-              target => $parsed_prefix,
-            )
-          );
-          next DEST
-        }
-
         $self->r_msgs_relay_to_channel(
-          $target, $err_set, \%params, $chan_obj, $user_obj
+          $target, $err_set, \%params, $parsed_prefix, $user_obj
         );
       }
 
-      ## Message to nickname.
       when ('nick') {
-        my $user;
-        unless ($user = $self->users->by_name($t_params[0])) {
-          $err_set->push(
-            $self->numeric->to_hash( 401,
-              prefix => $self->config->server_name,
-              params => [ $target ],
-              target => $parsed_prefix,
-            )
-          );
-          next DEST
-        }
-
-        ## FIXME check for cannot_send
-
-        my $src_prefix = $user->has_conn ? $user->full : $user->nick ;
-        my $ref = {
-          prefix  => $src_prefix,
-          command => $params{type},
-          params  => [ $target, $params{string} ],
-        };
-
-        $self->send_to_routes( $ref, $user->route )
+        $self->r_msgs_relay_to_nick(
+          $target, $err_set, \%params, $parsed_prefix, $user_obj
+        );
       }
-
 
       ## Message to nick@server or nick%host@server
       when ('nick_fully_qualified') {
-        my ($nick, $server, $host) = @t_params;
-        my $user;
-        unless ($user = $self->users->by_name($nick)) {
-          $err_set->push(
-            $self->numeric->to_hash( 401,
-              prefix => $self->config->server_name,
-              params => [ $target ],
-              target => $parsed_prefix,
-            )
-          );
-          next DEST
-        }
-
-        if (defined $host && lc($host) ne lc($user->host) ) {
-          ## May or may not have a host.
-          ## If we do and this user isn't a match, 401:
-          $err_set->push(
-            $self->numeric->to_hash( 401,
-              prefix => $self->config->server_name,
-              params => [ $target ],
-              target => $parsed_prefix,
-            )
-          );
-          next DEST
-        }
-
-        my $peer;
-        ## Might be us, might be remote.
-        unless (lc($server) eq lc($self->config->server_name) ||
-             ($peer = $self->peers->by_name($server)) ) {
-          $err_set->push(
-            $self->numeric->to_hash( 402,
-              prefix => $self->config->server_name,
-              params => [ $server ],
-              target => $parsed_prefix,
-            )
-          );
-          next DEST
-        }
-        ## FIXME check cannot_send_to_user only if local...?
-        ##  Relay to peer if not us
+        $self->r_msgs_relay_to_nick_fullyqual(
+          $target, $err_set, \%params, $parsed_prefix,
+          \@t_params, $user_obj
+        );
       }
-
 
       ## Message to prefixed channel (e.g. @#channel)
       when ('channel_prefixed') {
@@ -269,8 +193,23 @@ sub user_cannot_send_to_user {
 }
 
 
+
 sub r_msgs_relay_to_channel {
-  my ($self, $target, $err_set, $params, $chan_obj, $user_obj) = @_;
+  my ($self, $target, $err_set, $params, $parsed_prefix, $user_obj) = @_;
+
+  my $chan_obj;
+  unless ($chan_obj = $self->channels->by_name($target)) {
+    ## No such channel (401)
+    $err_set->push(
+      $self->numeric->to_hash( 401,
+        prefix => $self->config->server_name,
+        params => [ $target ],
+        target => $parsed_prefix,
+      )
+    );
+    return
+  }
+
   my %routes = $self->r_msgs_accumulate_targets_channel($chan_obj);
 
   ## Could override to provide v3 intents<-> translation f.ex
@@ -281,7 +220,7 @@ sub r_msgs_relay_to_channel {
   if (defined $user_obj &&
      (my $err = $self->user_cannot_send_to_chan($user_obj, $target)) ) {
     $err_set->push($err);
-    next DEST
+    return
   }
 
   my %out = (
@@ -303,6 +242,85 @@ sub r_msgs_relay_to_channel {
   }
 
   \%routes
+}
+
+sub _r_msgs_relay_to_nick {
+  my ($self, $target, $err_set, $params, $parsed_prefix, $user_obj) = @_;
+
+  ## FIXME check for cannot_send
+
+  my $target_user_obj;
+  unless ($target_user_obj = $self->users->by_name($target)) {
+    $err_set->push(
+      $self->numeric->to_hash( 401,
+        prefix => $self->config->server_name,
+        params => [ $target ],
+        target => $parsed_prefix,
+      )
+    );
+    return
+  }
+
+  my $src_prefix = $target_user_obj->has_conn ?
+    $target_user_obj->full : $target_user_obj->nick ;
+
+  my $ref = {
+    prefix  => $src_prefix,
+    command => $params->{type},
+    params  => [ $target, $params->{string} ],
+  };
+
+  $self->send_to_routes( $ref, $target_user_obj->route )
+}
+
+sub r_msgs_relay_to_nick_fullyqual {
+  my ($self, $target, $err_set, $params, $parsed_prefix,
+      $target_params, $user_obj) = @_;
+  my ($nick, $server, $host) = @$target_params;
+
+  ## FIXME check for cannot_send
+
+  my $target_user_obj;
+  unless ($target_user_obj = $self->users->by_name($nick)) {
+    $err_set->push(
+      $self->numeric->to_hash( 401,
+        prefix => $self->config->server_name,
+        params => [ $target ],
+        target => $parsed_prefix,
+      )
+    );
+    return
+  }
+
+  if (defined $host && lc($host) ne lc($target_user_obj->host) ) {
+    ## May or may not have a host.
+    ## If we do and this user isn't a match, 401:
+    $err_set->push(
+      $self->numeric->to_hash( 401,
+        prefix => $self->config->server_name,
+        params => [ $target ],
+        target => $parsed_prefix,
+      )
+    );
+    return
+  }
+
+  my $peer;
+  ## Might be us, might be remote.
+  unless (lc($server) eq lc($self->config->server_name)
+          || ($peer = $self->peers->by_name($server)) ) {
+    $err_set->push(
+      $self->numeric->to_hash( 402,
+        prefix => $self->config->server_name,
+        params => [ $server ],
+        target => $parsed_prefix,
+      )
+    );
+    return
+  }
+
+ ## FIXME check cannot_send_to_user only if local...?
+ ## FIXME relays .. Relay to peer if not us
 }
 
 
@@ -441,7 +459,7 @@ sub r_msgs_parse_targets {
     if (grep {; $t_prefix eq $_ } @status_prefixes) {
       ## Message to status target.
       my $c_prefix = substr($target, 1, 1);
-      unless (grep { $c_prefix eq $_ } @chan_prefixes) {
+      unless (grep {; $c_prefix eq $_ } @chan_prefixes) {
         ## FIXME @ prefix but not a channel?
         ## Not sure of any IRCDs with syntax along those lines ...
         ## ... add error hash ?

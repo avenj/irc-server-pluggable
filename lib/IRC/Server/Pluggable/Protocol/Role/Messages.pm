@@ -76,7 +76,7 @@ sub user_cannot_send_to_user {
 ### Relaying.
 
 sub r_msgs_parse_targets {
-  my ($self, @targets) = @_;
+  my ($self, @targetlist) = @_;
   ## Concept borrowed from POE::Component::Server::IRC's target parser,
   ## which is reasonably clever.
   ## Turns a list of targets into a hash:
@@ -96,7 +96,7 @@ sub r_msgs_parse_targets {
 
   my $err_set = IRC::Server::Pluggable::IRC::EventSet->new;
 
-  TARGET: for my $target (@targets) {
+  TARGET: for my $target (@targetlist) {
 
     my $t_prefix = substr($target, 0, 1);
  
@@ -188,12 +188,11 @@ sub handle_message_relay {
 
   my ($targetset, $err_set) = $self->r_msgs_parse_targets(@$target_array);
 
-  my $max_msg_targets = $self->config->max_msg_targets;
-
   ## May or may not have a source User obj for originator:
   my ($parsed_prefix) = parse_user($params{prefix});
-  my $user_obj = $self->users->by_name($parsed_prefix);
+  my $src_user_obj    = $self->users->by_name($parsed_prefix);
 
+  my $max_msg_targets = $self->config->max_msg_targets;
   my $tcount;
   DEST: for my $target (keys %$targetset) {
     my ($t_type, @t_params) = @{ $targetset->{$target} };
@@ -218,13 +217,13 @@ sub handle_message_relay {
     for ($t_type) {
       when ('channel') {
         $self->r_msgs_relay_to_channel(
-          $target, $err_set, \%params, $parsed_prefix, $user_obj
+          $target, $err_set, \%params, $parsed_prefix, $src_user_obj
         );
       }
 
       when ('nick') {
         $self->r_msgs_relay_to_nick(
-          $target, $err_set, \%params, $parsed_prefix, $user_obj
+          $target, $err_set, \%params, $parsed_prefix, $src_user_obj
         );
       }
 
@@ -232,7 +231,7 @@ sub handle_message_relay {
       when ('nick_fully_qualified') {
         $self->r_msgs_relay_to_nick_fullyqual(
           $target, $err_set, \%params, $parsed_prefix,
-          \@t_params, $user_obj
+          \@t_params, $src_user_obj
         );
       }
 
@@ -240,21 +239,25 @@ sub handle_message_relay {
       when ('channel_prefixed') {
         $self->r_msgs_relay_to_channel_prefixed(
           $target, $err_set, \%params, $parsed_prefix,
-          \@t_params, $user_obj
+          \@t_params, $src_user_obj
         );
       }
 
 
       ## Message to $$servermask
       when ('servermask') {
-        ## FIXME add relevant local users if we match also
-        ## FIXME 481 if not an oper
+        $self->r_msgs_relay_to_servermask(
+          $target, $err_set, \%params, $parsed_prefix,
+          \@t_params, $src_user_obj
+        );
       }
-
 
       ## Message to $#hostmask
       when ('hostmask') {
-        ## FIXME 481 if not an oper
+        $self->r_msgs_relay_to_hostmask(
+          $target, $err_set, \%params, $parsed_prefix,
+          \@t_params, $src_user_obj
+        );
       }
     }
   } ## DEST
@@ -268,7 +271,7 @@ sub handle_message_relay {
 }
 
 sub r_msgs_relay_to_channel {
-  my ($self, $target, $err_set, $params, $parsed_prefix, $user_obj) = @_;
+  my ($self, $target, $err_set, $params, $parsed_prefix, $src_user_obj) = @_;
 
   my $chan_obj;
   unless ($chan_obj = $self->channels->by_name($target)) {
@@ -285,13 +288,13 @@ sub r_msgs_relay_to_channel {
 
   my %routes = $self->r_msgs_accumulate_targets_channel($chan_obj);
 
-  ## Could override to provide v3 intents<-> translation f.ex
+  ## Could override to provide v3 intents<->ctcp translation f.ex
 
-  ## If we don't have a user_obj, it's likely safe to assume that
+  ## If we don't have a src_user_obj, it's likely safe to assume that
   ## this is a spoofed message-from-server or suchlike.
   ## If we do, see if they can send.
-  if (defined $user_obj &&
-     (my $err = $self->user_cannot_send_to_chan($user_obj, $target)) ) {
+  if (defined $src_user_obj &&
+     (my $err = $self->user_cannot_send_to_chan($src_user_obj, $target)) ) {
     $err_set->push($err);
     return
   }
@@ -306,7 +309,7 @@ sub r_msgs_relay_to_channel {
   for my $id (keys %routes) {
     my $route_type = $self->r_msgs_get_route_type($id) || next;
     my $src_prefix =
-      $self->r_msgs_gen_prefix_for_type($route_type, $user_obj)
+      $self->r_msgs_gen_prefix_for_type($route_type, $src_user_obj)
       || $params->{prefix};
 
     my $ref = { prefix => $src_prefix, %out };
@@ -318,7 +321,7 @@ sub r_msgs_relay_to_channel {
 }
 
 sub r_msgs_relay_to_nick {
-  my ($self, $target, $err_set, $params, $parsed_prefix, $user_obj) = @_;
+  my ($self, $target, $err_set, $params, $parsed_prefix, $src_user_obj) = @_;
 
   ## FIXME check for cannot_send
 
@@ -348,7 +351,7 @@ sub r_msgs_relay_to_nick {
 
 sub r_msgs_relay_to_nick_fullyqual {
   my ($self, $target, $err_set, $params, $parsed_prefix,
-      $target_params, $user_obj) = @_;
+      $target_params, $src_user_obj) = @_;
   my ($nick, $server, $host) = @$target_params;
 
   ## FIXME check for cannot_send
@@ -398,7 +401,7 @@ sub r_msgs_relay_to_nick_fullyqual {
 
 sub r_msgs_relay_to_channel_prefixed {
   my ($self, $target, $err_set, $params, $parsed_prefix,
-      $target_params, $user_obj) = @_;
+      $target_params, $src_user_obj) = @_;
   my ($channel, $status_prefix) = @$target_params;
 
   my $chan_obj;
@@ -418,8 +421,23 @@ sub r_msgs_relay_to_channel_prefixed {
     $chan_obj
   );
   delete $routes{ $params->{src_conn}->wheel_id() };
-  ## FIXME
+  ## FIXME relay to each
   ## FIXME what're the can-send rules here ...?
+}
+
+sub r_msgs_relay_to_servermask {
+  my ($self, $target, $err_set, $params, $parsed_prefix,
+      $target_params, $src_user_obj) = @_;
+
+        ## FIXME add relevant local users if we match also
+        ## FIXME 481 if not an oper
+}
+
+sub r_msgs_relay_to_hostmask {
+  my ($self, $target, $err_set, $params, $parsed_prefix,
+      $target_params, $src_user_obj) = @_;
+
+        ## FIXME 481 if not an oper
 }
 
 
@@ -429,8 +447,7 @@ sub r_msgs_relay_to_channel_prefixed {
 sub r_msgs_get_route_type {
   my ($self, $route_id) = @_;
   ## FIXME this should move to a more generalized role ...
-  ## Determine a remote route's type given just an ID.
-  ## If we have a user_obj to work with, determine a prefix, also.
+  ## Determine a remote route's type given an ID
 
   my $route_type;
   if (my $user = $self->users->by_id($route_id)) {

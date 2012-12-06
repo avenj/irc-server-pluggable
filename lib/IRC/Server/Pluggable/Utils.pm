@@ -53,7 +53,6 @@ use Socket qw/
   sockaddr_family
 
   AF_INET
-  inet_ntoa
   unpack_sockaddr_in
 
   AF_INET6
@@ -85,19 +84,13 @@ sub get_unpacked_addr {
 
     if ($sock_family == AF_INET) {
       ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
-      $sockaddr   = inet_ntoa($sockaddr);
+      $sockaddr   = inet_ntop(AF_INET, $sockaddr);
       $inet_proto = 4;
 
       last FAMILY
     }
 
     confess "Unknown socket family type"
-  }
-
-  unless (wantarray) {
-    Carp::cluck(
-      "Possibly mistaken use of get_unpacked_addr, caller does not want list"
-    );
   }
 
   ($inet_proto, $sockaddr, $sockport)
@@ -178,7 +171,7 @@ sub mode_to_hash {
 
   my $modestr = shift;
   confess "mode_to_hash() called with no mode string"
-    unless $modestr;
+    unless defined $modestr;
 
   my %args = @_;
   $args{param_always} //= [ split //, 'bkov' ];

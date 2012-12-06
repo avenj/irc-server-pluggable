@@ -49,15 +49,53 @@ requires qw/
 sub cmd_from_client_privmsg {
   my ($self, $conn, $ev, $user) = @_;
 
+  unless (@{ $ev->params }) {
+    $self->send_numeric( 461,
+      target => $user->nick,
+      params => [ 'PRIVMSG' ],
+      routes => $user->route,
+    );
+    return
+  }
+
+  unless (@{ $ev->params } >= 2 && defined $ev->params->[1]) {
+    $self->send_numeric( 412,
+      target => $user->nick,
+      routes => $user->route,
+    );
+    return
+  }
+
   $self->handle_message_relay(
     type     => 'privmsg',
     src_conn => $conn,
     prefix   => $user->nick,
-    targets  => '',## FIXME get params
+    targets  => [ split /,/, $ev->params->[0] ],
+    string   => $ev->params->[1],
   );
 }
 
-sub cmd_from_client_notice {}
+sub cmd_from_client_notice {
+  my ($self, $conn, $ev, $user) = @_;
+
+  unless (@{ $ev->params }) {
+    $self->send_numeric( 461,
+      target => $user->nick,
+      params => [ 'NOTICE' ],
+      routes => $user->route,
+    );
+    return
+  }
+
+  ## No other error numerics for NOTICE, per RFC.
+  $self->handle_message_relay(
+    type      => 'notice',
+    src_conn  => $conn,
+    prefix    => $user->nick,
+    targets   => [ split /,/, $ev->params->[0] ],
+    string    => $ev->params->[1],
+  );
+}
 
 sub cmd_from_peer_privmsg {}
 sub cmd_from_peer_notice {}
@@ -314,7 +352,7 @@ sub r_msgs_relay_to_channel {
 
     my $ref = { prefix => $src_prefix, %out };
 
-    $self->send_to_routes($ref, $id);
+    $self->send_to_routes($ref, $id)
   }
 
   \%routes

@@ -22,18 +22,3 @@
  - route() for the new Peer obj is the introducing-local-peer
 
 
-## Scratchpad
-
-  for each serv_list entry hybrid sends bclient_p to the peer's data
-  skips if bclient_p is the introducing server
-  sends SERVER to bclient_p via sendto_one:
-   ":%s SERVER %s %d :%s%s"
-   ? ID_or_name(source_p, bclient_p)   ## prefix
-   the target_p (the new peer) name
-   the hopcount+1
-   hidden server info (we can skip this in base class, probably)
-   gecos string
-
-  
-
- how does hostmasking figure into all this, exactly?

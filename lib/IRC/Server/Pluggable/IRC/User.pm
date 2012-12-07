@@ -80,15 +80,6 @@ has '_metadata' => (
   default => sub { {} },
 );
 
-has 'modes' => (
-  ## FIXME should this really be a umode object?
-  ## .. maybe just an internal pkg?
-  lazy    => 1,
-  is      => 'ro',
-  isa     => HashRef,
-  default => sub { {} },
-);
-
 has 'realname' => (
   required => 1,
   is       => 'ro',
@@ -188,27 +179,85 @@ sub _trigger_nick {
     if $self->has_full
 }
 
-
-has 'valid_modes' => (
+## Mode-related.
+has '_valid_modes' => (
+  ## See _build_valid_modes
   lazy      => 1,
-  isa       => ArrayRef,
+  init_args => valid_modes,
+  isa       => HashRef,
   is        => 'ro',
-  predicate => 'has_valid_modes',
-  writer    => 'set_valid_modes',
+  predicate => '_has_valid_modes',
+  writer    => '_set_valid_modes',
   builder   => '_build_valid_modes',
 );
 
 sub _build_valid_modes {
   ## Override to add valid user modes.
-  [ split '', 'iaows' ]
+  ## $mode => 0  # Mode takes no params.
+  ## $mode => 1  # Mode takes param when set.
+  ## $mode => 2  # Mode always takes param.
+  +{ 
+    map {; $_ => 0 } split '', 'iaows'
+  }
 }
 
 sub mode_is_valid {
   my ($self, $mode) = @_;
   confess "Expected a mode to be supplied" unless defined $mode;
+  return unless defined $self->_valid_modes->{$mode};
+  1
+}
 
-  return unless grep {; $_ eq $mode } @{ $self->valid_modes };
-  return 1
+sub mode_takes_params {
+  my ($self, $mode) = @_;
+  return
+    unless defined $self->_valid_modes->{$mode}
+    and $self->_valid_modes->{$mode} > 0;
+  $self->_valid_modes->{$mode}
+}
+
+
+has '_modes' => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
+  writer  => '_set_modes',
+  default => sub { {} },
+);
+
+sub set_mode_from_string {
+  my ($self, $modestr, @params) = @_;
+  my $array = mode_to_array( $modestr,
+    param_always => \@always,
+    param_set    => \@whenset,
+    params       => \@params,
+  );
+
+  $self->set_mode_from_array($array)
+}
+
+sub set_mode_from_array {
+  my ($self, $modearray) = @_;
+
+  my @changed;
+  MODESET: for my $mset (@$modearray) {
+    my ($flag, $mode, $param) = @$mset;
+    if ($flag eq '+') {
+      unless ($self->mode_is_valid($mode)) {
+        Carp::cluck "Invalid user modechar $mode";
+        next MODESET
+      }
+      $self->_modes->{$mode} = $param // 1;
+      push @changed, [ $flag, $mode, $param ]
+    } else {
+      push @changed, [ $flag, $mode, delete $self->_modes->{$mode} ]
+        if exists $self->_modes->{$mode};
+    }
+  }
+
+  ## Returns array-of-arrays describing changes.
+  ## (in the same format as Utils::mode_to_array)
+  \@changed
 }
 
 
@@ -300,133 +349,6 @@ sub meta_keys {
 }
 
 
-sub set_modes {
-  my ($self, $data) = @_;
-
-  confess "set_modes() called with no defined arguments"
-    unless defined $data;
-
-  $data = $self->_parse_mode_str($data)
-    unless ref $data;
-
-  $self->_set_modes_from_ref($data)
-}
-
-sub _set_modes_from_ref {
-  my ($self, $data) = @_;
-
-  my %changed;
-
-  if (ref $data eq 'ARRAY') {
-
-    MODE: for my $mode (@$data) {
-
-      ## Accept [ $flag, $params ] -- default to bool
-      my $params = 1;
-      if (ref $mode eq 'ARRAY') {
-        ($mode, $params) = @$mode;
-      }
-
-      my ($chg, $flag) = $mode =~ /^(\+|-)([A-Za-z])$/;
-
-      unless ($chg && $flag) {
-        carp "Could not parse mode change $mode";
-        next MODE
-      }
-
-      ## Boolean flip.
-      if ($chg eq '+') {
-        unless ($self->modes->{$flag}) {
-          ## Add this mode and record the change.
-          $self->modes->{$flag} = 1;
-          $changed{$flag}       = 1;
-        }
-      } elsif ($chg eq '-') {
-        if ($self->modes->{$flag}) {
-          ## Delete this mode and record the change.
-          $changed{$flag} = delete $self->modes->{$flag};
-        }
-      }
-
-    } ## MODE
-
-  } elsif (ref $data eq 'HASH') {
-
-    ## add => [ mode, ... ],
-    ## add => [ [ mode, params ], ... ],
-    ## del => [ mode, ... ],
-
-    ADD: for my $flag (@{ $data->{add} }) {
-      my $params = 1;
-      if (ref $flag eq 'ARRAY') {
-        ($flag, $params) = @$flag;
-      }
-
-      unless ($self->modes->{$flag}
-        && $self->modes->{$flag} eq $params) {
-
-        $self->modes->{$flag} = $params;
-        $changed{$flag}       = $params;
-      }
-
-    }
-
-    DEL: for my $flag (@{ $data->{del} }) {
-      if ($self->modes->{$flag}) {
-        $changed{$flag} = delete $self->modes->{$flag};
-      }
-    }
-
-  } else {
-    confess "Passed an unknown reference type: ".ref($data)." ($data)"
-  }
-
-  \%changed
-}
-
-sub _parse_mode_str {
-  my ($self, $str) = @_;
-
-  ## FIXME
-  ## Doesn't currently handle params at all.
-  ## Should be swapped out for Utils::mode_to_hash
-
-  my %res = ( add => [], del => [] );
-
-  my $in_add = 1;
-  for my $char (split '', $str) {
-    if ($char eq '+') {
-      $in_add = 1;
-      next
-    }
-
-    if ($char eq '-') {
-      $in_add = 0;
-      next
-    }
-
-    if ($char =~ /A-Z/i) {
-      my $thiskey = $in_add ? 'add' : 'del';
-      push( @{ $res{$thiskey} },  $char );
-      next
-    }
-
-    ## ...elsewise no clue what the hell we were given.
-    ## (Protocol side should've returned unknown mode)
-    carp "Unknown value $char in _parse_mode_str($str)"
-  }
-
-  \%res
-}
-
-sub modes_as_string {
-  my ($self) = @_;
-  my $str;
-  $str .= $_ for keys %{ $self->modes };
-  $str
-}
-
-
 no warnings 'void';
 q{
   <Schroedingers_hat> i suppose I could analyse the gif and do a fourier 
@@ -490,43 +412,8 @@ The visible server string for this User.
 
 =head3 full
 
-This User's full nick!user@host string.
-
-=head3 modes_as_string
-
-The currently enabled modes for this User as a concatenated string.
-
-=head3 set_modes
-
-C<set_modes> allows for easy mode hash manipulation.
-
-Pass a string:
-
-  $user->set_modes( '+Aow-i' );
-
-Pass an ARRAY:
-
-  $user->set_modes(
-    [ '+s', '-c' ],
-  );
-
-Pass an ARRAY containing ARRAYs mapping params to a specific mode:
-
-  $user->set_modes(
-    [
-      [ '+s', $params ],
-      '-c',
-    ],
-  );
-
-Pass a HASH with 'add' and 'del' ARRAYs:
-
-  $user->set_modes( {
-    add => [ split '', 'Aow' ],
-    del => [ 'i' ],
-  } );
-
-=head2 Methods
+This User's full nick!user@host string, composed via the attributes listed 
+above.
 
 FIXME
 

@@ -27,6 +27,7 @@ our %EXPORT_TAGS = (
     parse_user
 
     mode_to_hash
+    mode_to_array
 
   / ],
 );
@@ -153,13 +154,54 @@ sub parse_user {
   wantarray ? ($nick, $user, $host) : $nick
 }
 
-sub mode_to_hash {
-  ## mode_to_hash( $string,
+sub mode_to_array {
+  ## mode_to_array( $string,
   ##   param_always => [ split //, 'bkov' ],
   ##   param_set    => [ 'l' ],
-  ##   params       => [ ],
-  ## )
+  ##   params       => [ @params ],
+  ##
+  ## Returns ARRAY-of-ARRAY like:
+  ##  [  [ '+', 'o', 'some_nick' ], [ '-', 't' ] ]
 
+  my $modestr = shift // confess "mode_to_array() called without mode string";
+
+  my %args = @_;
+  $args{param_always} //= [ split //, 'bkov' ];
+  $args{param_set}    //= ($args{param_on_set} // [ 'l' ]);
+  $args{params}       //= [ ];
+  for (qw/ param_always param_set params /) {
+    confess "$_ should be an ARRAY"
+      unless ref $args{$_} eq 'ARRAY';
+  }
+
+  my @parsed;
+  my %param_always = map {; $_ => 1 } @{ $args{param_always} };
+  my %param_set    = map {; $_ => 1 } @{ $args{param_set} };
+  my @chunks = split //, $modestr;
+  my $in = '+';
+  CHUNK: while (my $chunk = shift @chunks) {
+    if ($chunk eq '-' || $chunk eq '+') {
+      $in = $chunk;
+      next CHUNK
+    }
+
+    my @current = ( $in, $chunk );
+    if ($in eq '+') {
+      push @current, shift @{ $args{params} }
+        if exists $param_always{$chunk}
+        or exists $param_set{$chunk};
+    } else {
+      push @current, shift @{ $args{params} }
+        if exists $param_always{$chunk};
+    }
+
+    push @parsed, [ @current ]
+  }
+
+  [ @parsed ]
+}
+
+sub mode_to_hash {
   ## Returns HASH like:
   ##  add => {
   ##    'o' => [ 'some_nick' ],
@@ -169,60 +211,16 @@ sub mode_to_hash {
   ##    'k' => [ 'some_key' ],
   ##  },
 
-  my $modestr = shift;
-  confess "mode_to_hash() called with no mode string"
-    unless defined $modestr;
-
-  my %args = @_;
-  $args{param_always} //= [ split //, 'bkov' ];
-  $args{param_set}    //= [ 'l' ];
-  $args{params}       //= [ ];
-  for (qw/ param_always param_set params /) {
-    confess "$_ should be an ARRAY"
-      unless ref $args{$_} eq 'ARRAY';
-  }
-
-  my %param_always = map {; $_ => 1 } @{ $args{param_always} };
-  my %param_set    = map {; $_ => 1 } @{ $args{param_set} };
-
+  ## This is a 'lossy' approach.
+  ## It won't accomodate batched modes well.
+  ## Use mode_to_array instead.
+  my $array = mode_to_array(@_);
   my $modes = { add => {}, del => {} };
-  my @chunks = split //, $modestr;
-
-  my $in = '+';
-  PIECE: while (my $chunk = shift @chunks) {
-    if ($chunk eq '-' || $chunk eq '+') {
-      $in = $chunk;
-      next PIECE
-    }
-
-    if ($in eq '+') {
-
-      if (exists $param_always{$chunk} || exists $param_set{$chunk}) {
-        ## Modes that have params always or when set.
-        ## Value for this mode will be an ARRAY with one value.
-        my $param = shift @{ $args{params} };
-        carp "$chunk is in param_always or param_set but no param defined?"
-          unless defined $param;
-        $modes->{add}->{$chunk} = [ $param ];
-      } else {
-        ## ... otherwise, simple boolean true
-        $modes->{add}->{$chunk} = 1;
-      }
-
-    } else {
-
-      if (exists $param_always{$chunk}) {
-        my $param = shift @{ $args{params} };
-        carp "$chunk is in param_always modes but no param defined?"
-          unless defined $param;
-        $modes->{del}->{$chunk} = [ $param ];
-      } else {
-        $modes->{del}->{$chunk} = 1;
-      }
-    }
-
-  }  ## PIECE
-
+  while (my $this_mode = shift @$array) {
+    my ($flag, $mode, $param) = @$this_mode;
+    my $key = $flag eq '+' ? 'add' : 'del' ;
+    $modes->{$key}->{$mode} = $param ? [ $param ] : 1
+  }
 
   $modes
 }
@@ -264,9 +262,9 @@ Returns the string (lowercased according to the specified rules).
 
 The reverse of L</lc_irc>.
 
-=head3 mode_to_hash
+=head3 mode_to_array
 
-  my $hash = mode_to_hash( 
+  my $array = mode_to_array(
     ## Mode change string without params, e.g. '+kl-t'
     $mode_string,
 
@@ -279,6 +277,37 @@ The reverse of L</lc_irc>.
     ## Respective params for modes specified above:
     params       => ARRAY,
   );
+
+Given a mode string and some options, return an ARRAY of ARRAYs containing
+parsed mode changes.
+
+The structure looks like:
+
+  [
+    [ FLAG, MODE, MAYBE_PARAM ],
+    [ . . . ],
+  ]
+
+For example:
+
+  mode_to_array( '+kl-t',
+    params => [ 'key', 10 ],
+    param_always => [ split //, 'bkov' ],
+    param_set    => [ 'l' ],
+  );
+
+  ## Result:
+  [
+    [ '+', 'k', 'key' ],
+    [ '+', 'l', 10 ],
+    [ '-', 't' ],
+  ],
+
+
+=head3 mode_to_hash
+
+Takes the same parameters as L</mode_to_array> -- this is just a way to
+inflate the ARRAY to a hash.
 
 Given a mode string (without params) and some options, return a HASH with 
 the keys B<add> and B<del>.
@@ -304,6 +333,10 @@ parameters, e.g.:
       't' => 1,
     },
   }
+
+This is a 'lossy' approach that won't deal well with batched modes.
+
+L</mode_to_array> is generally preferred.
 
 =head3 parse_user
 

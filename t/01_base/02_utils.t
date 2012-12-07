@@ -1,4 +1,4 @@
-use Test::More tests => 19;
+use Test::More;
 use strict; use warnings FATAL => 'all';
 
 use Socket qw/
@@ -82,6 +82,20 @@ is_deeply(
 );
 
 
+## mode_to_array
+is_deeply(
+  mode_to_array( '+kl-t',
+    params => [ 'key', 10 ],
+    param_always => [ split //, 'bkov' ],
+    param_set    => [ 'l' ],
+  ),
+  [
+    [ '+', 'k', 'key' ],
+    [ '+', 'l', 10 ],
+    [ '-', 't' ],
+  ],
+);
+
 ## mode_to_hash
 my $mhash;
 ok( $mhash = mode_to_hash(  '+ot-k+l',
@@ -118,3 +132,6 @@ is_deeply( $mhash,
     del => { },
   },
 );
+
+
+done_testing;

@@ -6,16 +6,17 @@ use 5.12.1;
 use strictures 1;
 use Carp;
 
-use overload
-  bool     => sub { 1 },
-  '""'     => 'as_string',
-  fallback => 1;
-
 sub FLAG  () { 0 }
 sub MODE  () { 1 }
 sub PARAM () { 2 }
 
 use namespace::clean;
+
+use overload
+  bool     => sub { 1 },
+  '""'     => 'as_string',
+  fallback => 1;
+
 
 sub new {
   my $class = shift;

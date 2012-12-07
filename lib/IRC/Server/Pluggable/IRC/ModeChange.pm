@@ -133,6 +133,11 @@ sub mode_sets_matching {
   } @{ $self->mode_array }
 }
 
+sub shift {
+  my ($self) = @_;
+  shift @{ $self->mode_array }
+}
+
 sub BUILD {
   my ($self) = @_;
   confess

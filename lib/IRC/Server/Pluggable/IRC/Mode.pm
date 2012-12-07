@@ -1,4 +1,5 @@
 package IRC::Server::Pluggable::IRC::Mode;
+
 ## A single mode.
 
 use 5.12.1;
@@ -33,4 +34,42 @@ sub as_string {
   $str .= " ".$self->[PARAM] if defined $self->[PARAM];
   $str
 }
+
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::IRC::Mode - A single mode change
+
+=head1 SYNOPSIS
+
+  my $mode = IRC::Server::Pluggable::IRC::Mode->new(
+    '+', 'o', 'avenj'
+  );
+
+  my $flag = $mode->flag;
+  my $mode = $mode->char;
+  my $arg  = $mode->param;
+
+=head1 DESCRIPTION
+
+A simple ARRAY-type object representing a single mode change.
+
+Can be used to turn L<IRC::Server::Pluggable::Utils/mode_to_array> mode ARRAYs
+into objects:
+
+  for my $mset (@$mode_array) {
+    my $this_mode = IRC::Server::Pluggable::IRC::Mode->new(
+      @$mset
+    );
+
+    . . .
+  }
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

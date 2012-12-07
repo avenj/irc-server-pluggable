@@ -97,6 +97,15 @@ is_deeply(
     [ '-', 't' ],
   ],
 );
+my $array = mode_to_array( '+o-o+vb avenj avenj Joah things@stuff' );
+is_deeply( $array,
+  [
+    [ '+', 'o', 'avenj' ],
+    [ '-', 'o', 'avenj' ],
+    [ '+', 'v', 'Joah'  ],
+    [ '+', 'b', 'things@stuff' ],
+  ],
+) or diag explain $array;
 
 ## mode_to_hash
 my $mhash;

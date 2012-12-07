@@ -58,7 +58,7 @@ sub cmd_from_client_privmsg {
     return
   }
 
-  unless (@{ $ev->params } >= 2 && defined $ev->params->[1]) {
+  unless (@{ $ev->params } >= 2) {
     $self->send_numeric( 412,
       target => $user->nick,
       routes => $user->route,
@@ -88,6 +88,8 @@ sub cmd_from_client_notice {
   }
 
   ## No other error numerics for NOTICE, per RFC.
+  return unless @{ $ev->params } >= 2;
+
   $self->handle_message_relay(
     type      => 'notice',
     src_conn  => $conn,
@@ -97,8 +99,39 @@ sub cmd_from_client_notice {
   );
 }
 
-sub cmd_from_peer_privmsg {}
-sub cmd_from_peer_notice {}
+sub cmd_from_peer_privmsg {
+  my ($self, $conn, $ev, $peer) = @_;
+
+  ## FIXME should we be returning errors ?
+  unless (@{ $ev->params }) {
+  }
+
+  unless (@{ $ev->params } >= 2) {
+  }
+
+  $self->handle_message_relay(
+    type      => 'privmsg',
+    src_conn  => $conn,
+    prefix    => $ev->prefix,
+    targets   => [ split /,/, $ev->params->[0] ],
+    string    => $ev->params->[1],
+  );
+}
+
+
+sub cmd_from_peer_notice {
+  my ($self, $conn, $ev, $peer) = @_;
+
+  return unless @{ $ev->params } >= 2;
+
+  $self->handle_message_relay(
+    type     => 'notice',
+    src_conn => $conn,
+    prefix   => $ev->prefix,
+    targets  => [ split /,/, $ev->params->[0] ],
+    string   => $ev->params->[1],
+  );
+} 
 
 
 
@@ -110,11 +143,10 @@ sub user_cannot_send_to_user {
 }
 
 
-
 ### Relaying.
 
 sub r_msgs_parse_targets {
-  my ($self, @targetlist) = @_;
+  my ($self, $user, @targetlist) = @_;
   ## Concept borrowed from POE::Component::Server::IRC's target parser,
   ## which is reasonably clever.
   ## Turns a list of targets into a hash:
@@ -126,6 +158,8 @@ sub r_msgs_parse_targets {
   ##   hostmask
   ##   nick
   ##   nick_fully_qualified
+
+  confess "Expected a source user object" unless blessed $user;
 
   my @chan_prefixes   = keys %{ $self->channel_types };
   my @status_prefixes = $self->channels->available_status_modes;
@@ -148,9 +182,16 @@ sub r_msgs_parse_targets {
       ## Message to status target.
       my $c_prefix = substr($target, 1, 1);
       unless (grep {; $c_prefix eq $_ } @chan_prefixes) {
-        ## FIXME @ prefix but not a channel?
-        ## Not sure of any IRCDs with syntax along those lines ...
-        ## ... add error hash ?
+        ## Not a channel.
+        $err_set->push(
+          $self->numeric->to_hash( 401,
+            target => $user->nick,
+            prefix => $self->config->server_name,
+            ## This is hyb7 behavior:
+            params => [ substr($target, 1) ],
+          )
+        );
+        next TARGET
       }
       ## Change target to bare channel name.
       ## Preserve bare channel + status prefix character.
@@ -218,17 +259,17 @@ sub handle_message_relay {
       $params{src_conn}->isa('IRC::Server::Pluggable::Backend::Connect')) {
     confess "Cannot handle_message_relay;",
       "Expected 'src_conn' to be an IRC::Server::Pluggable::Backend::Connect"
-    ## FIXME handle src eq spoofed?
+    ## FIXME handle src eq spoofed? these should still have a user obj
   }
 
   my $target_array = ref $params{targets} eq 'ARRAY' ?
     $params{targets} : [ $params{targets} ];
 
-  my ($targetset, $err_set) = $self->r_msgs_parse_targets(@$target_array);
-
   ## May or may not have a source User obj for originator:
   my ($parsed_prefix) = parse_user($params{prefix});
   my $src_user_obj    = $self->users->by_name($parsed_prefix);
+
+  my ($targetset, $err_set) = $self->r_msgs_parse_targets($src_user_obj, @$target_array);
 
   my $max_msg_targets = $self->config->max_msg_targets;
   my $tcount;

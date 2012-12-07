@@ -121,8 +121,9 @@ sub mode_to_array {
   $args{param_set}    //= ( $args{param_on_set} // [ 'l' ] );
   $args{params}       //= [ ];
   if ( index($modestr, ' ') > -1 ) {
-    my @params = split ' ', $modestr;
-    unshift @{ $args{params} }, @params[1 .. $#params];
+    my @params;
+    ($modestr, @params) = split ' ', $modestr;
+    unshift @{ $args{params} }, @params;
   }
 
   for (qw/ param_always param_set params /) {

@@ -8,7 +8,7 @@ use Storable      'dclone';
 
 use IRC::Server::Pluggable::IRC::Event;
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
 sub new {
   my ($class, @events) = @_;
@@ -58,11 +58,6 @@ sub set_index {
   $self->[$idx] = $self->_valid_ev($event)
 }
 
-sub clone {
-  my ($self) = @_;
-  dclone($self)
-}
-
 sub has_events {
   my ($self) = @_;
   @$self
@@ -93,6 +88,14 @@ sub unshift {
   unshift @$self, map { $self->_valid_ev($_) } @events
 }
 
+sub clone {
+  my ($self) = @_;
+  my @events = map {; 
+    blessed($_)->new(%$_)
+  } @$self;
+  blessed($self)->new( @events );
+}
+
 sub consume {
   my ($self, $evset) = @_;
   confess "Expected an IRC::Server::Pluggable::IRC::EventSet"
@@ -102,6 +105,8 @@ sub consume {
   while (my $ev = $evset->shift) {
     $self->push($ev)
   }
+
+  $self
 }
 
 sub combine {
@@ -111,6 +116,13 @@ sub combine {
     and $evset->isa('IRC::Server::Pluggable::IRC::EventSet');
 
   $self->push($_) for $evset->list;
+
+  $self
+}
+
+sub new_event {
+  my $self = CORE::shift;
+  IRC::Server::Pluggable::IRC::Event->new(@_)
 }
 
 1;

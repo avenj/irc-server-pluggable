@@ -120,8 +120,11 @@ sub mode_to_array {
   $args{param_always} //= [ split //, 'bkohv' ];
   $args{param_set}    //= ( $args{param_on_set} // [ 'l' ] );
   $args{params}       //= [ ];
-  push @{ $args{params} }, (split ' ', $modestr)[1]
-    if index($modestr, ' ') > -1;
+  if ( index($modestr, ' ') > -1 ) {
+    my @params = split ' ', $modestr;
+    unshift @{ $args{params} }, @params[1 .. $#params];
+  }
+
   for (qw/ param_always param_set params /) {
     confess "$_ should be an ARRAY"
       unless ref $args{$_} eq 'ARRAY';
@@ -257,13 +260,15 @@ For example:
     [ '-', 't' ],
   ],
 
+(If the mode string contains (space-delimited) parameters, they are given
+precedence ahead of the optional 'params' ARRAY.)
 
 =head3 mode_to_hash
 
 Takes the same parameters as L</mode_to_array> -- this is just a way to
 inflate the ARRAY to a hash.
 
-Given a mode string (without params) and some options, return a HASH with 
+Given a mode string and some options, return a HASH with 
 the keys B<add> and B<del>.
 
 B<add> and B<del> are HASHes mapping mode characters to either a simple 

@@ -54,7 +54,7 @@ sub _build_mode_array {
     param_always => $self->param_always,
     param_set    => $self->param_on_set,
     (
-      $self->has_params ? params => $self->params
+      $self->has_params ? (params => $self->params)
        : ()
     ),
   );
@@ -99,14 +99,14 @@ sub _build_mode_string {
     my ($flag, $mode, $param) = @$cset;
     if ($flag eq $curflag) {
       $mstr   .= $mode;
-      $pstr   .= $param if defined $param;
     } else {
       $mstr   .= $flag . $mode;
       $curflag = $flag;
     }
+    $pstr   .= " $param" if defined $param;
   }
 
-  $mstr .= " $pstr" if length $pstr;
+  $mstr .= $pstr if length $pstr;
   $mstr
 }
 
@@ -117,8 +117,9 @@ sub split_mode_set {
   $max ||= 4;
 
   my @new;
-  while (my @spl = splice @{ $self->mode_array }, 0, $max) {
-    push @new, (blessed $self)->new(
+  while (@{ $self->mode_array }) {
+    my @spl = splice @{ $self->mode_array }, 0, $max;
+    push @new, blessed($self)->new(
       mode_array => [ @spl ],
     )
   }

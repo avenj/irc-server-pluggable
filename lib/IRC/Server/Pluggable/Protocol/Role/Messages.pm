@@ -566,9 +566,9 @@ sub r_msgs_accumulate_targets_channel {
     and $chan->isa('IRC::Server:Pluggable::IRC::Channel');
 
   my %routes;
-  for my $nick (@{ $chan->nicknames_as_array }) {
+  CHAN_MEMBER: for my $nick (@{ $chan->nicknames_as_array }) {
     my $user  = $self->users->by_name($nick);
-    ## An override would want to skip deaf users here, etc.
+    next CHAN_MEMBER if $user->is_flagged_as('DEAF');
     $routes{ $user->route() }++
   }
 
@@ -578,6 +578,7 @@ sub r_msgs_accumulate_targets_channel {
 sub r_msgs_accumulate_targets_servermask {
   ## $$mask targets
   my ($self, $mask) = @_;
+
   my @peers = $self->peers->matching($mask);
 
   my %routes;

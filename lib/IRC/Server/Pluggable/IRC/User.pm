@@ -63,6 +63,7 @@ has 'conn' => (
 has '_flags' => (
   ## FIXME document reserved keys:
   ##  - SERVICE  Bool
+  ##  - DEAF     Bool
   lazy => 1,
   is   => 'ro',
   isa  => HashRef,

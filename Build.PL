@@ -61,7 +61,7 @@ my $build = $class->new(
   module_name => 'IRC::Server::Pluggable',
   license     => 'perl',
 
-  dist_abstract => 'POE IRC server components',
+  dist_abstract => 'Pluggable POE IRCD stack',
   dist_author   => 'Jon Portnoy <avenj@cobaltirc.org>',
 
   recursive_test_files => 1,

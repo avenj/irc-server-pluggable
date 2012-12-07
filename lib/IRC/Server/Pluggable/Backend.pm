@@ -11,12 +11,12 @@ use IRC::Server::Pluggable qw/
   Backend::Connect
   Backend::Connector
   Backend::Listener
+  Backend::Utils
 
   IRC::Event
   IRC::Filter
 
   Types
-  Utils
 /;
 
 use Net::IP::Minimal qw/

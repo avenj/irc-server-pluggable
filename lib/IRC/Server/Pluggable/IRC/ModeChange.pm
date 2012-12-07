@@ -25,7 +25,7 @@ has param_always => (
   isa     => ArrayRef,
   coerce  => \&_str_to_arr,
   default => sub {
-    [ split //, 'bkov' ]
+    [ split //, 'bkohv' ]
   }
 );
 
@@ -110,7 +110,8 @@ sub _build_mode_string {
   $mstr
 }
 
-sub split_changeset {
+
+sub split_mode_set {
   ## Split into smaller sets of changes.
   my ($self, $max) = @_;
   $max ||= 4;
@@ -122,7 +123,7 @@ sub split_changeset {
     )
   }
 
-  [ @new ]
+  @new
 }
 
 sub mode_sets_matching {

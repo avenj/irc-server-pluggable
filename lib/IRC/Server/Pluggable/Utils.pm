@@ -10,21 +10,23 @@ use base 'Exporter';
 
 our %EXPORT_TAGS = (
 
-  network => [ qw/
-
-    get_unpacked_addr
-
-  / ],
-
-  irc  => [ qw/
+  mask  => [ qw/
 
     matches_mask
     normalize_mask
 
+    parse_user
+
+  / ],
+
+  case => [ qw/
+
     lc_irc
     uc_irc
 
-    parse_user
+  / ],
+  
+  mode => [ qw/
 
     mode_to_hash
     mode_to_array
@@ -44,57 +46,6 @@ our @EXPORT;
 
 sub import {
   __PACKAGE__->export_to_level(1, @_)
-}
-
-
-## Networking-related
-use Socket qw/
-  :addrinfo
-
-  sockaddr_family
-
-  AF_INET
-  unpack_sockaddr_in
-
-  AF_INET6
-  inet_ntop
-  unpack_sockaddr_in6
-/;
-
-sub get_unpacked_addr {
-  ## v4/v6-compat address unpack.
-  my ($sock_packed) = @_;
-
-  ## TODO getnameinfo instead?
-  confess "No address passed to get_unpacked_addr"
-    unless $sock_packed;
-
-  my $sock_family = sockaddr_family($sock_packed);
-
-  my ($inet_proto, $sockaddr, $sockport);
-
-  FAMILY: {
-
-    if ($sock_family == AF_INET6) {
-      ($sockport, $sockaddr) = unpack_sockaddr_in6($sock_packed);
-      $sockaddr   = inet_ntop(AF_INET6, $sockaddr);
-      $inet_proto = 6;
-
-      last FAMILY
-    }
-
-    if ($sock_family == AF_INET) {
-      ($sockport, $sockaddr) = unpack_sockaddr_in($sock_packed);
-      $sockaddr   = inet_ntop(AF_INET, $sockaddr);
-      $inet_proto = 4;
-
-      last FAMILY
-    }
-
-    confess "Unknown socket family type"
-  }
-
-  ($inet_proto, $sockaddr, $sockport)
 }
 
 
@@ -166,9 +117,11 @@ sub mode_to_array {
   my $modestr = shift // confess "mode_to_array() called without mode string";
 
   my %args = @_;
-  $args{param_always} //= [ split //, 'bkov' ];
-  $args{param_set}    //= ($args{param_on_set} // [ 'l' ]);
+  $args{param_always} //= [ split //, 'bkohv' ];
+  $args{param_set}    //= ( $args{param_on_set} // [ 'l' ] );
   $args{params}       //= [ ];
+  push @{ $args{params} }, (split ' ', $modestr)[1]
+    if index($modestr, ' ') > -1;
   for (qw/ param_always param_set params /) {
     confess "$_ should be an ARRAY"
       unless ref $args{$_} eq 'ARRAY';
@@ -240,7 +193,7 @@ IRC::Server::Pluggable::Utils - IRC::Server::Pluggable tools
   
 =head1 DESCRIPTION
 
-Various small utilities for L<IRC::Server::Pluggable>.
+IRC-related utilities for L<IRC::Server::Pluggable>.
 
 =head2 IRC-related
 
@@ -265,7 +218,7 @@ The reverse of L</lc_irc>.
 =head3 mode_to_array
 
   my $array = mode_to_array(
-    ## Mode change string without params, e.g. '+kl-t'
+    ## Mode change string with or without params, e.g. '+kl-t'
     $mode_string,
 
     ## Modes that always have a param:
@@ -274,7 +227,8 @@ The reverse of L</lc_irc>.
     ## Modes that only have a param when set:
     param_set    => ARRAY,
     
-    ## Respective params for modes specified above:
+    ## Respective params for modes specified above
+    ## (or can be specified as part of mode string)
     params       => ARRAY,
   );
 
@@ -334,9 +288,10 @@ parameters, e.g.:
     },
   }
 
-This is a 'lossy' approach that won't deal well with batched modes.
+This is a 'lossy' approach that won't deal well with multiple conflicting mode
+changes in a single line; it is useful for internal mode examination, but
+L</mode_to_array> should generally be preferred for IRC-directed mode handling.
 
-L</mode_to_array> is generally preferred.
 
 =head3 parse_user
 
@@ -345,17 +300,6 @@ L</mode_to_array> is generally preferred.
 Split a 'nick!user@host' into components.
 
 Returns just the nickname in scalar context.
-
-=head2 Network-related
-
-=head3 get_unpacked_addr
-
-  my ($inet_proto, $sock_addr, $sock_port) = get_unpacked_addr( 
-    getsockname($sock)
-  );
-
-Given a packed socket address, returns an Internet protocol version (4 or 
-6) and the unpacked address and port (as a list, see example above).
 
 
 =head1 AUTHOR

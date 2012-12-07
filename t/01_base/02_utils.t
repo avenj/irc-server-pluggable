@@ -1,6 +1,7 @@
 use Test::More;
 use strict; use warnings FATAL => 'all';
 
+## FIXME Backend::Utils tests should be split out
 use Socket qw/
   pack_sockaddr_in
   pack_sockaddr_in6
@@ -11,6 +12,7 @@ use Socket qw/
 /;
 
 BEGIN {
+  use_ok( 'IRC::Server::Pluggable::Backend::Utils' );
   use_ok( 'IRC::Server::Pluggable::Utils' );
 }
 

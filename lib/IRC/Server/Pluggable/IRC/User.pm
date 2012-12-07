@@ -81,7 +81,8 @@ has '_metadata' => (
 );
 
 has 'modes' => (
-  ## FIXME should this really be an object?
+  ## FIXME should this really be a umode object?
+  ## .. maybe just an internal pkg?
   lazy    => 1,
   is      => 'ro',
   isa     => HashRef,

@@ -624,3 +624,49 @@ sub r_msgs_accumulate_targets_statustype {
 
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Protocol::Role::Messages
+
+=head1 SYNOPSIS
+
+  ## Handles:
+  cmd_from_client_privmsg
+  cmd_from_client_notice
+  cmd_from_peer_privmsg
+  cmd_from_peer_notice
+
+  ## Provides:
+  ->handle_message_relay(
+    FIXME
+  )
+  # Returns no useful value.
+
+  ->user_cannot_send_to_user(
+  
+  )
+  # Returns an IRC::Event containing an error numeric.
+  # Returns empty list if there were no errors.
+
+=head1 DESCRIPTION
+
+A Protocol::Role providing IRC message relay functionality.
+
+Supported target types:
+
+  Nickname  (nick)
+  Addressed (nick@server)
+            (nick%host@server)
+  Channel   (#channel)
+  Status    (@#channel)
+  Server    ($$mask)
+  Hostmask  ($#mask)
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

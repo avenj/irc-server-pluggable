@@ -12,7 +12,6 @@ use IRC::Server::Pluggable qw/
 /;
 
 use Scalar::Util 'blessed';
-use Storable     'dclone';
 
 sub _str_to_arr {
   ref $_[0] eq 'ARRAY' ? $_[0]
@@ -118,9 +117,9 @@ sub split_mode_set {
   $max ||= 4;
 
   my @new;
-  my $queue = dclone($self->mode_array);
-  while (@$queue) {
-    my @spl = splice @$queue, 0, $max;
+  my @queue = @{ $self->mode_array };
+  while (@queue) {
+    my @spl = splice @queue, 0, $max;
     push @new, blessed($self)->new(
       mode_array => [ @spl ],
     )
@@ -148,7 +147,7 @@ sub next {
   my ($self) = @_;
   my $cur = $self->_iter;
   $self->_iter($cur+1);
-  dclone ($self->mode_array->[$cur] // return);
+  $self->mode_array->[$cur] // ();
 }
 
 sub reset {

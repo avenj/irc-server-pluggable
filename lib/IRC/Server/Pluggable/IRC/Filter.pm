@@ -286,7 +286,7 @@ Turn on/off debug output.
 
 L<POE::Filter::IRCD> is copyright Chris Williams and Jonathan Steinert
 
-Adapted with IRCv3 extensions by Jon Portnoy <avenj@cobaltirc.org>
+Adapted with IRCv3 extensions and other tweaks by Jon Portnoy <avenj@cobaltirc.org>
 
 This module may be used, modified, and distributed under the same terms as 
 Perl itself. 

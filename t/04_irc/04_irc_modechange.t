@@ -21,17 +21,26 @@ is_deeply( $array,
   ],
 ) or diag explain $array;
 
-is_deeply( $from_string->shift, 
+is_deeply( $from_string->next, 
   [ '+', 'o', 'avenj' ], 
-  'shifted mode looks ok'
+  'next(1) mode looks ok'
 );
+is_deeply( $from_string->next,
+  [ '-', 'o', 'Joah' ],
+  'next(2) mode looks ok'
+);
+is_deeply( $from_string->reset->next,
+  [ '+', 'o', 'avenj' ],
+  'reset looks ok'
+);
+$from_string->reset;
 
 my $from_array = new_ok( $class =>
   [
     mode_array => $array,
   ],
 );
-cmp_ok( $from_array->mode_string, 'eq', '-o+v Joah Gilded' );
+cmp_ok( $from_array->mode_string, 'eq', '+o-o+v avenj Joah Gilded' );
 
 my $long = new_ok( $class =>
   [
@@ -56,5 +65,11 @@ cmp_ok(@splitm, '==', 2, 'split_mode_set spawned 2 sets' )
 
 cmp_ok($splitm[0]->mode_string, 'eq', '+o-o+o avenj avenj Joah' );
 cmp_ok($splitm[1]->mode_string, 'eq', '-o+vb Joah Gilded some@mask' );
+
+my $from_match = $long->from_matching('v');
+isa_ok($from_match, $class, 'from_matching returned obj' );
+cmp_ok($from_match->mode_string, 'eq', '+v Gilded', 
+  'from_matching mode_string looks ok'
+);
 
 done_testing;

@@ -1,6 +1,6 @@
 package IRC::Server::Pluggable::IRC::Mode;
 
-## A single mode.
+## A single mode change array.
 
 use 5.12.1;
 use strictures 1;
@@ -68,6 +68,10 @@ into objects:
 
     . . .
   }
+
+=head2 as_string
+
+Produces a mode string (with params attached) for this single mode change.
 
 =head1 AUTHOR
 

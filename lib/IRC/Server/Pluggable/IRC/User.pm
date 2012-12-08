@@ -194,9 +194,10 @@ has '_valid_modes' => (
 
 sub _build_valid_modes {
   ## Override to add valid user modes.
-  ## $mode => 0  # Mode takes no params.
-  ## $mode => 1  # Mode takes param when set.
-  ## $mode => 2  # Mode always takes param.
+  ##  $mode => 0  # Mode takes no params.
+  ##  $mode => 1  # Mode takes param when set.
+  ##  $mode => 2  # Mode always takes param.
+  ## This default set is entirely paramless:
   +{ 
     map {; $_ => 0 } split '', 'iaows'
   }
@@ -229,14 +230,15 @@ sub set_mode_from_string {
 
   my @list = keys %{ $self->_valid_modes };
   my (@always, @whenset);
-  for my $mchr (@list) {
+
+  MODECHAR: for my $mchr (@list) {
     if ($self->mode_takes_params($_) == 2) {
       push @always, $mchr;
-      next
+      next MODECHAR
     }
     if ($self->mode_takes_params($_) == 1) {
       push @whenset, $mchr;
-      next
+      next MODECHAR
     }
   }
 

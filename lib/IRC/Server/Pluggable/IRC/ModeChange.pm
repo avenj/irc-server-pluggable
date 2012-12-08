@@ -46,7 +46,6 @@ has mode_array => (
   lazy      => 1,
   is        => 'ro',
   isa       => ArrayRef,
-  writer    => '_set_mode_array',
   predicate => 'has_mode_array',
   builder   => '_build_mode_array',
 );
@@ -88,7 +87,6 @@ has mode_string => (
   is        => 'ro',
   isa       => Str,
   predicate => 'has_mode_string',
-  writer    => '_set_mode_string',
   builder   => '_build_mode_string',
 );
 

@@ -120,6 +120,7 @@ sub mode_to_array {
   $args{param_always} //= [ split //, 'bkohv' ];
   $args{param_set}    //= ( $args{param_on_set} // [ 'l' ] );
   $args{params}       //= [ ];
+
   if ( index($modestr, ' ') > -1 ) {
     my @params;
     ($modestr, @params) = split ' ', $modestr;

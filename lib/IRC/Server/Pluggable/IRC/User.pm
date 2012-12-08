@@ -22,14 +22,11 @@ use namespace::clean -except => 'meta';
 use overload
   bool     => sub { 1 },
   '""'     => 'nick',
-  fallback => 1 ;
+  fallback => 1;
 
 
 has 'channels' => (
-  ## Array of channels.
-  ## FIXME weak-refs to chan objs may make the most sense.
-  ## These stringify to the channel name anyway.
-  ## Need methods to add/del/verify these.
+  ## Array of channels (weak refs).
   lazy => 1,
   is   => 'ro',
   isa  => ArrayRef,
@@ -38,6 +35,28 @@ has 'channels' => (
   clearer   => 'clear_channels',
   default   => sub { [] },
 );
+
+sub add_channel {
+  my ($self, $channel) = @_;
+
+  confess "add_channel expects an IRC::Server::Pluggable::IRC::Channel"
+    unless blessed $channel
+    and $channel->isa('IRC::Server::Pluggable::IRC::Channel');
+
+  my $name = $channel->name;
+
+  $self->channels->{$name} = $channel;
+
+  weaken($self->channels->{$name});
+
+  $self
+}
+
+sub del_channel {
+  my ($self, $channel) = @_;
+  delete $self->channels->{$channel}
+}
+
 
 has 'conn' => (
   ## Backend::Connect conn obj for a local user.
@@ -60,25 +79,7 @@ has 'conn' => (
   clearer   => 'clear_conn',
 );
 
-has '_flags' => (
-  ## FIXME document reserved keys:
-  ##  - SERVICE  Bool
-  ##  - DEAF     Bool
-  lazy => 1,
-  is   => 'ro',
-  isa  => HashRef,
-  default => sub { {} },
-);
 
-has '_metadata' => (
-  ## FIXME document reserved keys:
-  ##  - CAP      HASH
-  ##  - ACCOUNT  String
-  lazy    => 1,
-  is      => 'ro',
-  isa     => HashRef,
-  default => sub { {} },
-);
 
 has 'realname' => (
   required => 1,
@@ -183,7 +184,7 @@ sub _trigger_nick {
 has '_valid_modes' => (
   ## See _build_valid_modes
   lazy      => 1,
-  init_args => valid_modes,
+  init_args => 'valid_modes',
   isa       => HashRef,
   is        => 'ro',
   predicate => '_has_valid_modes',
@@ -210,9 +211,7 @@ sub mode_is_valid {
 
 sub mode_takes_params {
   my ($self, $mode) = @_;
-  return
-    unless defined $self->_valid_modes->{$mode}
-    and $self->_valid_modes->{$mode} > 0;
+  return 0 unless defined $self->_valid_modes->{$mode};
   $self->_valid_modes->{$mode}
 }
 
@@ -227,6 +226,20 @@ has '_modes' => (
 
 sub set_mode_from_string {
   my ($self, $modestr, @params) = @_;
+
+  my @list = keys %{ $self->_valid_modes };
+  my (@always, @whenset);
+  for my $mchr (@list) {
+    if ($self->mode_takes_params($_) == 2) {
+      push @always, $mchr;
+      next
+    }
+    if ($self->mode_takes_params($_) == 1) {
+      push @whenset, $mchr;
+      next
+    }
+  }
+
   my $array = mode_to_array( $modestr,
     param_always => \@always,
     param_set    => \@whenset,
@@ -261,52 +274,28 @@ sub set_mode_from_array {
 }
 
 
-sub BUILD {
-  my ($self) = @_;
+has '_flags' => (
+  ## FIXME document reserved keys:
+  ##  - SERVICE  Bool
+  ##  - DEAF     Bool
+  lazy => 1,
+  is   => 'ro',
+  isa  => HashRef,
+  default => sub { {} },
+);
 
-  unless ($self->has_conn || $self->has_route) {
-    confess
-      "A User needs either a conn() or a route() at construction time"
-  }
-}
-
-
-sub channel_add {
-  my ($self, $channel) = @_;
-
-  confess "channel_add expects an IRC::Server::Pluggable::IRC::Channel"
-    unless blessed $channel
-    and $channel->isa('IRC::Server::Pluggable::IRC::Channel');
-
-  my $name = $channel->name;
-
-  $self->channels->{$name} = $channel;
-
-  weaken($self->channels->{$name});
-
-  $self
-}
-
-sub channel_del {
-  my ($self, $channel) = @_;
-
-  my $name = blessed $channel ? $channel->name : $channel ;
-
-  delete $self->channels->{$name}
-}
-
-sub flag_list {
+sub list_flags {
   my ($self) = @_;
   keys %{ $self->_flags }
 }
 
-sub flag_add {
+sub add_flags {
   my ($self, @flags) = @_;
   $self->_flags->{$_} = 1 for @flags;
   1
 }
 
-sub flag_del {
+sub del_flags {
   my ($self, @flags) = @_;
   delete $self->_flags->{$_} for @flags;
   1
@@ -325,14 +314,25 @@ sub is_flagged_as {
   @resultset
 }
 
-sub meta_add {
+
+has '_metadata' => (
+  ## FIXME document reserved keys:
+  ##  - CAP      HASH
+  ##  - ACCOUNT  String
+  lazy    => 1,
+  is      => 'ro',
+  isa     => HashRef,
+  default => sub { {} },
+);
+
+sub add_meta {
   my ($self, $key, $value) = @_;
   confess "Expected a key and value"
     unless defined $key and defined $value;
   $self->_metadata->{$key} = $value
 }
 
-sub meta_del {
+sub del_meta {
   my ($self, $key) = @_;
   confess "Expected a key" unless defined $key;
   delete $self->_metadata->{$key}
@@ -346,6 +346,17 @@ sub meta_item {
 sub meta_keys {
   my ($self) = @_;
   keys %{ $self->_metadata }
+}
+
+
+
+sub BUILD {
+  my ($self) = @_;
+
+  unless ($self->has_conn || $self->has_route) {
+    confess
+      "A User needs either a conn() or a route() at construction time"
+  }
 }
 
 

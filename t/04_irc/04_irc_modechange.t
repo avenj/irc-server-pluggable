@@ -21,7 +21,7 @@ is_deeply( $array,
   ],
 ) or diag explain $array;
 
-is_deeply( $from_string->next, 
+is_deeply(  $from_string->next, 
   [ '+', 'o', 'avenj' ], 
   'next(1) mode looks ok'
 );
@@ -33,6 +33,12 @@ is_deeply( $from_string->reset->next,
   [ '+', 'o', 'avenj' ],
   'reset looks ok'
 );
+
+my $mobj = $from_string->next(as_object => 1);
+isa_ok($mobj, 'IRC::Server::Pluggable::IRC::Mode',
+  'next(as_object => 1) returned obj'
+);
+
 $from_string->reset;
 
 my $from_array = new_ok( $class =>
@@ -68,10 +74,20 @@ cmp_ok(@splitm, '==', 2, 'split_mode_set spawned 2 sets' )
 cmp_ok($splitm[0]->mode_string, 'eq', '+o-o+o-o avenj avenj Joah Joah' );
 cmp_ok($splitm[1]->mode_string, 'eq', '+vv-b Gilded miniCruzer some@mask' );
 
-my $from_match = $long->from_matching('v');
-isa_ok($from_match, $class, 'from_matching returned obj' );
+my $from_match = $long->new_from_mode('v');
+isa_ok($from_match, $class, 'new_from_mode returned obj' );
 cmp_ok($from_match->mode_string, 'eq', '+vv Gilded miniCruzer', 
-  'from_matching mode_string looks ok'
+  'new_from_mode mode_string looks ok'
 );
+
+$from_match = $long->new_from_params(qr/Gilded/);
+isa_ok($from_match, $class, 'new_from_params returned obj' );
+cmp_ok($from_match->mode_string, 'eq', '+v Gilded',
+  'new_from_params mode_string looks ok'
+);
+
+for my $item ($splitm[0]->modes_as_objects) {
+  isa_ok($item, 'IRC::Server::Pluggable::IRC::Mode')
+}
 
 done_testing;

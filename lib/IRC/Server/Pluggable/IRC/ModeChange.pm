@@ -7,6 +7,7 @@ use strictures 1;
 use Carp;
 use Moo;
 use IRC::Server::Pluggable qw/
+  IRC::Mode
   Types
   Utils
 /;
@@ -128,13 +129,37 @@ sub split_mode_set {
   @new
 }
 
-sub from_matching {
+sub new_from_mode {
   my ($self, $mode) = @_;
   my @match = grep {; $_->[1] eq $mode } @{ $self->mode_array };
   return unless @match;
   blessed($self)->new(
     mode_array => [ @match ],
   )
+}
+
+sub new_from_params {
+  my ($self, $regex) = @_;
+  my @match = grep {;
+    defined($_->[2]) and $_->[2] =~ m/$regex/
+  } @{ $self->mode_array };
+  return unless @match;
+  blessed($self)->new(
+    mode_array => [ @match ],
+  )
+}
+
+sub modes_as_objects {
+  my ($self) = @_;
+
+  my @queue = @{ $self->mode_array };
+  my @new;
+  for my $item (@queue) {
+    push @new,
+      IRC::Server::Pluggable::IRC::Mode->new(@$item)
+  }
+
+  @new
 }
 
 has '_iter' => (
@@ -144,10 +169,13 @@ has '_iter' => (
 );
 
 sub next {
-  my ($self) = @_;
+  my ($self, %param) = @_;
   my $cur = $self->_iter;
   $self->_iter($cur+1);
-  $self->mode_array->[$cur] // ();
+  my $item = $self->mode_array->[$cur] // return;
+  $param{as_object} ?
+    IRC::Server::Pluggable::IRC::Mode->new(@$item)
+    : $item
 }
 
 sub reset {

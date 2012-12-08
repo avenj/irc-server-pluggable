@@ -2,6 +2,8 @@ package IRC::Server::Pluggable::IRC::ModeChange;
 use 5.12.1;
 use strictures 1;
 
+## These objects should be essentially immutable.
+
 use Carp;
 use Moo;
 use IRC::Server::Pluggable qw/
@@ -10,6 +12,7 @@ use IRC::Server::Pluggable qw/
 /;
 
 use Scalar::Util 'blessed';
+use Storable     'dclone';
 
 sub _str_to_arr {
   ref $_[0] eq 'ARRAY' ? $_[0]
@@ -103,7 +106,7 @@ sub _build_mode_string {
       $mstr   .= $flag . $mode;
       $curflag = $flag;
     }
-    $pstr   .= " $param" if defined $param;
+    $pstr     .= " $param" if defined $param;
   }
 
   $mstr .= $pstr if length $pstr;
@@ -117,8 +120,9 @@ sub split_mode_set {
   $max ||= 4;
 
   my @new;
-  while (@{ $self->mode_array }) {
-    my @spl = splice @{ $self->mode_array }, 0, $max;
+  my $queue = dclone($self->mode_array);
+  while (@$queue) {
+    my @spl = splice @$queue, 0, $max;
     push @new, blessed($self)->new(
       mode_array => [ @spl ],
     )
@@ -127,17 +131,34 @@ sub split_mode_set {
   @new
 }
 
-sub mode_sets_matching {
+sub from_matching {
   my ($self, $mode) = @_;
-  grep {;
-    $_->[1] eq $mode
-  } @{ $self->mode_array }
+  my @match = grep {; $_->[1] eq $mode } @{ $self->mode_array };
+  return unless @match;
+  blessed($self)->new(
+    mode_array => [ @match ],
+  )
 }
 
-sub shift {
+has '_iter' => (
+  lazy    => 1,
+  is      => 'rw',
+  default => sub { 0 },
+);
+
+sub next {
   my ($self) = @_;
-  shift @{ $self->mode_array }
+  my $cur = $self->_iter;
+  $self->_iter($cur+1);
+  dclone ($self->mode_array->[$cur] // return);
 }
+
+sub reset {
+  my ($self) = @_;
+  $self->_iter(0);
+  $self
+}
+
 
 sub BUILD {
   my ($self) = @_;
@@ -145,6 +166,6 @@ sub BUILD {
     "Expected to be constructed with either a mode_string or mode_array"
     unless $self->has_mode_array or $self->has_mode_string;
 }
-
+  
 
 1;

@@ -7,14 +7,20 @@ use Carp;
 
 use Fcntl qw/:DEFAULT :flock/;
 
+sub MAX_BUF () { 25 }
+
+
 sub PATH   () { 0 }
 sub HANDLE () { 1 }
 sub MODE   () { 2 }
 sub PERMS  () { 3 }
 sub INODE  () { 4 }
 sub RUNNING_IN_HELL () { 5 }
+sub BUF    () { 6 }
+
 
 use namespace::clean;
+
 
 sub new {
   my $class = shift;
@@ -26,6 +32,7 @@ sub new {
     undef,  ## PERMS
     undef,  ## INODE
     0,      ## RUNNING_IN_HELL
+    [],     ## BUF
   ];
 
   bless $self, $class;
@@ -128,18 +135,39 @@ sub _do_reopen {
   1
 }
 
+sub _push_to_buf {
+  my ($self, @input) = @_;
+  if (@{ $self->[BUF] } >= MAX_BUF) {
+    my $count = @{ $self->[BUF] };
+    @{ $self->[BUF] } =
+      "Exceeded MAX_BUF, $count items dropped"
+  }
+  push @{ $self->[BUF] }, @input
+}
+
 sub _write {
   my ($self, $str) = @_;
 
   if ($self->_do_reopen) {
     $self->_close;
-    $self->_open or warn "_open failure" and return;
+    unless ($self->_open) {
+      warn "_open failed, buffering";
+      $self->_push_to_buf($str);
+      return
+    }
   }
 
-  flock($self->[HANDLE], LOCK_EX | LOCK_NB)
-    or warn "flock failure for ".$self->file
-    and return;
+  unless ( flock($self->[HANDLE], LOCK_EX | LOCK_NB) ) {
+    warn 'flock failure, buffering for '.$self->file;
+    $self->_push_to_buf($str);
+    return
+  }
 
+  if (@{ $self->[BUF] }) {
+    while (my $input = shift @{ $self->[BUF] }) {
+      print { $self->[HANDLE] } $input
+    }
+  }
   print { $self->[HANDLE] } $str;
 
   flock($self->[HANDLE], LOCK_UN);

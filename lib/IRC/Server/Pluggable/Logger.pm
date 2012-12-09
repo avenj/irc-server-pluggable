@@ -36,8 +36,7 @@ has 'time_format' => (
   writer    => 'set_time_format',
   trigger => sub {
     my ($self, $val) = @_;
-    $self->output->time_format($val)
-      if $self->has_output;
+    $self->output->time_format($val) if $self->has_output;
   },
 );
 
@@ -50,8 +49,7 @@ has 'log_format' => (
   writer    => 'set_log_format',
   trigger   => sub {
     my ($self, $val) = @_;
-    $self->output->log_format($val)
-      if $self->has_output;
+    $self->output->log_format($val) if $self->has_output;
   },
 );
 
@@ -59,13 +57,13 @@ has 'log_format' => (
 has 'output' => (
   lazy      => 1,
   is        => 'ro',
-  predicate => 'has_output',
-  writer    => '_set_output',
   isa       => sub {
     confess "Not a IRC::Server::Pluggable::Logger::Output subclass"
       unless blessed $_[0]
       and $_[0]->isa('IRC::Server::Pluggable::Logger::Output')
   },
+  predicate => 'has_output',
+  writer    => '_set_output',
   builder   => '_build_output',
 );
 
@@ -73,14 +71,10 @@ sub _build_output {
   my ($self) = @_;
 
   my %opts;
-  $opts{log_format} = $self->log_format
-    if $self->has_log_format;
-  $opts{time_format} = $self->time_format
-    if $self->has_time_format;
+  $opts{log_format}  = $self->log_format  if $self->has_log_format;
+  $opts{time_format} = $self->time_format if $self->has_time_format;
 
-  IRC::Server::Pluggable::Logger::Output->new(
-    %opts
-  );
+  IRC::Server::Pluggable::Logger::Output->new(%opts)
 }
 
 
@@ -88,12 +82,8 @@ has '_levmap' => (
   is      => 'ro',
   isa     => HashRef,
   default => sub {
-    +{
-      error => 1,
-      warn  => 2,
-      info  => 3,
-      debug => 4,
-    }
+    my $x;
+    +{ (map {; $_ => ++$x } qw/error warn info debug/) }
   },
 );
 
@@ -101,33 +91,28 @@ has '_levmap' => (
 sub _should_log {
   my ($self, $level) = @_;
 
-  my $num_lev = $self->_levmap->{$level}
-    // confess "unknown level $level";
-
-  my $accept = $self->_levmap->{ $self->level };
-
-  $accept >= $num_lev ? 1 : ()
+  $self->_levmap->{ $self->level } >= 
+    ( $self->_levmap->{$level} // confess "unknown level $level" ) ? 
+      1 : ()
 }
 
 
 sub log_to_level {
   my ($self, $level) = splice @_, 0, 2;
 
-  return 1 unless $self->_should_log($level);
-
   $self->output->_write(
     $level,
     [ caller(1) ],
     @_
-  );
+  ) if $self->_should_log($level);
 
   1
 }
 
 
 sub debug { shift->log_to_level( 'debug', @_ ) }
-sub info  { shift->log_to_level( 'info', @_ )  }
-sub warn  { shift->log_to_level( 'warn', @_ )  }
+sub info  { shift->log_to_level( 'info',  @_ ) }
+sub warn  { shift->log_to_level( 'warn',  @_ ) }
 sub error { shift->log_to_level( 'error', @_ ) }
 
 1;

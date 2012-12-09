@@ -60,8 +60,8 @@ sub new {
   $params{uc $_} = delete $params{$_} for keys %params;
 
   my $self = [
-    $params{COLONIFY} || 0,
-    $params{DEBUG}    || 0,
+    $params{'COLONIFY'} || 0,
+    $params{'DEBUG'}    || 0,
     []  ## BUFFER
   ];
 

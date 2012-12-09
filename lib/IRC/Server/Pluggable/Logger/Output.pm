@@ -19,29 +19,27 @@ use Try::Tiny;
 use namespace::clean;
 
 
-## Configurables.
 has 'time_format' => (
+  ## Fed to POSIX::strftime()
   is      => 'ro',
   isa     => Str,
   writer  => 'set_time_format',
   default => sub {
-    ## strftime
     "%Y-%m-%d %H:%M:%S"
   },
 );
 
 has 'log_format' => (
+  ## Fed to Utils::Format::templatef()
   is      => 'ro',
   isa     => Str,
   writer  => 'set_log_format',
   default => sub {
-    ## templatef
     "%level %time (%pkg%) %msg"
   },
 );
 
 
-## Internals.
 has '_outputs' => (
   is      => 'rwp',
   isa     => HashRef,  
@@ -49,7 +47,6 @@ has '_outputs' => (
 );
 
 
-## Public.
 sub add {
   my ($self, @args) = @_;
   
@@ -109,7 +106,7 @@ sub get {
 }
 
 
-## Private.
+
 sub _format {
   my ($self, $level, $caller, @strings) = @_;
   

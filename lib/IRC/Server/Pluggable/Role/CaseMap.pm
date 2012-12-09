@@ -32,10 +32,8 @@ sub upper {
 sub equal {
   my ($self, $one, $two) = @_;
 
-  unless (defined $one && defined $two) {
-    carp "equal() called without enough arguments";
-    return  ## Debatable, but hey, undef is still 'not equal' . . .
-  }
+  confess "equal() called without enough arguments"
+    unless defined $one and defined $two;
 
   $self->upper($one) eq $self->upper($two) ? 1 : 0
 }

@@ -51,8 +51,7 @@ IRC::Server::Pluggable - POE IRC server building blocks
 
 =head1 SYNOPSIS
 
-If you're stumbling across this on github or similar, assistance is 
-welcome!
+FIXME
 
 =head1 DESCRIPTION
 
@@ -71,7 +70,7 @@ L<MooX::Role::POE::Emitter>.
       \ ::Backend  (Session / Component)
 
 An ongoing project; help is welcome, discussion can take place on 
-C<irc.cobaltirc.org #otw>
+C<irc.cobaltirc.org #eris>
 
 =head1 AUTHOR
 

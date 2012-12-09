@@ -18,6 +18,8 @@ use POE qw/
   Component::Client::Ident::Agent
 /;
 
+use namespace::clean;
+
 has 'session_id' => (
   lazy      => 1,
   is        => 'ro',
@@ -361,7 +363,7 @@ sub ident_agent_error {
 
 =head1 NAME
 
-IRC::Server::Pluggable::Protocol::Plugin::Register
+IRC::Server::Pluggable::Protocol::Plugin::Register - DNS and Ident lookup
 
 =head1 SYNOPSIS
 

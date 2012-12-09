@@ -1,5 +1,11 @@
 package IRC::Server::Pluggable::Utils;
 
+## OK, so this is somewhat stupidly arranged, but for hysterial raisins:
+##  - Utils.pm is common IRC-directed utilities 
+##  - Backend::Utils.pm is for Backend-specific utils
+##  - Everything else should live in a suitable Utils::<TOOL>.pm module
+##    (eg Utils::Format)
+
 use 5.12.1;
 use strictures 1;
 use Carp;
@@ -38,8 +44,7 @@ $EXPORT_TAGS{all} = [ map { @$_ } values %EXPORT_TAGS ];
 
 our @EXPORT;
 
-{
-  my %s;
+{ my %s;
   push @EXPORT,
     grep { !$s{$_}++ } @{ $EXPORT_TAGS{$_} } for keys %EXPORT_TAGS;
 }
@@ -51,7 +56,6 @@ sub import {
 
 ## IRC-related
 
-# lc_ / uc_irc are prototyped to vaguely line up with lc / uc
 sub lc_irc ($;$) {
   my ($string, $casemap) = @_;
   $casemap = lc( $casemap // 'rfc1459' );
@@ -297,8 +301,8 @@ parameters, e.g.:
 
 This is a 'lossy' approach that won't deal well with multiple conflicting mode
 changes in a single line; it is useful for internal mode examination, but
-L</mode_to_array> should generally be preferred for IRC-directed mode handling.
-
+L</mode_to_array> should generally be preferred for IRC-directed mode
+handling.
 
 =head3 parse_user
 

@@ -153,7 +153,7 @@ IRC::Server::Pluggable::Logger
 
 =head1 DESCRIPTION
 
-Simple/fast/flexible logging class.
+Small/fast/flexible logging class.
 
 Configured outputs must be added before log messages actually go 
 anywhere (see the L</SYNOPSIS>). See L<IRC::Server::Pluggable::Logger::Output> for 

@@ -6,10 +6,9 @@ sub USE_STDERR () { 0 }
 use namespace::clean;
 
 sub new {
-  my $class = shift;
+  my ($class, %params) = @_;
   my $self = [];
   bless $self, $class;
-  my %params = @_;
   $self->use_stderr( $params{use_stderr} )
     if defined $params{use_stderr};
   $self

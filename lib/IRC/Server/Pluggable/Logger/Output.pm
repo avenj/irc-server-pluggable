@@ -129,12 +129,12 @@ sub _format {
 sub _write {
   my $self = shift;
 
-  for my $alias (keys %{ $self->_outputs }) {
-    my $output = $self->_outputs->{$alias};
+  my $formatted = $self->_format(@_);
+  while (my ($alias, $output) = each %{ $self->_outputs }) {
     $output->_write(
       ## Output classes can provide their own _format
       $output->can('_format') ?  $output->_format( @_ )
-        : $self->_format( @_ )
+        : $formatted
     )
   }
 

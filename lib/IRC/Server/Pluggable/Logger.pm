@@ -153,7 +153,7 @@ IRC::Server::Pluggable::Logger
 
 =head1 DESCRIPTION
 
-Simple/fast logging class.
+Simple/fast/flexible logging class.
 
 Configured outputs must be added before log messages actually go 
 anywhere (see the L</SYNOPSIS>). See L<IRC::Server::Pluggable::Logger::Output> for 
@@ -185,13 +185,11 @@ between items:
 
 =head2 Methods
 
-=head3 level
-
-Returns the currently tracked log level.
-
 =head3 set_level
 
 Changes the current log level.
+
+Call C<level> to retrieve the current log level.
 
 =head3 set_time_format
 

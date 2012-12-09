@@ -93,13 +93,14 @@ sub add {
 
 sub del {
   my ($self, @aliases) = @_;
-  my $x;
-
+  my @deleted;
   for my $alias (@aliases) {
-    ++$x if delete $self->_outputs->{$alias}
+    if (my $item = delete $self->_outputs->{$alias}) {
+      push @deleted, $item
+    }
   }
 
-  $x
+  @deleted
 }
 
 sub get {

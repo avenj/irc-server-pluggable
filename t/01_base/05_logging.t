@@ -8,7 +8,6 @@ use_ok($_) for map { 'IRC::Server::Pluggable::'.$_ } qw/
   Logger
 /;
 
-## FIXME use File::Temp instead?
 my $test_log_path = "ispluggablet.log";
 
 my $file_out = new_ok( 'IRC::Server::Pluggable::Logger::Output::File' =>
@@ -42,7 +41,7 @@ my $stdout;
 }
 
 cmp_ok( $stdout, 'eq', 'Test string', 'STDOUT log looks ok' );
-
+## FIXME needs use_stderr => 1 tests
 
 my $output = new_ok( 'IRC::Server::Pluggable::Logger::Output' );
 ok( $output->time_format, 'has time_format' );

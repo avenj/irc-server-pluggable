@@ -1,20 +1,32 @@
 package IRC::Server::Pluggable::Logger::Output::Term;
-our $VERSION = '0.014';
-
 use strictures 1;
+
+sub USE_STDERR () { 0 }
+
+use namespace::clean;
 
 sub new {
   my $class = shift;
   my $self = [];
   bless $self, $class;
+  my %params = @_;
+  $self->use_stderr( $params{use_stderr} )
+    if defined $params{use_stderr};
   $self
+}
+
+sub use_stderr {
+  my ($self, $val) = @_;
+  return $self->[USE_STDERR] = $val if defined $val;
+  $self->[USE_STDERR]
 }
 
 sub _write {
   my ($self, $str) = @_;
   local $|=1;
-  binmode STDOUT, ":utf8";
-  print STDOUT $str
+  my $fh = $self->[USE_STDERR] ? *STDERR : *STDOUT ;
+  binmode $fh, ":utf8";
+  print {$fh} $str
 }
 
 1;
@@ -31,6 +43,7 @@ IRC::Server::Pluggable::Logger::Output::Term
   $output_obj->add(
     'MyScreen' => {
       type => 'Term',
+      use_stderr => 0,
     },
   );
 
@@ -38,8 +51,10 @@ See L<IRC::Server::Pluggable::Logger::Output>.
 
 =head1 DESCRIPTION
 
-This is a L<IRC::Server::Pluggable::Logger::Output> writer for logging messages to 
-STDOUT.
+This is a L<IRC::Server::Pluggable::Logger::Output> writer for logging 
+messages to STDOUT by default.
+
+To log to STDERR instead, pass 'use_stderr => 1' when adding the output object.
 
 Expects UTF-8.
 

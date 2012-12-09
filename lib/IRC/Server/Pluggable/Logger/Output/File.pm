@@ -7,7 +7,7 @@ use Carp;
 
 use Fcntl qw/:DEFAULT :flock/;
 
-sub MAX_BUF () { 25 }
+sub MAX_BUF () { 20 }
 
 
 sub PATH   () { 0 }
@@ -137,11 +137,15 @@ sub _do_reopen {
 
 sub _push_to_buf {
   my ($self, @input) = @_;
-  if (@{ $self->[BUF] } >= MAX_BUF) {
-    my $count = @{ $self->[BUF] };
-    @{ $self->[BUF] } =
-      "Exceeded MAX_BUF, $count items dropped"
+
+  my $count = @{ $self->[BUF] };
+  return if $count > MAX_BUF;
+  if ($count == MAX_BUF) {
+    push @{ $self->[BUF] },
+      "Exceeded MAX_BUF, dropping further items";
+    return
   }
+  
   push @{ $self->[BUF] }, @input
 }
 
@@ -151,14 +155,14 @@ sub _write {
   if ($self->_do_reopen) {
     $self->_close;
     unless ($self->_open) {
-      warn "_open failed, buffering";
+      warn "_open failed for @{[$self->file]}, buffering";
       $self->_push_to_buf($str);
       return
     }
   }
 
   unless ( flock($self->[HANDLE], LOCK_EX | LOCK_NB) ) {
-    warn 'flock failure, buffering for '.$self->file;
+    warn "flock failure for @{[$self->file]}, buffering";
     $self->_push_to_buf($str);
     return
   }
@@ -223,6 +227,9 @@ will be executed for each logged message on systems without useful inode
 details, in order to ensure messages are going to the expected file.
 
 Attempts to lock the file for every write.
+
+If the file cannot be opened or the locking attempt fails, 
+up to 20 lines of output will be buffered.
 
 Expects UTF-8.
 

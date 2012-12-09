@@ -8,7 +8,7 @@ use Carp;
 use Moo;
 
 use IRC::Server::Pluggable qw/
-  Tools::Format
+  Utils::Format
   Types
 /;
 

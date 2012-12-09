@@ -253,7 +253,7 @@ sub chg_modes {
   my ($self, $channel, $mode_hash) = @_;
   confess "chg_modes() expected a channel name and a mode_to_hash() HASH"
     unless ref $mode_hash eq 'HASH';
-  ## FIXME take a hash from mode_to_hash
+  ## FIXME
   ## Modes may have certain side-effects in a Protocol,
   ##  Role::Channels should probably bridge
   ## Normalize here and modify ->modes, lists, chg_status

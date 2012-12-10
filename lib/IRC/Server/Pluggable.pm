@@ -72,6 +72,23 @@ L<MooX::Role::POE::Emitter>.
 An ongoing project; help is welcome, discussion can take place on 
 C<irc.cobaltirc.org #eris>
 
+=head1 SEE ALSO
+
+
+L<IRC::Server::Pluggable::IRC::Filter> - IRCv3-ready IRC filter
+
+L<IRC::Server::Pluggable::IRC::Protocol>
+
+L<IRC::Server::Pluggable::IRC::Channels>
+
+L<IRC::Server::Pluggable::IRC::Users>
+
+L<IRC::Server::Pluggable::IRC::Peers>
+
+L<MooX::Role::POE::Emitter>
+
+L<MooX::Role::Pluggable>
+
 =head1 AUTHOR
 
 Jon Portnoy <avenj@cobaltirc.org>

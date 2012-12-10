@@ -178,7 +178,7 @@ These should be called as methods to log to the appropriate level:
 
   $logger->info("This is some information");
 
-If a list is provided, it will be concatenated with an empty space 
+If a list is provided, it will be concatenated with a single space 
 between items:
 
   $logger->info("Some info", "more info");

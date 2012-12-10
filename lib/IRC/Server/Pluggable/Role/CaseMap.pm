@@ -35,7 +35,8 @@ sub equal {
   confess "equal() called without enough arguments"
     unless defined $one and defined $two;
 
-  $self->upper($one) eq $self->upper($two) ? 1 : 0
+  my $casemap = $self->casemap;
+  uc_irc($one, $casemap) eq uc_irc($two, $casemap) ? 1 : ()
 }
 
 

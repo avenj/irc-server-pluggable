@@ -57,7 +57,13 @@ sub add {
   
   my $prefix = 'IRC::Server::Pluggable::Logger::Output::' ;
   
-  CONFIG: while (my ($alias, $opts) = splice @args, 0, 2) {
+  while (my ($alias, $opts) = splice @args, 0, 2) {
+    if ( blessed $opts && $opts->can('_write') ) {
+      ## FIXME POD/tests for adding objects directly
+      $self->_outputs->{$alias} = $opts;
+      next
+    }
+    
     confess "Can't add $alias, opts are not a HASH"
       unless ref $opts eq 'HASH';
 
@@ -68,22 +74,15 @@ sub add {
 
     { local $@;
       eval "require $target_pkg";
-      
-      if (my $err = $@) {
-        carp "Could not add logger $alias: $err";
-        next CONFIG
-      }
+      confess "Could not add logger $alias: require: $@" if $@;
     }
 
-    my $new_obj = try {
-      $target_pkg->new(%$opts)
-    } catch {
-      carp "Could not add logger $alias; new() died: $_";
-      undef
-    } or next CONFIG;
+    my $new_obj = $target_pkg->new(%$opts)
+    confess "Could not add logger $alias: no _write method"
+      unless $new_obj->can('_write');
 
     $self->_outputs->{$alias} = $new_obj;
-  }  ## CONFIG
+  }
 
   1
 }

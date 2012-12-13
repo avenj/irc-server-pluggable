@@ -321,6 +321,12 @@ sub BUILD {
   $self->_start_emitter;
 }
 
+sub DEMOLISH {
+  my ($self, $in_gd) = @_;
+  return if $in_gd;
+  $self->_shutdown_emitter;
+}
+
 sub _load_core_plugins {
   my ($self) = @_;
 

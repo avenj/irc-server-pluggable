@@ -4,15 +4,9 @@ use strictures 1;
 use Carp;
 use Moo::Role;
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
-requires qw/
-  config
-  disconnect
-  numeric
-  send_to_routes
-  users
-/;
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 
 sub conn_is_idle {
   my ($self, $conn) = @_;

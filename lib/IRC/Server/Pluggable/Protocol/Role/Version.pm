@@ -6,19 +6,19 @@ use Carp;
 use strictures 1;
 
 use Moo::Role;
-requires qw/
-  config
-  dispatch
-  equal
-  peers
-  users
-/;
-
 use IRC::Server::Pluggable qw/
   IRC::EventSet
 /;
 
-use namespace::clean -except => 'meta';
+
+use namespace::clean;
+
+
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
+requires qw/
+  dispatch
+  equal
+/;
 
 
 sub r_proto_build_isupport {

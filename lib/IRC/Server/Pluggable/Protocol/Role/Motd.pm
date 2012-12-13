@@ -3,18 +3,10 @@ package IRC::Server::Pluggable::Protocol::Role::Motd;
 use Moo::Role;
 use strictures 1;
 
+use namespace::clean;
 
-use namespace::clean -except => 'meta';
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 
-requires qw/
-  config
-
-  numeric
-
-  users
-
-  send_to_routes
-/;
 
 sub cmd_from_client_motd {
   my ($self, $conn, $event, $user) = @_;

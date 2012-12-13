@@ -3,15 +3,13 @@ package IRC::Server::Pluggable::Protocol::Role::Stats;
 use Moo::Role;
 use strictures 1;
 
+use namespace::clean;
+
+
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 requires qw/
   dispatch
-  peers
-  users
-  send_to_routes
 /;
-
-
-use namespace::clean -except => 'meta';
 
 
 sub cmd_from_client_stats {

@@ -15,11 +15,6 @@ use Carp;
 use Moo::Role;
 use strictures 1;
 
-requires qw/
-  users
-  peers
-  send_to_routes
-/;
 
 use Scalar::Util 'blessed';
 
@@ -36,8 +31,9 @@ use constant {
 };
 
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 
 sub cmd_from_unknown_quit {
   my ($self, $conn) = @_;
@@ -48,6 +44,7 @@ sub cmd_from_unknown_quit {
 }
 
 sub cmd_from_peer_quit {
+  ## FIXME
 
 }
 

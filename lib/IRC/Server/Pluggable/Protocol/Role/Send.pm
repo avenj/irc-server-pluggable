@@ -10,20 +10,19 @@ use namespace::clean -except => 'meta';
 
 requires qw/
   config
-
   dispatcher
-
   numeric
 /;
 
 
 ### FIXME should sendq management live here... ?
 
+
 sub send_to_route  { shift->send_to_routes(@_) }
 sub send_to_routes {
   my ($self, $output, @ids) = @_;
   unless (ref $output && @ids) {
-    carp "send_to_routes() received insufficient params";
+    confess "send_to_routes() received insufficient params";
     return
   }
 
@@ -33,7 +32,7 @@ sub send_to_routes {
 sub send_to_routes_now {
   my ($self, $output, @ids) = @_;
   unless (ref $output && @ids) {
-    carp "send_to_routes_now() received insufficient params";
+    confess "send_to_routes_now() received insufficient params";
     return
   }
 
@@ -51,11 +50,11 @@ sub send_numeric {
 
   confess "Expected a numeric and at least 'target' and 'routes' params"
     unless defined $params{target}
-    and defined    $params{routes};
+    and    defined $params{routes};
 
   my @routes = ref $params{routes} eq 'ARRAY' ?
                  @{ $params{routes} }
-                 : ( $params{routes} );
+                 : $params{routes} ;
 
   my $output = $self->numeric->to_hash( $numeric,
     target => $params{target},
@@ -75,20 +74,5 @@ sub send_numeric {
   $self->send_to_routes( $output, @routes )
 }
 
-## FIXME
-## Most of this actually goes in Messages
-##  methods for:
-
-##   - send to remote channel
-##   - send to channel except for origin
-##   - send to users on local server who share channel with user
-
-##   - send to users with certain modes on a channel?
-
-##   - send to mask-matched peers?
-
-##   - send to users with specified flags or modes?
-
-## message relay logic?
 
 1;

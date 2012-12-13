@@ -45,7 +45,9 @@ use Socket qw/
 
 use Try::Tiny;
 
+
 use namespace::clean -except => 'meta';
+
 
 has 'session_id' => (
   ## Session ID for own session.
@@ -162,6 +164,7 @@ has '__backend_eventset_class' => (
   is      => 'rw',
   default => sub { 'IRC::Server::Pluggable::IRC::EventSet' },
 );
+
 
 sub spawn {
   ## Create our object and session.

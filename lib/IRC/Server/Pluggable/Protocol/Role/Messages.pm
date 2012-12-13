@@ -33,14 +33,10 @@ use namespace::clean;
 
 ### Errors:
 
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 requires qw/
-  config
-  channels
   channel_types
-  peers
-  users
   user_cannot_send_to_chan
-  send_to_routes
 /;
 
 

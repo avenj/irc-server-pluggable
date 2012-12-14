@@ -39,6 +39,14 @@ cmp_ok( $evset->has_events, '==', 2, 'has_events 2 after combine()' );
 isa_ok( eventset(), 'IRC::Server::Pluggable::IRC::EventSet',
   'eventset() shortcut returned obj'
 );
+my $f_ev;
+isa_ok( $f_ev = eventset()->combine($evset, $cloned),
+  'IRC::Server::Pluggable::IRC::EventSet',
+  'eventset->combine() returned obj'
+);
+cmp_ok( $f_ev->by_index(0)->command, 'eq', 'PRIVMSG',
+  'eventset->combine() first ev looks ok'
+);
 
 ## FIXME these tests are incomplete
 

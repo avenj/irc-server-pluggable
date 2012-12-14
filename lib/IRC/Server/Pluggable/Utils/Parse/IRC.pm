@@ -27,3 +27,33 @@ sub irc_line_from_ref {
 
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Utils::Parse::IRC - Functional IRC::Filter frontend
+
+=head1 SYNOPSIS
+
+  use IRC::Server::Pluggable qw/
+    Utils::Parse::IRC
+  /;
+
+  my $ref = irc_ref_from_line( $raw_irc_line );
+  my $raw_line = irc_line_from_ref( $ref, colonify => 1 );
+
+=head1 DESCRIPTION
+
+A simple functional frontend to the L<IRC::Server::Pluggable::IRC::Filter>
+IRCv3 L<POE::Filter>.
+
+Options can be passed directly to the filter (see L</SYNOPSIS>).
+
+See L<IRC::Server::Pluggable::IRC::Filter> for details.
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

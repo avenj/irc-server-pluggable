@@ -11,6 +11,14 @@ use Module::Runtime qw/
 
 use namespace::clean;
 
+my $prefix_new_sub = sub {
+  my $suffix = shift || confess "Expected a package name without prefix";
+  my $thispkg = 'IRC::Server::Pluggable::'.$suffix;
+  require_module($thispkg);
+  $thispkg->new(@_)
+};
+
+
 sub import {
   my ($self, @modules) = @_;
 
@@ -30,13 +38,7 @@ sub import {
   }
 
   { no strict 'refs';
-    *{ $pkg .'::prefixed_new' } = sub {
-        my $suffix  = 
-          shift || confess "Expected a package name without prefix";
-        my $thispkg = 'IRC::Server::Pluggable::'.$suffix;
-        require_module($thispkg);
-        $thispkg->new(@_)
-    };
+    *{ $pkg .'::prefixed_new' } = $prefix_new_sub;
   }
   
 

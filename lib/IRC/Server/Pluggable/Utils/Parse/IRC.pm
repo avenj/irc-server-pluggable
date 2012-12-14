@@ -50,7 +50,11 @@ IRCv3 L<POE::Filter>.
 
 Options can be passed directly to the filter (see L</SYNOPSIS>).
 
-See L<IRC::Server::Pluggable::IRC::Filter> for details.
+See L<IRC::Server::Pluggable::IRC::Filter> for details on the references
+returned.
+
+Also see L<IRC::Server::Pluggable::IRC::Event> for an object interface capable
+of transforming IRC events/lines.
 
 =head1 AUTHOR
 

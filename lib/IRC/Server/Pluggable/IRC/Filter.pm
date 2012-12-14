@@ -197,9 +197,9 @@ IRC::Server::Pluggable::IRC::Filter - POE::Filter::IRCD with IRCv3 knobs
 
   my $filter = IRC::Server::Pluggable::IRC::Filter->new(colonify => 1);
   ## Raw lines parsed to hashes:
-  my $array_of_refs  = $filter->put( [ $line1, $line ... ] );
+  my $array_of_refs  = $filter->get( [ $line1, $line ... ] );
   ## Hashes deparsed to raw lines:
-  my $array_of_lines = $filter->get( [ \%hash1, \%hash2 ... ] );
+  my $array_of_lines = $filter->put( [ \%hash1, \%hash2 ... ] );
 
   ## Stacked with a line filter, suitable for Wheel usage, etc:
   my $ircd = IRC::Server::Pluggable::IRC::Filter->new(colonify => 1);

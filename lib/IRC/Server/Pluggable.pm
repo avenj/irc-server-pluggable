@@ -4,7 +4,10 @@ our $VERSION = '0.000_01';
 use strictures 1;
 
 use Carp 'confess';
-use Module::Runtime 'use_module';
+use Module::Runtime qw/
+  require_module
+  use_module
+/;
 
 use namespace::clean;
 
@@ -31,7 +34,7 @@ sub import {
         my $suffix  = 
           shift || confess "Expected a package name without prefix";
         my $thispkg = 'IRC::Server::Pluggable::'.$suffix;
-        require $thispkg;
+        require_module($thispkg);
         $thispkg->new(@_)
     };
   }

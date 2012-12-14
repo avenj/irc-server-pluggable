@@ -13,6 +13,7 @@ use IRC::Server::Pluggable qw/
 /;
 
 use POSIX ();
+use Scalar::Util 'blessed';
 use Try::Tiny;
 
 
@@ -77,7 +78,7 @@ sub add {
       confess "Could not add logger $alias: require: $@" if $@;
     }
 
-    my $new_obj = $target_pkg->new(%$opts)
+    my $new_obj = $target_pkg->new(%$opts);
     confess "Could not add logger $alias: no _write method"
       unless $new_obj->can('_write');
 

@@ -6,7 +6,7 @@ use strictures 1;
 use Scalar::Util  'blessed';
 use Storable      'dclone';
 
-use IRC::Server::Pluggable::IRC::Event;
+use IRC::Server::Pluggable 'IRC::Event';
 
 use namespace::clean;
 
@@ -32,7 +32,7 @@ sub _valid_ev {
     }
 
     if (ref $event eq 'HASH') {
-      $event = IRC::Server::Pluggable::IRC::Event->new(%$event);
+      $event = prefixed_new( 'IRC::Event' => %$event );
       last EVENT
     }
 
@@ -122,7 +122,7 @@ sub combine {
 
 sub new_event {
   my $self = CORE::shift;
-  IRC::Server::Pluggable::IRC::Event->new(@_)
+  prefixed_new( 'IRC::Event' => @_ )
 }
 
 1;

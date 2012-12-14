@@ -74,7 +74,9 @@ has 'filter_irc' => (
   isa     => InstanceOf['POE::Filter'],
   is      => 'rwp',
   default => sub {
-    IRC::Server::Pluggable::IRC::Filter->new( colonify => 1 )
+    prefixed_new( 'IRC::Filter', 
+      colonify => 1,
+    )
   },
 );
 

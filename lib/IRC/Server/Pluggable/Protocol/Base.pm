@@ -333,6 +333,7 @@ sub _load_core_plugins {
     }
 
     my ($alias, $class, @params) = @$plugin_arr;
+    require $class;
     $self->plugin_add( $alias,
       $class->new(@params)
     );

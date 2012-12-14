@@ -84,25 +84,33 @@ sub clone {
 }
 
 sub consume {
-  my ($self, $evset) = @_;
-  confess "Expected an IRC::Server::Pluggable::IRC::EventSet"
-    unless blessed $evset
-    and $evset->isa('IRC::Server::Pluggable::IRC::EventSet');
+  my ($self, @evsets) = @_;
+  $self = $self->new unless blessed $self;
 
-  while (my $ev = $evset->shift) {
-    $self->push($ev)
+  for my $evset (@evsets) {
+    confess "Expected an IRC::Server::Pluggable::IRC::EventSet"
+      unless blessed $evset
+      and $evset->isa('IRC::Server::Pluggable::IRC::EventSet');
+
+    while (my $ev = $evset->shift) {
+      $self->push($ev)
+    }
   }
 
   $self
 }
 
 sub combine {
-  my ($self, $evset) = @_;
-  confess "Expected an IRC::Server::Pluggable::IRC::EventSet"
-    unless blessed $evset
-    and $evset->isa('IRC::Server::Pluggable::IRC::EventSet');
+  my ($self, @evsets) = @_;
+  $self = $self->new unless blessed $self;
 
-  $self->push($_) for $evset->list;
+  for my $evset (@evsets) {
+    confess "Expected an IRC::Server::Pluggable::IRC::EventSet"
+      unless blessed $evset
+      and $evset->isa('IRC::Server::Pluggable::IRC::EventSet');
+
+    $self->push($_) for $evset->list;
+  }
 
   $self
 }

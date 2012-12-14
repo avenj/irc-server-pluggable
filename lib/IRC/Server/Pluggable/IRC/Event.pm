@@ -8,11 +8,17 @@ use Moo;
 
 use IRC::Server::Pluggable qw/
   IRC::Filter
-
   Types
 /;
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
+
+
+use Exporter 'import';
+sub ev {
+  __PACKAGE__->new(@_)
+}
+our @EXPORT = 'ev';
 
 
 has 'command' => (
@@ -148,14 +154,26 @@ IRC::Server::Pluggable::IRC::Event - IRC Events
 
 =head1 SYNOPSIS
 
+  ## Feed me a hash:
   my $event = IRC::Server::Pluggable::IRC::Event->new(
-    prefix   => ':some.server.org',
     command  => '001',
+    prefix   => ':some.server.org',
     params   => [ 'user', 'Welcome to IRC' ],
-    raw_line => ':some.server.org 001 user :Welcome to IRC',
   );
 
-  ## Can be fed from IRC::Server::Pluggable::IRC::Filter :
+  ## Or use the 'ev()' shortcut:
+  my $event = ev(
+    command => '001',
+    prefix  => ':some.server.org',
+    params  => [ 'user', 'Welcome to IRC' ],
+  );
+
+  ## Can take a raw IRC line (and parse it):
+  my $event = ev(
+    raw_line => ':some.server.org 001 user :Welcome to IRC'
+  );
+
+  ## Can be fed from 'IRC::Server::Pluggable::IRC::Filter':
   my $event = IRC::Server::Pluggable::IRC::Event->new(
    %{ $input_hash_from_filter }
   );
@@ -173,6 +191,9 @@ L<IRC::Server::Pluggable::Backend>.
 These objects do not do much validation on their own. You can prefix 
 attributes with B<has_> to determine whether or not valid input is 
 available.
+
+These objects are capable of constructing attributes from a raw IRC line and
+vice-versa.
 
 =head2 command
 

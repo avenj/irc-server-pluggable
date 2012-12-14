@@ -2,7 +2,7 @@ package IRC::Server::Pluggable::Utils::Format;
 use 5.12.1;
 use strictures 1;
 
-use parent 'Exporter';
+use Exporter 'import';
 
 our @EXPORT = qw/
   templatef

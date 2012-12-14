@@ -1,9 +1,9 @@
-use Test::More tests => 15;
+use Test::More tests => 17;
 use strict; use warnings FATAL => 'all' ;
 
 BEGIN {
-  use_ok( 'IRC::Server::Pluggable::IRC::Event' );
   use_ok( 'IRC::Server::Pluggable::Backend' );
+  use_ok( 'IRC::Server::Pluggable::IRC::Event' );
 }
 
 my $backend = IRC::Server::Pluggable::Backend->new;
@@ -23,6 +23,9 @@ cmp_ok( $obj->command, 'eq', '001', 'command looks ok' );
 cmp_ok( $obj->params->[0], 'eq', 'user', 'param 0 looks ok' );
 cmp_ok( $obj->params->[1], 'eq', 'Welcome to IRC', 'param 1 looks ok' );
 
+my $short = ev(%$hash);
+isa_ok($short, 'IRC::Server::Pluggable::IRC::Event', 'ev() produced obj' );
+cmp_ok( $short->command, 'eq', '001', 'ev()->command() looks ok' );
 
 my $tag_line = q{@intent=ACTION;znc.in/extension=value;foobar}
             . qq{ PRIVMSG #somewhere :Some string\r\n};

@@ -2,7 +2,7 @@ package IRC::Server::Pluggable::Types;
 
 use strictures 1;
 
-use base 'Exporter';
+use Exporter 'import';
 use MooX::Types::MooseLike;
 use MooX::Types::MooseLike::Base qw/:all/;
 

@@ -26,6 +26,17 @@ sub import {
     }
   }
 
+  { no strict 'refs';
+    *{ $pkg .'::prefixed_new' } = sub {
+        my $suffix  = 
+          shift || confess "Expected a package name without prefix";
+        my $thispkg = 'IRC::Server::Pluggable::'.$suffix;
+        require $thispkg;
+        $thispkg->new(@_)
+    };
+  }
+  
+
   confess "Failed to import ".join ' ', @failed
     if @failed;
 

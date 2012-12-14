@@ -88,7 +88,7 @@ sub _build_autoloaded_plugins {
     ## [ NAME, CLASS, CONSTRUCTOR OPTS ], . . .
 
     ## If you're handling clients, you at least want Register:
-    [ 'Register', $prefix . 'Protocol::Plugin::Register' ],
+    [ 'Register', $prefix.'Protocol::Plugin::Register' ],
 
   ],
 }
@@ -111,10 +111,7 @@ has 'dispatcher' => (
 
 sub _build_dispatcher {
   my ($self) = @_;
-
-  require IRC::Server::Pluggable::Dispatcher;
-
-  IRC::Server::Pluggable::Dispatcher->new(
+  prefixed_new( Dispatcher =>
     ## FIXME construct backend_opts from $self->config
   );
 }
@@ -200,12 +197,9 @@ has 'channels' => (
 
 sub _build_channels {
   my ($self) = @_;
-
-  require IRC::Server::Pluggable::IRC::Channels;
-
-  IRC::Server::Pluggable::IRC::Channels->new(
+  prefixed_new( 'IRC::Channels' =>
     casemap => $self->casemap,
-  )
+  );
 }
 
 
@@ -224,9 +218,7 @@ has 'peers' => (
 );
 
 sub _build_peers {
-  require IRC::Server::Pluggable::IRC::Peers;
-
-  IRC::Server::Pluggable::IRC::Peers->new
+  prefixed_new( 'IRC::Peers' )
 }
 
 
@@ -247,10 +239,8 @@ has 'users' => (
 sub _build_users {
   my ($self) = @_;
 
-  require IRC::Server::Pluggable::IRC::Users;
-
-  IRC::Server::Pluggable::IRC::Users->new(
-      casemap => $self->casemap,
+  prefixed_new( 'IRC::Users' =>
+    casemap => $self->casemap
   )
 }
 
@@ -268,9 +258,7 @@ has 'numeric' => (
 );
 
 sub _build_numeric {
-  require IRC::Server::Pluggable::IRC::Numerics;
-
-  IRC::Server::Pluggable::IRC::Numerics->new
+  prefixed_new( 'IRC::Numerics' )
 }
 
 

@@ -46,14 +46,6 @@ sub import {
   1
 }
 
-sub create {
-  my (undef, $module) = splice @_, 0, 2;
-  confess "Expected a module name and optional params"
-    unless defined $module;
-  my $real = join '::', __PACKAGE__, $module;
-  use_module($real)->new(@_)
-}
-
 
 1;
 

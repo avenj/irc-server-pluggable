@@ -14,7 +14,7 @@ use constant {
   DISPATCH_UNKNOWN => 7,
 };
 
-use base 'Exporter';
+use Exporter 'import';
 
 our @EXPORT = qw/
   DISPATCH_EATEN

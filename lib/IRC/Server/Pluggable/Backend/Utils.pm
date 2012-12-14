@@ -5,8 +5,7 @@ use strictures 1;
 use Carp;
 
 
-use base 'Exporter';
-
+use Exporter 'import';
 
 our @EXPORT = qw/
   get_unpacked_addr

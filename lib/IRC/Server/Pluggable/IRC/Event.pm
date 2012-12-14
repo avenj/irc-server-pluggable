@@ -195,27 +195,37 @@ available.
 These objects are capable of constructing attributes from a raw IRC line and
 vice-versa.
 
-=head2 command
+=head2 Functions
+
+=head3 ev
+
+Create a new IRC::Event.
+
+A shortcut for C<< IRC::Server::Pluggable::IRC::Event->new >>
+
+=head2 Methods
+
+=head3 command
 
 The parsed command received.
 
-=head2 params
+=head3 params
 
 ARRAY of parameters.
 
-=head2 prefix
+=head3 prefix
 
 The server prefix.
 
-=head2 raw_line
+=head3 raw_line
 
 The raw IRC line.
 
-=head2 tags
+=head3 tags
 
 IRCv3.2 message tags, as a HASH of key-value pairs.
 
-=head2 tags_as_array
+=head3 tags_as_array
 
 IRCv3.2 message tags, as an ARRAY of tags in the form of 'key=value'
 

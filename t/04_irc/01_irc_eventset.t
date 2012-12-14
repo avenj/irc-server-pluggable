@@ -36,6 +36,10 @@ ok( !$evset->has_events, 'empty eventset after shift and pop' );
 ok( $evset->combine($cloned), 'combine()' );
 cmp_ok( $evset->has_events, '==', 2, 'has_events 2 after combine()' );
 
+isa_ok( eventset(), 'IRC::Server::Pluggable::IRC::EventSet',
+  'eventset() shortcut returned obj'
+);
+
 ## FIXME these tests are incomplete
 
 done_testing;

@@ -10,6 +10,13 @@ use IRC::Server::Pluggable 'IRC::Event';
 
 use namespace::clean;
 
+
+use Exporter 'import';
+sub eventset {
+  __PACKAGE__->new(@_)
+}
+our @EXPORT = 'eventset';
+
 sub new {
   my ($class, @events) = @_;
   my $self = [];
@@ -32,7 +39,7 @@ sub _valid_ev {
     }
 
     if (ref $event eq 'HASH') {
-      $event = prefixed_new( 'IRC::Event' => %$event );
+      $event = ev(%$event);
       last EVENT
     }
 
@@ -68,26 +75,6 @@ sub list {
   wantarray ? @$self : [ @$self ]
 }
 
-sub pop {
-  my ($self) = @_;
-  pop @$self
-}
-
-sub push {
-  my ($self, @events) = @_;
-  push @$self, map { $self->_valid_ev($_) } @events
-}
-
-sub shift {
-  my ($self) = @_;
-  shift @$self
-}
-
-sub unshift {
-  my ($self, @events) = @_;
-  unshift @$self, map { $self->_valid_ev($_) } @events
-}
-
 sub clone {
   my ($self) = @_;
   my @events = map {; 
@@ -121,8 +108,28 @@ sub combine {
 }
 
 sub new_event {
-  my $self = CORE::shift;
-  prefixed_new( 'IRC::Event' => @_ )
+  my $self = shift;
+  ev(@_)
+}
+
+sub pop {
+  my ($self) = @_;
+  pop @$self
+}
+
+sub push {
+  my ($self, @events) = @_;
+  push @$self, map { $self->_valid_ev($_) } @events
+}
+
+sub shift {
+  my ($self) = @_;
+  shift @$self
+}
+
+sub unshift {
+  my ($self, @events) = @_;
+  unshift @$self, map { $self->_valid_ev($_) } @events
 }
 
 1;

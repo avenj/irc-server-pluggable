@@ -100,7 +100,7 @@ sub cmd_from_peer_motd {
   ## Remote user asked for MOTD.
   my $user = $self->users->by_name( $event->prefix ) || return;
 
-  $self->yield( 'dispatch' => 'cmd_from_client_motd',
+  $self->yield( 'protocol_dispatch' => 'cmd_from_client_motd',
     $conn, $event, $user
   )
 }

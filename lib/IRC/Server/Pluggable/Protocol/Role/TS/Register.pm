@@ -140,14 +140,14 @@ sub register_user_local {
   ## FIXME VERSION / ISUPPORT [005] (dispatch cmd handler event) ?
 
   ## Dispatch LUSERS
-  $self->dispatch( 'cmd_from_client_lusers', $conn,
+  $self->protocol_dispatch( 'cmd_from_client_lusers', $conn,
     IRC::Server::Pluggable::IRC::Event->new(
       command => 'LUSERS',
     )
   );
 
   ## Dispatch MOTD
-  $self->dispatch( 'cmd_from_client_motd', $conn,
+  $self->protocol_dispatch( 'cmd_from_client_motd', $conn,
     IRC::Server::Pluggable::IRC::Event->new(
       command => 'MOTD',
     )

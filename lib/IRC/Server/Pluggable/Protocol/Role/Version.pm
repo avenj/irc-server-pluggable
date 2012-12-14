@@ -16,7 +16,7 @@ use namespace::clean;
 
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 requires qw/
-  dispatch
+  protocol_dispatch
   equal
 /;
 
@@ -107,7 +107,9 @@ sub cmd_from_peer_version {
   if (!defined $dest || $self->equals($dest, $server_name)) {
     my $user = $self->users->by_name( $event->prefix ) || return;
     $event->set_params([]);
-    $self->dispatch( 'cmd_from_client_version', $conn, $event, $user );
+    $self->protocol_dispatch( 'cmd_from_client_version', 
+      $conn, $event, $user 
+    );
   } else {
     my $peer = $self->peers->by_name($dest);
 

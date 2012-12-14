@@ -7,9 +7,6 @@ use namespace::clean;
 
 
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
-requires qw/
-  dispatch
-/;
 
 
 sub cmd_from_client_stats {

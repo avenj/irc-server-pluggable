@@ -283,8 +283,9 @@ sub BUILD {
   $self->set_object_states(
     [
       $self => {
-        'emitter_started' => '_emitter_started',
-        'dispatch'        => '_dispatch',
+        emitter_started   => '_emitter_started',
+        dispatch          => '_dispatch',
+        protocol_dispatch => '_dispatch',
       },
 
       ## Connectors and listeners
@@ -366,7 +367,7 @@ sub _emitter_started {
 }
 
 
-sub dispatch {
+sub protocol_dispatch {
   my ($self, $event_name, @args) = @_;
 
   ## This is a cheap implementation of internal dispatch,
@@ -394,7 +395,7 @@ sub dispatch {
 sub _dispatch {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  $self->dispatch(@_[ARG0 .. $#_]);
+  $self->protocol_dispatch(@_[ARG0 .. $#_]);
 
   1
 }
@@ -440,7 +441,7 @@ sub irc_ev_connection_idle {
   my ($kernel, $self) = @_;
   my $conn = $_[ARG0];
 
-  $self->dispatch( 'conn_is_idle', $conn );
+  $self->protocol_dispatch( 'conn_is_idle', $conn );
 }
 
 sub irc_ev_peer_disconnected {
@@ -479,7 +480,7 @@ sub irc_ev_client_cmd {
 
   my $user = $self->users->by_id($conn->wheel_id);
 
-  my $disp = $self->dispatch( 'cmd_from_client_'.lc($cmd),
+  my $disp = $self->protocol_dispatch( 'cmd_from_client_'.lc($cmd),
     $conn, $event, $user
   );
 
@@ -503,7 +504,7 @@ sub irc_ev_peer_cmd {
 
   my $peer = $self->peers->by_id($conn->wheel_id);
 
-  $self->dispatch( 'cmd_from_peer_'.lc($cmd), $conn, $event, $peer );
+  $self->protocol_dispatch( 'cmd_from_peer_'.lc($cmd), $conn, $event, $peer );
 }
 
 sub irc_ev_unknown_cmd {
@@ -512,7 +513,7 @@ sub irc_ev_unknown_cmd {
 
   my $cmd = $event->command;
 
-  $self->dispatch( 'cmd_from_unknown_'.lc($cmd), $conn, $event );
+  $self->protocol_dispatch( 'cmd_from_unknown_'.lc($cmd), $conn, $event );
 }
 
 

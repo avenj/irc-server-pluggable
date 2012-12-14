@@ -240,8 +240,8 @@ sub chg_status {
   my @modeset = ( @$current, split(//, $modestr) );
 
   if (defined $exclude && (my @splitex = split //, $exclude) ) {
-    my %excluded = map { $_ => 1 } @splitex;
-    @modeset = [ grep { !$excluded{$_} } @modeset ];
+    my %excluded = map {; $_ => 1 } @splitex;
+    @modeset = [ grep {; !$excluded{$_} } @modeset ];
   }
 
   ## Return arrayref consisting of final modes.

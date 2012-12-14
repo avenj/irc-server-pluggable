@@ -4,7 +4,7 @@ use strict; use warnings;
 
 my $class = Module::Build->subclass(
   class => 'IRC::Server::Pluggable::Builder',
-  code => q{
+  code  => q[
 
     sub ACTION_versionify {
       my $self = shift;
@@ -14,7 +14,7 @@ my $class = Module::Build->subclass(
 
       ++$|;
 
-      print "Versionifying ";
+      print "Versionifying ($vers) ";
       require File::Find;
       File::Find->import('find');
 
@@ -54,7 +54,7 @@ my $class = Module::Build->subclass(
       print "\n$x modules\n";
     }
 
-  },
+  ],
 );
 
 my $build = $class->new(
@@ -80,10 +80,7 @@ my $build = $class->new(
 
   requires => {
     'perl'     => '5.12.1',
-
-    'Carp'         => 0,
-    'Carp::Always' => 0,
-
+    'Carp'     => 0,
     'Exporter' => 0,
     'Socket'   => 2,
 

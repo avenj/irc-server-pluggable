@@ -162,7 +162,7 @@ sub r_msgs_parse_targets {
 
   my %targets;
 
-  my $err_set = IRC::Server::Pluggable::IRC::EventSet->new;
+  my $err_set = eventset();
 
   TARGET: for my $target (@targetlist) {
 

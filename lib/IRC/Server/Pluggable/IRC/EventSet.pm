@@ -23,7 +23,13 @@ sub new {
   bless $self, $class;
 
   if (@events) {
-    $self->push(@events)
+    for my $ev (@events) {
+      if (blessed $ev && $ev->isa('IRC::Server::Pluggable::IRC::EventSet') ) {
+        $self->combine($ev);
+        next
+      }
+      $self->push($ev);
+    }
   }
 
   $self

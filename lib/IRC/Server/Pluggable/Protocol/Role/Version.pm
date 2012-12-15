@@ -24,8 +24,7 @@ requires qw/
 sub r_proto_build_isupport {
   my ($self, $eventset) = @_;
   ## 005 ISUPPORT
-  $eventset = IRC::Server::Pluggable::IRC::EventSet->new
-    unless defined $eventset;
+  $eventset //= eventset();
 
   ## FIXME
   $eventset->push(
@@ -42,8 +41,7 @@ sub r_proto_build_isupport {
 sub r_proto_build_version {
   my ($self, $eventset) = @_;
   ## 351 VERSION
-  $eventset = IRC::Server::Pluggable::IRC::EventSet->new
-    unless defined $eventset;
+  $eventset //= eventset();
 
   ## FIXME current composed version is braindead
   $eventset->push(

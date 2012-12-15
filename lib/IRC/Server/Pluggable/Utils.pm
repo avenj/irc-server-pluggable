@@ -10,8 +10,6 @@ use 5.12.1;
 use strictures 1;
 use Carp;
 
-use IRC::Utils qw/matches_mask normalize_mask/;
-
 use base 'Exporter';
 
 our %EXPORT_TAGS = (
@@ -109,6 +107,21 @@ sub parse_user {
   wantarray ? ($nick, $user, $host) : $nick
 }
 
+sub matches_mask {
+  ## Imported from IRC::Utils:
+  my ($mask, $nuh, $casemap) = @_;
+  confess "Expected a mask, a string to match, and optional casemap"
+    unless defined $mask and length $mask
+    and    defined $nuh;
+
+  my $quoted = quotemeta uc_irc $mask, $casemap;
+  $quoted =~ s/\\\*/[\x01-\xFF]{0,}/g;
+  $quoted =~ s/\\\?/[\x01-\xFF]{1,1}/g;
+  $nuh = uc_irc $nuh, $casemap;
+
+  $nuh =~ /^$quoted$/ ? 1 : ()
+}
+
 sub mode_to_array {
   ## mode_to_array( $string,
   ##   param_always => [ split //, 'bkov' ],
@@ -187,6 +200,37 @@ sub mode_to_hash {
   $modes
 }
 
+sub normalize_mask {
+  my ($orig) = @_;
+  confess "normalize_mask expected a mask" unless defined $orig;
+
+  ## Inlined with some tweaks from IRC::Utils
+
+  ## **+ --> *
+  $orig =~ s/\*{2,}/*/g;
+
+  my @mask;
+  my $piece;
+
+  ## Push nick, if we have one, or * if we don't.
+  if ( index($orig, '!') == -1 && index($orig, '@') > -1) {
+    $piece = $orig;
+    push(@mask, '*');
+  } else {
+    ($mask[0], $piece) = split /!/, $orig, 2;
+  }
+
+  ## Split user/host portions and do some clean up.
+  $piece        =~ s/!//g if defined $piece;
+  @mask[1 .. 2] = split( /@/, $piece, 2) if defined $piece;
+  $mask[2]      =~ s/@//g if defined $mask[2];
+
+  for ( 1 .. 2 ) {
+    $mask[$_] = '*' unless defined $mask[$_];
+  }
+
+  $mask[0] . '!' . $mask[1] . '@' . $mask[2]
+}
 
 1;
 
@@ -223,6 +267,18 @@ Returns the string (lowercased according to the specified rules).
   my $upper = uc_irc( $string [, $casemap ] );
 
 The reverse of L</lc_irc>.
+
+=head3 matches_mask
+
+  if ( matches_mask($mask, $host, $casemap) ) {
+    ...
+  }
+
+Given a mask, a C<nick!user@host> to match against, and an optional L</lc_irc>
+casemap, returns boolean true if the mask applies successfully to the given
+host.
+
+Derived from L<IRC::Utils>
 
 =head3 mode_to_array
 
@@ -304,6 +360,15 @@ changes in a single line; it is useful for internal mode examination, but
 L</mode_to_array> should generally be preferred for IRC-directed mode
 handling.
 
+=head3 normalize_mask
+
+Takes an IRC mask and returns a normalized mask:
+
+  normalize_mask( 'somenick' )  ##  somenick!*@*
+  normalize_mask( 'user@host' ) ##  *!user@host
+
+Derived from L<IRC::Utils>.
+
 =head3 parse_user
 
   my ($nick, $user, $host) = parse_user( $full );
@@ -316,5 +381,10 @@ Returns just the nickname in scalar context.
 =head1 AUTHOR
 
 Jon Portnoy <avenj@cobaltirc.org>
+
+L</matches_mask> and L</normalize_mask> derived from L<IRC::Utils>, copyright
+Hinrik Orn Sigurosson (cpan:HINRIK) and Chris Williams (cpan:BINGOS).
+
+Licensed under the same terms as Perl.
 
 =cut

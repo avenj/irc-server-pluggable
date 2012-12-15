@@ -53,6 +53,29 @@ is_deeply(
 );
 
 
+## normalize_mask
+cmp_ok( normalize_mask('avenj'), 'eq', 'avenj!*@*',
+  'normalize_mask with nick only looks ok'
+);
+cmp_ok( normalize_mask('*@*'), 'eq', '*!*@*',
+  'normalize_mask with wildcard mask looks ok'
+);
+cmp_ok( normalize_mask('*avenj@*'), 'eq', '*!*avenj@*',
+  'normalize_mask with partial mask looks ok'
+);
+
+
+## matches_mask
+ok( matches_mask('*!*@*', 'avenj!avenj@oppresses.us'),
+  'matches_mask( *!*@* ) ok'
+);
+ok( matches_mask('*!avenj@oppresses.us', 'avenj!avenj@oppresses.us'),
+  'matches_mask( *!avenj@oppresses.us ) ok'
+);
+ok( !matches_mask('nobody!nowhere@*', 'avenj!avenj@oppresses.us'),
+  'negative matches_mask ok'
+);
+
 ## mode_to_array
 is_deeply(
   mode_to_array( '+kl-t',
@@ -112,6 +135,5 @@ is_deeply( $mhash,
     del => { },
   },
 );
-
 
 done_testing;

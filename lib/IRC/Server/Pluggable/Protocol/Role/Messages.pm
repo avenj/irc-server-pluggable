@@ -16,6 +16,15 @@ use IRC::Server::Pluggable qw/
 
 use Scalar::Util 'blessed';
 
+use constant {
+  CHANNEL       => 1,
+  NICK          => 2,
+  NICK_FULLQUAL => 3,
+  CHAN_PREFIX   => 4,
+  SERVERMASK    => 5,
+  HOSTMASK      => 6,
+};
+
 use namespace::clean;
 
 ### Basic message relay rules:
@@ -141,6 +150,7 @@ sub user_cannot_send_to_user {
 
 ### Relaying.
 
+
 sub r_msgs_parse_targets {
   my ($self, $user, @targetlist) = @_;
   ## Concept borrowed from POE::Component::Server::IRC's target parser,
@@ -170,7 +180,7 @@ sub r_msgs_parse_targets {
  
     if (grep {; $t_prefix eq $_ } @chan_prefixes) {
       ## Message to channel target.
-      $targets{$target} = [ 'channel' ];
+      $targets{$target} = [ CHANNEL ];
       next TARGET
     }
  
@@ -192,7 +202,7 @@ sub r_msgs_parse_targets {
       ## Change target to bare channel name.
       ## Preserve bare channel + status prefix character.
       $targets{$target}
-        = [ 'channel_prefixed', substr($target, 1), $t_prefix ] ;
+        = [ CHAN_PREFIX, substr($target, 1), $t_prefix ] ;
       next TARGET
     }
 
@@ -200,13 +210,14 @@ sub r_msgs_parse_targets {
       ## Server mask - $$mask
       my $mask = substr($target, 2);
       ## FIXME err if $mask has no length?
-      $targets{$target} = [ 'servermask', $mask ];
+      $targets{$target} = [ SERVERMASK, $mask ];
+      next TARGET
     }
 
     if (index($target, '$#') == 0) {
       ## Host mask - $#mask
       my $mask = substr($target, 2);
-      $targets{$target} = [ 'hostmask', $mask ];
+      $targets{$target} = [ HOSTMASK, $mask ];
       next TARGET
     }
 
@@ -216,7 +227,7 @@ sub r_msgs_parse_targets {
       my $host;
       ($nick, $host) = split /%/, $nick, 2 if $nick =~ /%/;
       $targets{$target} = [
-        'nick_fully_qualified',
+        NICK_FULLQUAL,
         $nick, $server, $host
       ];
       ## FIXME push error if no valid args?
@@ -227,7 +238,7 @@ sub r_msgs_parse_targets {
     ## FIXME support local-server nick%host also?
 
     ## Fall through to nickname
-    $targets{$target} = [ 'nick' ];
+    $targets{$target} = [ NICK ];
   } ## TARGET
 
 
@@ -290,20 +301,20 @@ sub handle_message_relay {
     }
 
     for ($t_type) {
-      when ('channel') {
+      when (CHANNEL) {
         $self->r_msgs_relay_to_channel(
           $target, $err_set, \%params, $parsed_prefix, $src_user_obj
         );
       }
 
-      when ('nick') {
+      when (NICK) {
         $self->r_msgs_relay_to_nick(
           $target, $err_set, \%params, $parsed_prefix, $src_user_obj
         );
       }
 
       ## Message to nick@server or nick%host@server
-      when ('nick_fully_qualified') {
+      when (NICK_FULLQUAL) {
         $self->r_msgs_relay_to_nick_fullyqual(
           $target, $err_set, \%params, $parsed_prefix,
           \@t_params, $src_user_obj
@@ -311,7 +322,7 @@ sub handle_message_relay {
       }
 
       ## Message to prefixed channel (e.g. @#channel)
-      when ('channel_prefixed') {
+      when (CHAN_PREFIX) {
         $self->r_msgs_relay_to_channel_prefixed(
           $target, $err_set, \%params, $parsed_prefix,
           \@t_params, $src_user_obj
@@ -320,7 +331,7 @@ sub handle_message_relay {
 
 
       ## Message to $$servermask
-      when ('servermask') {
+      when (SERVERMASK) {
         $self->r_msgs_relay_to_servermask(
           $target, $err_set, \%params, $parsed_prefix,
           \@t_params, $src_user_obj
@@ -328,7 +339,7 @@ sub handle_message_relay {
       }
 
       ## Message to $#hostmask
-      when ('hostmask') {
+      when (HOSTMASK) {
         $self->r_msgs_relay_to_hostmask(
           $target, $err_set, \%params, $parsed_prefix,
           \@t_params, $src_user_obj

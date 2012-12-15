@@ -84,28 +84,25 @@ my $build = $class->new(
     'Exporter' => 0,
     'Socket'   => 2,
 
-    'strictures'             => 1,
-    'namespace::clean'       => '0.23',
+    'strictures'                => 1,
+    'namespace::clean'          => '0.23',
 
-    'IRC::Utils'             => 0,
+    'Module::Runtime'           => 0,
+    'Moo'                       => '1.000003',
+    'MooX::Types::MooseLike'    => '0.15',
+    'MooX::Role::POE::Emitter'  => 0,
+    'MooX::Role::Pluggable'     => '0.02',
 
-    'Module::Runtime'        => 0,
+    'Net::IP::Minimal'          => '0.04',
 
-    'Moo'                      => '1.000003',
-    'MooX::Types::MooseLike'   => '0.15',
-    'MooX::Role::POE::Emitter' => 0,
-    'MooX::Role::Pluggable'    => '0.02',
-
-    'Net::IP::Minimal'       => '0.04',
-
-    'POE'                    => '1.3',
+    'POE'                       => '1.3',
     'POE::Component::Client::DNS'          => 0,
     'POE::Component::Client::Ident::Agent' => 0,
-    'POE::Component::SSLify' => '1.006',
-    'POE::Filter::IRCD'      => 0,
-    'POE::Filter::Zlib'      => 0,
+    'POE::Component::SSLify'    => '1.006',
+    'POE::Filter::IRCD'         => 0,
+    'POE::Filter::Zlib'         => 0,
 
-    'Try::Tiny'              => 0,
+    'Try::Tiny'                 => 0,
   },
 
   recommends => {

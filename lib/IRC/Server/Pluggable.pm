@@ -77,6 +77,18 @@ L<MooX::Role::POE::Emitter>.
 An ongoing project; help is welcome, discussion can take place on 
 C<irc.cobaltirc.org #eris>
 
+
+=head2 EXPORTED
+
+=head3 prefixed_new
+
+  my $user = prefixed_new( 'IRC::User' => @params );
+
+The above would be equivalent to:
+
+  require IRC::Server::Pluggable::IRC::User;
+  my $user = IRC::Server::Pluggable::IRC::User->new(@params);
+
 =head1 SEE ALSO
 
 

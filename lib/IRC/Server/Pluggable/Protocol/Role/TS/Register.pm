@@ -24,11 +24,6 @@ use IRC::Server::Pluggable qw/
 use namespace::clean;
 
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
-requires qw/
-  process
-  emit
-  emit_now
-/;
 
 has '_r_pending_reg' => (
   ## Keyed on $conn->wheel_id
@@ -46,6 +41,11 @@ sub _register_user_create_obj {
   ## Define me in consuming (sub)class to change the class constructed
   ## for a User.
   prefixed_new('IRC::User' => @_)
+}
+
+sub _register_peer_create_obj {
+  my $self = shift;
+  prefixed_new('IRC::Peer' => @_)
 }
 
 
@@ -240,7 +240,7 @@ sub cmd_from_unknown_server {
   $conn->is_peer(1);
 
   ## set up Peer obj, route() can default to conn->wheel_id
-  $peer = irc_peer(
+  $peer = $self->_register_peer_create_obj(
     conn => $conn,
     name => $intro_name,
   );

@@ -32,11 +32,21 @@ sub irc_user {
   __PACKAGE__->new(@_)
 }
 
+
 with 'IRC::Server::Pluggable::Role::Metadata';
 ## FIXME document reserved meta keys:
 ##  - CAP      HASH
 ##  - ACCOUNT  String
+with 'IRC::Server::Pluggable::Role::Routable';
 
+sub BUILD {
+  my ($self) = @_;
+
+  unless ($self->has_conn || $self->has_route) {
+    confess
+      "A User needs either a conn() or a route() at construction time"
+  }
+}
 
 has 'channels' => (
   ## Array of channels (weak refs).
@@ -71,52 +81,11 @@ sub del_channel {
 }
 
 
-has 'conn' => (
-  ## Backend::Connect conn obj for a local user.
-  ## See route() attrib with regards to remote users.
-  lazy => 1,
-
-  ## These are also tracked in Backend; they should be destroyed
-  ## from there.
-  weak_ref => 1,
-
-  is  => 'ro',
-  isa => sub {
-    is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::Backend::Connect')
-      or confess "$_[0] is not a IRC::Server::Pluggable::Backend::Connect"
-  },
-
-  predicate => 'has_conn',
-  writer    => 'set_conn',
-  clearer   => 'clear_conn',
-);
-
-
-
 has 'realname' => (
   required => 1,
   is       => 'ro',
   isa      => Str,
   writer   => 'set_realname',
-);
-
-has 'route' => (
-  ## Either our conn's wheel_id or the ID of the next hop peer
-  ## (ie, the peer that relayed user registration)
-  lazy      => 1,
-  is        => 'ro',
-  isa       => Str,
-  writer    => 'set_route',
-  predicate => 'has_route',
-  clearer   => 'clear_route',
-  default   => sub {
-    my ($self) = @_;
-    ## If we have a conn() we can get a route.
-    ## If we don't we should've had a route specified at construction
-    ## or died in BUILD.
-    $self->conn->wheel_id
-  },
 );
 
 has 'server' => (
@@ -329,15 +298,6 @@ sub is_flagged_as {
   @resultset
 }
 
-
-sub BUILD {
-  my ($self) = @_;
-
-  unless ($self->has_conn || $self->has_route) {
-    confess
-      "A User needs either a conn() or a route() at construction time"
-  }
-}
 
 
 no warnings 'void';

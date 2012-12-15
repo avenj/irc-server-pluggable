@@ -4,10 +4,7 @@ our $VERSION = '0.000_01';
 use strictures 1;
 
 use Carp 'confess';
-use Module::Runtime qw/
-  require_module
-  use_module
-/;
+use Module::Runtime 'require_module';
 
 use namespace::clean;
 

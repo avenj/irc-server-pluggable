@@ -157,9 +157,10 @@ sub _build_channel_types {
   ## These can control the behavior of specific channel types.
   ## FIXME Role should use these to determine what kind of
   ##  chan obj to construct
+  my $prefix = 'IRC::Server::Pluggable::IRC::Channel::';
   {
-    '&' => 'IRC::Server::Pluggable::IRC::Channel::Local',
-    '#' => 'IRC::Server::Pluggable::IRC::Channel::Global',
+    '&' => $prefix . 'Local',
+    '#' => $prefix . 'Global',
   }
 }
 
@@ -435,19 +436,19 @@ sub irc_ev_connection_idle {
 
 sub irc_ev_peer_disconnected {
   my ($self, $conn) = @_;
-
-  ## FIXME wrap in Disconnect role?
+  ## A disconnected $conn has had its wheel cleared.
+  ## FIXME squit this peer if we still have it in ->peers
 }
 
 sub irc_ev_client_disconnected {
   my ($self, $conn) = @_;
-
-  ## FIXME wrap in Disconnect role?
+  ## FIXME quit this user if we still have it in ->users
 }
 
 sub irc_ev_unknown_disconnected {
   my ($self, $conn) = @_;
 
+  ## FIXME emit event so registration bits know to clean up?
   ## FIXME wrap in Register role?
 }
 

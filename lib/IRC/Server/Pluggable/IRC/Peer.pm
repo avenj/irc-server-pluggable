@@ -8,16 +8,19 @@ use strictures 1;
 use Carp;
 use Moo;
 
-use IRC::Server::Pluggable::Types;
-
-
-use namespace::clean;
+use IRC::Server::Pluggable 'Types';
 
 use Exporter 'import';
+our @EXPORT = 'irc_peer';
+
+use namespace::clean -except => 'import';
+
+
 sub irc_peer {
   __PACKAGE__->new(@_)
 }
-our @EXPORT = 'irc_peer';
+
+with 'IRC::Server::Pluggable::Role::Metadata';
 
 has 'casemap' => (
   ## For use with ->lower / ->upper; ascii should do
@@ -54,6 +57,7 @@ has 'is_bursting' => (
 
 has 'linked'  => (
   ## Servers introduced by this Peer, if applicable.
+  ## (weak-refs to Peer objs?)
   lazy      => 1,
   is        => 'ro',
   writer    => 'set_peers',

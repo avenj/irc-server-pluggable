@@ -18,17 +18,24 @@ use Scalar::Util qw/
   weaken
 /;
 
-use namespace::clean;
+use Exporter 'import';
+our @EXPORT = 'irc_user';
+
+use namespace::clean -except => 'import';
+
 use overload
   bool     => sub { 1 },
   '""'     => 'nick',
   fallback => 1;
 
-use Exporter 'import';
 sub irc_user {
   __PACKAGE__->new(@_)
 }
-our @EXPORT = 'irc_user';
+
+with 'IRC::Server::Pluggable::Role::Metadata';
+## FIXME document reserved meta keys:
+##  - CAP      HASH
+##  - ACCOUNT  String
 
 
 has 'channels' => (
@@ -321,41 +328,6 @@ sub is_flagged_as {
 
   @resultset
 }
-
-
-has '_metadata' => (
-  ## FIXME document reserved keys:
-  ##  - CAP      HASH
-  ##  - ACCOUNT  String
-  lazy    => 1,
-  is      => 'ro',
-  isa     => HashRef,
-  default => sub { {} },
-);
-
-sub add_meta {
-  my ($self, $key, $value) = @_;
-  confess "Expected a key and value"
-    unless defined $key and defined $value;
-  $self->_metadata->{$key} = $value
-}
-
-sub del_meta {
-  my ($self, $key) = @_;
-  confess "Expected a key" unless defined $key;
-  delete $self->_metadata->{$key}
-}
-
-sub meta_item {
-  my ($self, $key) = @_;
-  $self->_metadata->{$key}
-}
-
-sub meta_keys {
-  my ($self) = @_;
-  keys %{ $self->_metadata }
-}
-
 
 
 sub BUILD {

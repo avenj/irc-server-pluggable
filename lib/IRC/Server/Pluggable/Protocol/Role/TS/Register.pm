@@ -23,22 +23,11 @@ use IRC::Server::Pluggable qw/
 
 use namespace::clean;
 
-
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 requires qw/
-  config
-
-  users
-  peers
-
-  numeric
-
   process
   emit
   emit_now
-
-  send_to_routes
-
-  irc_ev_unknown_disconnected
 /;
 
 has '_r_pending_reg' => (
@@ -53,10 +42,10 @@ has '_r_pending_reg' => (
 
 
 sub _register_user_create_obj {
-  my ($self, %params) = @_;
+  my $self = shift;
   ## Define me in consuming (sub)class to change the class constructed
   ## for a User.
-  IRC::Server::Pluggable::IRC::User->new(%params)
+  prefixed_new('IRC::User' => @_)
 }
 
 
@@ -190,7 +179,7 @@ sub register_user_remote {
 
   ## FIXME create a User obj
 
-  ## Figure out what belongs in Burst role
+  ## FIXME burst methods
 
   ## FIXME remote User objs need a route() specifying wheel_id for
   ## next-hop peer; i.e., the peer that introduced the user to us
@@ -251,7 +240,7 @@ sub cmd_from_unknown_server {
   $conn->is_peer(1);
 
   ## set up Peer obj, route() can default to conn->wheel_id
-  $peer = IRC::Server::Pluggable::IRC::Peer->new(
+  $peer = irc_peer(
     conn => $conn,
     name => $intro_name,
   );

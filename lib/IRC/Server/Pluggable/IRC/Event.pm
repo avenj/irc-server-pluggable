@@ -11,15 +11,14 @@ use IRC::Server::Pluggable qw/
   Types
 /;
 
-use namespace::clean;
-
-
 use Exporter 'import';
+our @EXPORT = 'ev';
+
+use namespace::clean -except => 'import';
+
 sub ev {
   __PACKAGE__->new(@_)
 }
-our @EXPORT = 'ev';
-
 
 has 'command' => (
   required  => 1,

@@ -14,12 +14,17 @@ use IRC::Server::Pluggable qw/
 /;
 
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 use overload
   bool     => sub { 1 },
   '""'     => 'name',
   fallback => 1 ;
 
+use Exporter 'import';
+sub irc_channel {
+  __PACKAGE__->new(@_)
+}
+our @EXPORT = 'irc_channel';
 
 has 'is_relayed' => (
   lazy    => 1,

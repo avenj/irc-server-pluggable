@@ -22,7 +22,7 @@ my @base_roles = map { PROTO_ROLE_PREFIX . $_ } qw/
 
 
 use Moo;
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
 
 extends 'IRC::Server::Pluggable::Protocol::Base';

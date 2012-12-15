@@ -18,11 +18,17 @@ use Scalar::Util qw/
   weaken
 /;
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 use overload
   bool     => sub { 1 },
   '""'     => 'nick',
   fallback => 1;
+
+use Exporter 'import';
+sub irc_user {
+  __PACKAGE__->new(@_)
+}
+our @EXPORT = 'irc_user';
 
 
 has 'channels' => (

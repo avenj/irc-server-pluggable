@@ -75,10 +75,11 @@ has 'tags' => (
 );
 
 sub BUILDARGS {
-  my ($class, %params) = @_;
+  my $class = shift;
+  my %params = @_ > 1 ? @_ : (raw_line => $_[0]) ;
 
   if (not defined $params{command}) {
-    if ($params{raw_line}) {
+    if (defined $params{raw_line}) {
       ## Try to create self from raw_line instead
       my $filt = IRC::Server::Pluggable::IRC::Filter->new;
       my $refs = $filt->get( [$params{raw_line}] );

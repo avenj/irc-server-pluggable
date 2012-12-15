@@ -47,6 +47,10 @@ isa_ok( $f_ev = eventset()->combine($evset, $cloned),
 cmp_ok( $f_ev->by_index(0)->command, 'eq', 'PRIVMSG',
   'eventset->combine() first ev looks ok'
 );
+isa_ok( eventset( eventset(), ev(raw_line => ':prefix CMD target :string') ),
+  'IRC::Server::Pluggable::IRC::EventSet',
+  'eventset( eventset(), ev() ) looks ok'
+);
 
 ## FIXME these tests are incomplete
 

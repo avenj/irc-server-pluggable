@@ -5,8 +5,7 @@ use Carp;
 use Moo::Role;
 use strictures 1;
 
-use namespace::clean -except => 'meta';
-
+use namespace::clean;
 
 requires qw/
   config

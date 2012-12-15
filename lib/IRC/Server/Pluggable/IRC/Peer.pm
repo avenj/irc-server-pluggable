@@ -11,7 +11,13 @@ use Moo;
 use IRC::Server::Pluggable::Types;
 
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
+
+use Exporter 'import';
+sub irc_peer {
+  __PACKAGE__->new(@_)
+}
+our @EXPORT = 'irc_peer';
 
 has 'casemap' => (
   ## For use with ->lower / ->upper; ascii should do

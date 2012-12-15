@@ -21,7 +21,7 @@ use IRC::Server::Pluggable qw/
 /;
 
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
 
 requires qw/

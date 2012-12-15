@@ -18,7 +18,7 @@ use IRC::Server::Pluggable qw/
   Types
 /;
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
 
 with 'MooX::Role::POE::Emitter';

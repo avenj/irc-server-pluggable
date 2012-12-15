@@ -63,7 +63,7 @@ use IRC::Server::Pluggable qw/
 /;
 
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
 
 with 'MooX::Role::POE::Emitter';

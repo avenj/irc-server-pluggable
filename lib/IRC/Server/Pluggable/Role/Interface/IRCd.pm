@@ -11,6 +11,7 @@ requires qw/
   disconnect
   numeric
   peers
+  send_numeric
   send_to_routes
   users
 /;

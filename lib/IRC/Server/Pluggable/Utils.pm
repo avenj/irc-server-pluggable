@@ -96,17 +96,6 @@ sub uc_irc ($;$) {
   $string
 }
 
-sub parse_user {
-  my ($full) = @_;
-
-  confess "parse_user() called with no arguments"
-    unless defined $full;
-
-  my ($nick, $user, $host) = split /[!@]/, $full;
-
-  wantarray ? ($nick, $user, $host) : $nick
-}
-
 sub matches_mask {
   ## Imported from IRC::Utils:
   my ($mask, $nuh, $casemap) = @_;
@@ -231,6 +220,18 @@ sub normalize_mask {
 
   $mask[0] . '!' . $mask[1] . '@' . $mask[2]
 }
+
+sub parse_user {
+  my ($full) = @_;
+
+  confess "parse_user() called with no arguments"
+    unless defined $full;
+
+  my ($nick, $user, $host) = split /[!@]/, $full;
+
+  wantarray ? ($nick, $user, $host) : $nick
+}
+
 
 1;
 

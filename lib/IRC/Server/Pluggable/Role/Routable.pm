@@ -40,3 +40,32 @@ has 'route' => (
 );
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Role::Routable
+
+=head1 SYNOPSIS
+
+FIXME
+
+=head1 DESCRIPTION
+
+A Role whose consumer receives attributes defining a route and potentially a
+directly-attached L<IRC::Server::Pluggable::Backend::Connect> object.
+
+=head2 conn
+
+FIXME
+
+=head2 route
+
+FIXME
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

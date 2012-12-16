@@ -9,7 +9,7 @@ use strictures 1;
 use IRC::Server::Pluggable::Types;
 
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
 
 ## FIXME

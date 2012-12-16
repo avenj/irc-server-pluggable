@@ -1,5 +1,7 @@
 package IRC::Server::Pluggable::Protocol::Role::TS::Peers;
 
+## FIXME split out into base Protocol::Role:: namespace
+
 use strictures 1;
 use Moo::Role;
 

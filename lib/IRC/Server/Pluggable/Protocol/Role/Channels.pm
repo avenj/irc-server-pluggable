@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::TS::Channels;
+package IRC::Server::Pluggable::Protocol::Role::Channels;
 
 use Carp;
 use Moo::Role;
@@ -6,22 +6,14 @@ use strictures 1;
 
 use Scalar::Util 'blessed';
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
 
-requires qw/
-  channels
-  numeric
-  peers
-  users
-  send_numeric
-  send_to_routes
-/;
-
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 
 ## FIXME join methods, call Channels->add_user_to_channel?
 ## FIXME same for part
 
-## FIXME need an eye towards subclassibility, extended-join as well ..
+## FIXME extended-join
 
 sub cmd_from_client_join {
   my ($self, $conn, $event, $user) = @_;

@@ -68,7 +68,10 @@ has params => (
   isa       => ArrayRef,
   predicate => 'has_params',
   builder   => '_build_params',
-  coerce    => \&_str_to_arr,
+  coerce    => sub {
+    ref $_[0] eq 'ARRAY' ? $_[0]
+      : [ split ' ', $_[0] ]
+  },
 );
 
 sub _build_params {

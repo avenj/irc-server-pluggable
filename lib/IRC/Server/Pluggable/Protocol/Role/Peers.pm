@@ -1,13 +1,14 @@
-package IRC::Server::Pluggable::Protocol::Role::TS::Peers;
+package IRC::Server::Pluggable::Protocol::Role::Peers;
 
-## FIXME split out into base Protocol::Role:: namespace
+## FIXME split out
 
 use strictures 1;
 use Moo::Role;
 
 use POE;
 
-use namespace::clean -except => 'meta';
+use namespace::clean;
+
 
 sub cmd_from_peer_nick {
   ## FIXME

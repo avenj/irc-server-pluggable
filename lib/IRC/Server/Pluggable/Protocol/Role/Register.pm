@@ -23,7 +23,9 @@ use IRC::Server::Pluggable qw/
 
 use namespace::clean;
 
+
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
+
 
 has '_r_pending_reg' => (
   ## Keyed on $conn->wheel_id

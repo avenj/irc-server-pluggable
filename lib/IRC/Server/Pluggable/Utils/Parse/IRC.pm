@@ -1,13 +1,16 @@
 package IRC::Server::Pluggable::Utils::Parse::IRC;
 use Carp 'confess';
 use strictures 1;
+
 ## Functional interface to our IRC::Filter
 require IRC::Server::Pluggable::IRC::Filter;
+
 use Exporter 'import';
 our @EXPORT = qw/
   irc_ref_from_line
   irc_line_from_ref
 /;
+
 
 my $filter = 'IRC::Server::Pluggable::IRC::Filter';
 

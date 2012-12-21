@@ -151,7 +151,7 @@ sub user_cannot_send_to_user {
 
 
 sub r_msgs_parse_targets {
-  my ($self, $user, @targetlist) = @_;
+  my ($self, $user, $type, @targetlist) = @_;
   ## Concept borrowed from POE::Component::Server::IRC's target parser,
   ## which is reasonably clever.
   ## Turns a list of targets into a hash:
@@ -225,12 +225,37 @@ sub r_msgs_parse_targets {
       my ($nick, $server) = split /@/, $target, 2;
       my $host;
       ($nick, $host) = split /%/, $nick, 2 if $nick =~ /%/;
+
+      unless ($nick) {
+        ## No recipient.
+        $err_set->push(
+          $self->numeric->to_hash( 411,
+            target => $user->nick,
+            prefix => $self->config->server_name,
+            params => [ uc($type) ],
+          )
+        );
+        next TARGET
+      }
+      
+      unless ($server) {
+        $err_set->push(
+          $self->numeric->to_hash( 401,
+            target => $user->nick,
+            prefix => $self->config->server_name,
+            params => [ $target ],
+          );
+        );
+        next TARGET
+      }
+
+      ## FIXME handle mask validation here .. ?
+      ##   see notes in handle_message_relay
+ 
       $targets{$target} = [
         NICK_FULLQUAL,
         $nick, $server, $host
       ];
-      ## FIXME push error if no valid args?
-      ##  See notes in handle_message_relay also
       next TARGET
     }
 
@@ -275,7 +300,9 @@ sub handle_message_relay {
   my ($parsed_prefix) = parse_user($params{prefix});
   my $src_user_obj    = $self->users->by_name($parsed_prefix);
 
-  my ($targetset, $err_set) = $self->r_msgs_parse_targets($src_user_obj, @$target_array);
+  my ($targetset, $err_set) = $self->r_msgs_parse_targets(
+    $src_user_obj, $params{type}, @$target_array
+  );
 
   my $max_msg_targets = $self->config->max_msg_targets;
   my $tcount;

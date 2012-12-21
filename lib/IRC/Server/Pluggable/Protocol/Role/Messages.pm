@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Protocol::Role::TS::Messages;
+package IRC::Server::Pluggable::Protocol::Role::Messages;
 
 use 5.12.1;
 use strictures 1;
@@ -40,7 +40,6 @@ use namespace::clean;
 ##   - Accumulate route() IDs for users on channel,
 ##     relay to each unique route()
 
-### Errors:
 
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 requires qw/
@@ -372,7 +371,7 @@ sub r_msgs_relay_to_channel {
     return
   }
 
-  my %routes = $self->r_msgs_accumulate_targets_channel($chan_obj);
+  my $routes = $self->r_msgs_accumulate_targets_channel($chan_obj);
 
   ## Could override to provide v3 intents<->ctcp translation f.ex
 
@@ -390,9 +389,8 @@ sub r_msgs_relay_to_channel {
      params  => [ $target, $params->{string} ],
   );
 
-  delete $routes{ $params->{src_conn}->wheel_id };
-
-  for my $id (keys %routes) {
+  delete $routes->{ $params->{src_conn}->wheel_id };
+  for my $id (keys %$routes) {
     my $route_type = $self->r_msgs_get_route_type($id) || next;
     my $src_prefix =
       $self->r_msgs_gen_prefix_for_type($route_type, $src_user_obj)
@@ -403,7 +401,7 @@ sub r_msgs_relay_to_channel {
     $self->send_to_routes($ref, $id)
   }
 
-  \%routes
+  $routes
 }
 
 sub r_msgs_relay_to_nick {
@@ -502,13 +500,33 @@ sub r_msgs_relay_to_channel_prefixed {
     return
   }
 
-  my %routes = $self->r_msgs_accumulate_targets_statustype(
+  my $routes = $self->r_msgs_accumulate_targets_statustype(
     $status_prefix,
     $chan_obj
   );
-  delete $routes{ $params->{src_conn}->wheel_id() };
-  ## FIXME relay to each
+ 
+  ## FIXME should we be using chan ($target) or each actual target user
+  ##  (would have to call by_id for each)?
+  my %out = (
+     command => $params->{type},
+     params  => [ $target, $params->{string} ],
+  );
+
+  delete $routes->{ $params->{src_conn}->wheel_id };
+
+  for my $id (keys %$routes) {
+    my $route_type = $self->r_msgs_get_route_type($id) || next;
+    my $src_prefix =
+      $self->r_msgs_gen_prefix_for_type($route_type, $src_user_obj)
+      || $params->{prefix};
+
+    my $ref = { prefix => $src_prefix, %out };
+
+    $self->send_to_routes($ref, $id)
+  }
   ## FIXME what're the can-send rules here ...?
+
+  $routes
 }
 
 sub r_msgs_relay_to_servermask {
@@ -579,7 +597,7 @@ sub r_msgs_accumulate_targets_channel {
     $routes{ $user->route() }++
   }
 
-  %routes
+  \%routes
 }
 
 sub r_msgs_accumulate_targets_servermask {
@@ -593,7 +611,7 @@ sub r_msgs_accumulate_targets_servermask {
     $routes{ $peer->route() }++
   }
 
-  %routes
+  \%routes
 }
 
 sub r_msgs_accumulate_targets_hostmask {
@@ -606,7 +624,7 @@ sub r_msgs_accumulate_targets_hostmask {
     $routes{ $user->route() }++;
   }
 
-  %routes
+  \%routes
 }
 
 sub r_msgs_accumulate_targets_statustype {
@@ -626,7 +644,7 @@ sub r_msgs_accumulate_targets_statustype {
       if $chan_obj->user_has_mode($user->nick, $mode)
   }
 
-  %routes
+  \%routes
 }
 
 

@@ -2,12 +2,20 @@ package IRC::Server::Pluggable::Client::Lite;
 
 use 5.12.1;
 use Moo;
+use POE;
+
 
 use MooX::Struct -rw,
   State => [ qw/
     channels
     nick_name
     server_name
+  / ],
+
+  Channel => [ qw/
+    nicknames
+    topic
+    modes
   / ],
 ;
 
@@ -34,7 +42,19 @@ has connector_id => (
   predicate => '_has_connector_id',
   default   => sub { -1 },
 );
- 
+
+has state => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => Object,
+  default => sub { 
+    State[
+      channels    => [],
+      nick_name   => '',
+      server_name => '',
+    ]
+  },
+);
 
 sub _build_backend {
   my ($self) = @_;
@@ -43,9 +63,33 @@ sub _build_backend {
 
 sub BUILD {
   my ($self) = @_;
-  ## FIXME set up appropriate prefixes
-  ## FIXME add object_states for ircsock_* events
-  ##  (and POE dispatchable IRC events..?)
+
+  $self->set_object_states(
+    [
+      $self => [ qw/
+        ircsock_input
+        ircsock_connector_open
+        ircsock_connector_failure
+      / ],
+      $self => {
+        connect_to  => '_connect_to',
+        disconnect  => '_disconnect',
+        send        => '_send',
+        privmsg     => '_privmsg',
+        notice      => '_notice',
+        mode        => '_mode',
+        join        => '_join',
+        part        => '_part',
+      },
+      (
+        $self->has_object_states ? @{ $self->object_states } : ()
+      ),
+    ],
+  );
+
+  $self->set_event_prefix('irc_client_')
+    unless $self->has_event_prefix;
+  
   $self->_start_emitter;
 }
 
@@ -56,7 +100,7 @@ sub _emitter_started {
 
 sub stop {
   my ($self) = @_;
-  $kernel->post( $self->backend->session_id, 'shutdown' );
+  $poe_kernel->post( $self->backend->session_id, 'shutdown' );
   $self->_shutdown_emitter;
 }
 
@@ -92,6 +136,14 @@ sub connect_to {
 
 sub _connect_to {
   my ($kern, $self) = @_[KERNEL, OBJECT];
+
+}
+
+sub disconnect {
+
+}
+
+sub _disconnect {
 
 }
 

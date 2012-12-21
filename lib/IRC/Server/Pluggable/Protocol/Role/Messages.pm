@@ -172,6 +172,10 @@ sub r_msgs_parse_targets {
   my %targets;
 
   my $err_set = eventset();
+  my %base = (
+    target => $user->nick,
+    prefix => $self->config->server_name,
+  );
 
   TARGET: for my $target (@targetlist) {
 
@@ -186,20 +190,18 @@ sub r_msgs_parse_targets {
     if (grep {; $t_prefix eq $_ } @status_prefixes) {
       ## Message to status target.
       my $c_prefix = substr($target, 1, 1);
+
       unless (grep {; $c_prefix eq $_ } @chan_prefixes) {
-        ## Not a channel.
         $err_set->push(
           $self->numeric->to_hash( 401,
-            target => $user->nick,
-            prefix => $self->config->server_name,
-            ## This is hyb7 behavior:
+            %base,
+           ## This is hyb7 behavior:
             params => [ substr($target, 1) ],
           )
         );
         next TARGET
       }
-      ## Change target to bare channel name.
-      ## Preserve bare channel + status prefix character.
+
       $targets{$target}
         = [ CHAN_PREFIX, substr($target, 1), $t_prefix ] ;
       next TARGET
@@ -208,7 +210,18 @@ sub r_msgs_parse_targets {
     if (index($target, '$$') == 0) {
       ## Server mask - $$mask
       my $mask = substr($target, 2);
-      ## FIXME err if $mask has no length?
+
+      unless ($mask) {
+        $err_set->push(
+          $self->numeric->to_hash( 413,
+            %base,
+            params => [ '$' ],
+          )
+        );
+        next TARGET
+      }
+      ## FIXME mask validation .. ?
+
       $targets{$target} = [ SERVERMASK, $mask ];
       next TARGET
     }
@@ -216,6 +229,18 @@ sub r_msgs_parse_targets {
     if (index($target, '$#') == 0) {
       ## Host mask - $#mask
       my $mask = substr($target, 2);
+
+      unless ($mask) {
+        $err_set->push(
+          $self->numeric->to_hash( 413,
+            %base,
+            params => [ '#' ],
+          )
+        );
+        next TARGET
+      }
+      ## FIXME mask validation .. ?
+
       $targets{$target} = [ HOSTMASK, $mask ];
       next TARGET
     }
@@ -230,8 +255,7 @@ sub r_msgs_parse_targets {
         ## No recipient.
         $err_set->push(
           $self->numeric->to_hash( 411,
-            target => $user->nick,
-            prefix => $self->config->server_name,
+            %base,
             params => [ uc($type) ],
           )
         );
@@ -241,15 +265,14 @@ sub r_msgs_parse_targets {
       unless ($server) {
         $err_set->push(
           $self->numeric->to_hash( 401,
-            target => $user->nick,
-            prefix => $self->config->server_name,
+            %base,
             params => [ $target ],
           )
         );
         next TARGET
       }
 
-      ## FIXME handle mask validation here .. ?
+      ## FIXME - mask validation
       ##   see notes in handle_message_relay
  
       $targets{$target} = [

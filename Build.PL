@@ -92,6 +92,7 @@ my $build = $class->new(
     'MooX::Types::MooseLike'    => '0.15',
     'MooX::Role::POE::Emitter'  => 0,
     'MooX::Role::Pluggable'     => '0.02',
+    'MooX::Struct'              => '0.10',
 
     'Net::IP::Minimal'          => '0.04',
 

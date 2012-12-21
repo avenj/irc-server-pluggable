@@ -74,7 +74,7 @@ sub _build_output {
   $opts{log_format}  = $self->log_format  if $self->has_log_format;
   $opts{time_format} = $self->time_format if $self->has_time_format;
 
-  IRC::Server::Pluggable::Logger::Output->new(%opts)
+  prefixed_new( 'Logger::Output' => %opts )
 }
 
 

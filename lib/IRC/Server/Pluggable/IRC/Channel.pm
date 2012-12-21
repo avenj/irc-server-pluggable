@@ -257,6 +257,7 @@ sub chg_status {
 
   ## Return arrayref consisting of final modes.
   ## These will have to be sorted upstream from here.
+  ## FIXME return IRC::ModeChange instead?
   $self->nicknames->{$nickname} = [ @modeset ]
 }
 

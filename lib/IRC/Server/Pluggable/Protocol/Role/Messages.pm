@@ -244,7 +244,7 @@ sub r_msgs_parse_targets {
             target => $user->nick,
             prefix => $self->config->server_name,
             params => [ $target ],
-          );
+          )
         );
         next TARGET
       }

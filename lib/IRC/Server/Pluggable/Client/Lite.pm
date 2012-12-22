@@ -20,7 +20,6 @@ use MooX::Struct -rw,
 
   ISupport => [ qw/
     casemap
-    ## FIXME -extend ISupport with spare keys as-needed?
   / ],
 ;
 
@@ -151,6 +150,7 @@ has state => (
       channels    => [],
       nick_name   => '',
       server_name => '',
+      isupport    => ISupport[ casemap => 'rfc1459' ],
     ]
   },
 );
@@ -270,6 +270,7 @@ sub N_irc_001 {
   my $ev = ${ $_[0] };
 
   $self->state->server_name( $ev->prefix );
+
   $self->state->nick_name(
     (split ' ', $ev->raw_line)[2]
   );
@@ -280,7 +281,29 @@ sub N_irc_001 {
 sub N_irc_005 {
   my (undef, $self) = splice @_, 0, 2;
   my $ev = ${ $_[0] };
-  ## FIXME parse ISUPPORT
+
+  my %isupport;
+  my @params = @{ $ev->params };
+  ## Drop target nickname, trailing 'are supported by ..':
+  shift @params;
+  pop @params;
+  for my $item (@params) {
+    my ($key, $val) = split /=/, $item, 2;
+    $key = lc $key;
+    if (defined $val) {
+      $isupport{$key} = $val
+    } else {
+      $isupport{$key} = '0 but true';
+    }
+  }
+
+  for my $key (%isupport) {
+    $self->state->isupport->EXTEND(
+      -rw => $key
+    ) unless $self->state->isupport->can($key);
+    $self->state->isupport->$key( $isupport{$key} )
+  }
+
   EAT_NONE
 }
 

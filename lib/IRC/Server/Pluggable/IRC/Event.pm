@@ -231,6 +231,10 @@ IRCv3.2 message tags, as a HASH of key-value pairs.
 
 IRCv3.2 message tags, as an ARRAY of tags in the form of 'key=value'
 
+=head3 tags_as_string
+
+IRCv3.2 message tags as a specification-compliant string.
+
 =head1 AUTHOR
 
 Jon Portnoy <avenj@cobaltirc.org>

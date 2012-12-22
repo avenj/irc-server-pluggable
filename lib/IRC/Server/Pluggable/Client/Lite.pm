@@ -30,6 +30,8 @@ my $filter = prefixed_new( 'IRC::Filter' =>
   colonify => 0,
 );
 
+with 'IRC::Server::Pluggable::Role::Interface::Client';
+
 with 'MooX::Role::POE::Emitter';
 use MooX::Role::Pluggable::Constants;
 
@@ -50,19 +52,12 @@ has nick => (
 after 'set_nick' => sub {
   my ($self, $nick) = @_;
   if ($self->has_conn && $self->conn->has_wheel) {
+    ## Try to change IRC nickname as well.
     $self->nick($nick)
   }
 };
 
 ### Optional:
-has autojoin => (
-  lazy      => 1,
-  is        => 'ro',
-  isa       => ArrayRef,
-  writer    => 'set_autojoin',
-  predicate => 'has_autojoin',
-  default   => sub { [] },
-);
 
 has bindaddr => (
   lazy      => 1,
@@ -86,13 +81,13 @@ has ipv6 => (
   default   => sub { 0 },
 );
 
-has username => (
+has port => (
   lazy      => 1,
   is        => 'ro',
-  isa       => Str,
-  writer    => 'set_username',
-  predicate => 'has_username',
-  default   => sub { 'ircplug' },
+  isa       => Num,
+  writer    => 'set_port',
+  predicate => 'has_port',
+  default   => sub { 6667 },
 );
 
 has realname => (
@@ -104,13 +99,21 @@ has realname => (
   default   => sub { __PACKAGE__ },
 );
 
-has port => (
+has reconnect => (
   lazy      => 1,
   is        => 'ro',
   isa       => Num,
-  writer    => 'set_port',
-  predicate => 'has_port',
-  default   => sub { 6667 },
+  writer    => 'set_reconnect',
+  default   => sub { 120 },
+);
+
+has username => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_username',
+  predicate => 'has_username',
+  default   => sub { 'ircplug' },
 );
 
 ### Typically internal:
@@ -226,15 +229,22 @@ sub ircsock_connector_failure {
   my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
 
   $self->_clear_conn if $self->_has_conn;
-  ## FIXME reinit connector via timer on configured delay
+
+  $self->emit( 'irc_connector_failed', @_[ARG0 .. $#_] );
+  
+  $self->timer( $self->reconnect, 'connect')
+    unless !$self->reconnect;
 }
 
 sub ircsock_disconnect {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $str) = @_[ARG0, ARG1];
+  
   $self->_clear_conn if $self->_has_conn;
+  
   my $connected_to = $self->state->server_name;
   $self->_clear_state;
+  
   $self->emit( 'irc_disconnected', $connected_to, $str );
 }
 
@@ -252,10 +262,11 @@ sub N_irc_001 {
   my (undef, $self) = splice @_, 0, 2;
   my $ev = ${ $_[0] };
 
+  $self->state->server_name( $ev->prefix );
   $self->state->nick_name(
     (split ' ', $ev->raw_line)[2]
   );
-  ## FIXME get server name?
+
   EAT_NONE
 }
 
@@ -267,6 +278,8 @@ sub N_irc_005 {
 }
 
 sub N_irc_nick {
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
   ## FIXME update our nick as-needed
   ##  Update our channels as-needed
   EAT_NONE
@@ -301,6 +314,14 @@ sub N_irc_privmsg {
   }
 
   EAT_ALL
+}
+
+sub N_irc_join {
+  ## FIXME update state/channels
+}
+
+sub N_irc_part {
+  ## FIXME update state/channels
 }
 
 sub N_irc_topic {

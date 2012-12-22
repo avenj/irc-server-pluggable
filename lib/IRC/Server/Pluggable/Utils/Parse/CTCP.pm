@@ -8,6 +8,7 @@ use Exporter 'import';
 our @EXPORT = qw/
   ctcp_quote
   ctcp_unquote
+  ctcp_extract
 /;
 
 use IRC::Server::Pluggable 'IRC::Event';
@@ -75,8 +76,9 @@ sub ctcp_unquote {
 sub ctcp_extract {
   my ($input) = @_;
 
-  unless (blessed $input) {
-    $input = ref $input ? ev(%$input) : ev(raw_line => $input);
+  unless (blessed $input 
+    && $input->isa('IRC::Server::Pluggable::IRC::Event')) {
+      $input = ref $input ? ev(%$input) : ev(raw_line => $input);
   }
 
   my $type = uc($input->command) eq 'PRIVMSG' ? 'ctcp' : 'ctcpreply' ;
@@ -95,6 +97,7 @@ sub ctcp_extract {
       my ($dcc_type, $dcc_params) = $params =~ /^(\w+) +(.+)/;
       last CTCP unless $dcc_type;
       return ev(
+        ( $input->prefix ? (prefix => $input->prefix) : () ),
         command => 'dcc_request_'.lc($dcc_type),
         params  => [
           $input->prefix,
@@ -104,9 +107,9 @@ sub ctcp_extract {
       )
     } else {
       return ev(
+        ( $input->prefix ? (prefix => $input->prefix) : () ),
         command => $type .'_'. $name,
         params  => [
-          $input->prefix,
           $input->params->[0],
           ( defined $params ? $params : '' ),
         ],
@@ -166,7 +169,9 @@ ARRAYs containing the CTCP and text portions of a CTCP-quoted message.
 
 =head1 AUTHOR
 
-Code borrowed from L<POE::Filter::IRC::Compat>, copyright BinGOs, fimm et al
+Jon Portnoy <avenj@cobaltirc.org>
+
+Code derived from L<POE::Filter::IRC::Compat>, copyright BinGOs, fimm et al
 
 Licensed under the same terms as Perl.
 

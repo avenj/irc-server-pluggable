@@ -128,10 +128,12 @@ sub tags_as_string {
   $str
 }
 
+
 has '__filter' => (
-  is      => 'rw',
-  lazy    => 1,
-  builder => '__build_filter',
+  is       => 'rw',
+  init_arg => 'filter',
+  lazy     => 1,
+  builder  => '__build_filter',
 );
 
 sub __build_filter {

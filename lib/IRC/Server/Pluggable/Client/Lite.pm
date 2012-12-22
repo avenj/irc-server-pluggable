@@ -3,6 +3,7 @@ package IRC::Server::Pluggable::Client::Lite;
 use 5.12.1;
 use Moo;
 use POE;
+use Carp 'confess';
 
 
 use MooX::Struct -rw,
@@ -31,10 +32,6 @@ use IRC::Server::Pluggable qw/
   Utils::Parse::CTCP
   Types
 /;
-
-my $filter = prefixed_new( 'IRC::Filter' => 
-  colonify => 0,
-);
 
 with 'IRC::Server::Pluggable::Role::Interface::Client';
 
@@ -130,6 +127,17 @@ has backend => (
   builder => '_build_backend',
 );
 
+sub _build_backend {
+  my ($self) = @_;
+  my $filter = prefixed_new( 'IRC::Filter' => 
+    colonify => 0,
+  );
+
+  prefixed_new( 'Backend' =>
+    filter_irc => $filter,
+  )
+}
+
 has conn => (
   lazy      => 1,
   weak_ref  => 1,
@@ -156,13 +164,6 @@ sub _build_state {
       server_name => '',
       isupport    => ISupport->new( casemap => 'rfc1459' ),
     )
-}
-
-sub _build_backend {
-  my ($self) = @_;
-  prefixed_new( 'Backend' =>
-    filter_irc => $filter,
-  );
 }
 
 sub BUILD {
@@ -354,9 +355,11 @@ sub N_irc_join {
   my (undef, $self) = splice @_, 0, 2;
   my $ev = ${ $_[0] };
 
-  my $casemap = $self->state->isupport->casemap || 'rfc1459';
-  my $target = uc_irc( $ev->params->[0], $casemap );
-  my ($nick) = parse_user( $ev->prefix );
+  my ($nick, $user, $host) = parse_user( $ev->prefix );
+
+  my $casemap = $self->isupport('casemap');
+  my $target  = uc_irc( $ev->params->[0], $casemap );
+  $nick       = uc_irc( $nick, $casemap );
 
   if ( eq_irc($nick, $self->state->nick_name, $casemap) ) {
     ## Us. Add new Channel struct.
@@ -364,26 +367,50 @@ sub N_irc_join {
       nicknames => {},
       topic     => '',
     );
+    ## FIXME request WHO to fill ->nicknames
+    ##  plugin could pull WHO replies to preserve more state
   }
 
-  ## FIXME update state/channels
-  ##  Request NAMES so we can update the nick list for this Channel struct.
-  ##  (Need handler for reply parsing, preserve status modes in nicknames
-  ##   hash?)
-  ##  If we don't have this channel, Something Is Wrong.
+  my $chan_obj = $self->state->channels->{$target};
+  ## Array of status prefixes.
+  $chan_obj->nicknames->{$nick} = [];
+
+  EAT_NONE
 }
 
 sub N_irc_part {
-  ## FIXME update state/channels
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+  
+  my ($nick) = parse_user( $ev->prefix );
+
+  my $casemap = $self->isupport('casemap');
+  my $target  = uc_irc( $ev->params->[0], $casemap );
+  $nick       = uc_irc( $nick, $casemap );
+  
+  delete $self->state->channels->{$target};
+  
+  EAT_NONE
 }
 
 sub N_irc_topic {
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+  my ($nick, $user, $host) = parse_user( $ev->prefix );
   ## FIXME update state/channels
+  ## FIXME Topic struct with nick / user / host / topic / timestamp
   EAT_NONE
 }
 
 
 ### Public
+
+sub isupport {
+  my ($self, $key) = @_;
+  $key = lc($key // confess "Expected a key");
+  return unless $self->state->isupport->can($key);
+  $self->state->isupport->$key
+}
 
 sub connect {
   my $self = shift;
@@ -528,18 +555,5 @@ sub _part {
     )
   );
 }
-
-
-## FIXME figure out which emitted events should be munged
-##   - public vs private messages?
-##   - parse and record ISUPPORT ?
-##   - channel state ? users, topics
-##   - nick changes, look for ours ?
-
-
-## FIXME
-##  Hammer out a reasonably common interface between
-##   a Client::Lite and Client::Pseudo
-##   (shove interface into a Role::Interface::Client)
 
 1;

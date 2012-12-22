@@ -33,6 +33,87 @@ my $filter = prefixed_new( 'IRC::Filter' =>
 with 'MooX::Role::POE::Emitter';
 use MooX::Role::Pluggable::Constants;
 
+### Required:
+has server => (
+  required  => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_server',
+);
+
+has nick => (
+  required  => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_nick',
+);
+after 'set_nick' => sub {
+  my ($self, $nick) = @_;
+  if ($self->has_conn && $self->conn->has_wheel) {
+    $self->nick($nick)
+  }
+};
+
+### Optional:
+has autojoin => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => ArrayRef,
+  writer    => 'set_autojoin',
+  predicate => 'has_autojoin',
+  default   => sub { [] },
+);
+
+has bindaddr => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Defined,
+  writer    => 'set_bindaddr',
+  predicate => 'has_bindaddr',
+  default   => sub {
+    my ($self) = @_;
+    return '::0' if $self->has_ipv6 and $self->ipv6;
+    return '0.0.0.0'
+  },
+);
+
+has ipv6 => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Bool,
+  writer    => 'set_ipv6',
+  predicate => 'has_ipv6',
+  default   => sub { 0 },
+);
+
+has username => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_username',
+  predicate => 'has_username',
+  default   => sub { 'ircplug' },
+);
+
+has realname => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_realname',
+  predicate => 'has_realname',
+  default   => sub { __PACKAGE__ },
+);
+
+has port => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Num,
+  writer    => 'set_port',
+  predicate => 'has_port',
+  default   => sub { 6667 },
+);
+
+### Typically internal:
 has backend => (
   lazy    => 1,
   is      => 'ro',
@@ -54,6 +135,7 @@ has state => (
   lazy    => 1,
   is      => 'ro',
   isa     => Object,
+  clearer => '_clear_state',
   default => sub { 
     State[
       channels    => [],
@@ -66,12 +148,8 @@ has state => (
 sub _build_backend {
   my ($self) = @_;
   prefixed_new( 'Backend' =>
-    filter_irc => prefixed_new( 'IRC::Filter', colonify => 1 );
+    filter_irc => $filter,
   );
-  ## FIXME create a Backend with a non-colonifying filter?
-  ##  events can be spawned with a filter => specified also ..
-  ##  possible we should have a filter attrib passed to ev()
-  ##  . . . not sure if we need to
 }
 
 sub BUILD {
@@ -86,7 +164,7 @@ sub BUILD {
         ircsock_disconnect
       / ],
       $self => {
-        connect_to  => '_connect_to',
+        connect     => '_connect',
         disconnect  => '_disconnect',
         send        => '_send',
         privmsg     => '_privmsg',
@@ -102,9 +180,6 @@ sub BUILD {
     ],
   );
 
-  $self->set_event_prefix('irc_client_')
-    unless $self->has_event_prefix;
-  
   $self->_start_emitter;
 }
 
@@ -126,7 +201,23 @@ sub ircsock_connector_open {
   my $conn = $_[ARG0];
 
   $self->_set_conn( $conn );
-  ## FIXME Try to register with remote, issue events
+  ## FIXME send PASS if we have one
+  $self->send(
+    ev(
+      command => 'user',
+      params  => [
+        $self->username,
+        '*', '*',
+        $self->realname
+      ],
+    ),
+    ev(
+      command => 'nick',
+      params  => [ $self->nick ],
+    ),
+  );
+
+  $self->emit( 'irc_connected', $conn );
 }
 
 sub ircsock_connector_failure {
@@ -135,13 +226,16 @@ sub ircsock_connector_failure {
   my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
 
   $self->_clear_conn if $self->_has_conn;
-  ## FIXME failed to connect, retry?
+  ## FIXME reinit connector via timer on configured delay
 }
 
 sub ircsock_disconnect {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $str) = @_[ARG0, ARG1];
-  ## FIXME clean up, emit
+  $self->_clear_conn if $self->_has_conn;
+  my $connected_to = $self->state->server_name;
+  $self->_clear_state;
+  $self->emit( 'irc_disconnected', $connected_to, $str );
 }
 
 sub ircsock_input {
@@ -161,7 +255,7 @@ sub N_irc_001 {
   $self->state->nick_name(
     (split ' ', $ev->raw_line)[2]
   );
-  
+  ## FIXME get server name?
   EAT_NONE
 }
 
@@ -217,20 +311,29 @@ sub N_irc_topic {
 
 ### Public
 
-sub connect_to {
+sub connect {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'connect_to', @_ )
+  $self->yield( 'connect', @_ )
 }
 
-sub _connect_to {
+sub _connect {
   my ($kern, $self) = @_[KERNEL, OBJECT];
 
-  ## FIXME Tell Backend to open a Connector
+  $self->backend->create_connector(
+    remoteaddr => $self->server,
+    remoteport => $self->port,
+    (
+      $self->has_ipv6 ? (ipv6 => $self->ipv6) : ()
+    ),
+    (
+      $self->has_bindaddr ? (bindaddr => $self->bindaddr) : ()
+    ),
+  )
 }
 
 sub disconnect {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'disconnect', @_ )
+  $self->yield( 'disconnect', @_ )
 }
 
 sub _disconnect {
@@ -246,7 +349,7 @@ sub send_raw_line {
 
 sub send {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'send', @_ )
+  $self->yield( 'send', @_ )
 }
 
 sub _send {
@@ -258,7 +361,7 @@ sub _send {
 ## Sugar, and POE-dispatchable counterparts.
 sub notice {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'notice', @_ )
+  $self->yield( 'notice', @_ )
 }
 
 sub _notice {
@@ -274,7 +377,7 @@ sub _notice {
 
 sub privmsg {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'privmsg', @_ )
+  $self->yield( 'privmsg', @_ )
 }
 
 sub _privmsg {
@@ -290,7 +393,7 @@ sub _privmsg {
 
 sub ctcp {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'ctcp', @_ )
+  $self->yield( 'ctcp', @_ )
 }
 
 sub _ctcp {
@@ -306,7 +409,7 @@ sub _ctcp {
 
 sub mode {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'mode', @_ )
+  $self->yield( 'mode', @_ )
 }
 
 sub _mode {
@@ -323,7 +426,7 @@ sub _mode {
 
 sub join {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'join', @_ )
+  $self->yield( 'join', @_ )
 }
 
 sub _join {
@@ -338,7 +441,7 @@ sub _join {
 
 sub part {
   my $self = shift;
-  $poe_kernel->post( $self->session_id, 'part', @_ )
+  $self->yield( 'part', @_ )
 }
 
 sub _part {

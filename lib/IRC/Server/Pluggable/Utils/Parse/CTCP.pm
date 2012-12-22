@@ -167,6 +167,8 @@ Deparses a raw line possibly containing CTCP.
 Returns a hash with two keys, B<ctcp> and B<text>, whose values are 
 ARRAYs containing the CTCP and text portions of a CTCP-quoted message.
 
+Returns an empty list if no valid CTCP was found.
+
 =head1 AUTHOR
 
 Jon Portnoy <avenj@cobaltirc.org>

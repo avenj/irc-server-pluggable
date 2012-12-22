@@ -3,7 +3,8 @@ use strict; use warnings qw/FATAL all/;
 
 use_ok( 'IRC::Server::Pluggable::Utils::Parse::CTCP' );
 
-ok( !ctcp_extract("Line without CTCP"), "line without ctcp ok" );
+ok( !ctcp_unquote("Line without CTCP"), '!unquote without ctcp ok' );
+ok( !ctcp_extract("Line without CTCP"), '!extract without ctcp ok' );
 ok( !ctcp_extract({
       command => 'PRIVMSG',
       params  => [ 'target', 'testing things' ],

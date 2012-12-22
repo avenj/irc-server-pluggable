@@ -7,14 +7,20 @@ use POE;
 
 use MooX::Struct -rw,
   State => [ qw/
-    @channels
+    %channels
+    $isupport
     nick_name
     server_name
   / ],
 
   Channel => [ qw/
-    @nicknames
+    %nicknames
     topic
+  / ],
+
+  ISupport => [ qw/
+    casemap
+    ## FIXME -extend ISupport with spare keys as-needed?
   / ],
 ;
 
@@ -22,6 +28,7 @@ use IRC::Server::Pluggable qw/
   Backend
   IRC::Event
   IRC::Filter
+  Utils
   Utils::Parse::CTCP
   Types
 /;
@@ -317,7 +324,23 @@ sub N_irc_privmsg {
 }
 
 sub N_irc_join {
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+
+  my $casemap = $self->state->isupport->casemap || 'rfc1459';
+  my $target = uc_irc( $ev->params->[0], $casemap );
+  my ($nick) = parse_user( $ev->prefix );
+
+  if ( eq_irc($nick, $self->state->nick_name, $casemap) ) {
+    ## Us. Add new empty Channel struct.
+    $self->state->channels->{$target} = Channel[];
+  }
+
   ## FIXME update state/channels
+  ##  Request NAMES so we can update the nick list for this Channel struct.
+  ##  (Need handler for reply parsing, preserve status modes in nicknames
+  ##   hash?)
+  ##  If we don't have this channel, Something Is Wrong.
 }
 
 sub N_irc_part {

@@ -150,12 +150,12 @@ has state => (
 );
 
 sub _build_state { 
-    State[
+    State->new(
       channels    => {},
       nick_name   => '',
       server_name => '',
-      isupport    => ISupport[ casemap => 'rfc1459' ],
-    ]
+      isupport    => ISupport->new( casemap => 'rfc1459' ),
+    )
 }
 
 sub _build_backend {
@@ -359,8 +359,11 @@ sub N_irc_join {
   my ($nick) = parse_user( $ev->prefix );
 
   if ( eq_irc($nick, $self->state->nick_name, $casemap) ) {
-    ## Us. Add new empty Channel struct.
-    $self->state->channels->{$target} = Channel[];
+    ## Us. Add new Channel struct.
+    $self->state->channels->{$target} = Channel->new(
+      nicknames => {},
+      topic     => '',
+    );
   }
 
   ## FIXME update state/channels

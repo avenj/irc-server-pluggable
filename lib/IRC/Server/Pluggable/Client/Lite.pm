@@ -19,7 +19,7 @@ use MooX::Struct -rw,
   / ],
 
   ISupport => [ qw/
-    casemap
+    casemap!
   / ],
 ;
 
@@ -151,7 +151,7 @@ has state => (
 
 sub _build_state { 
     State[
-      channels    => [],
+      channels    => {},
       nick_name   => '',
       server_name => '',
       isupport    => ISupport[ casemap => 'rfc1459' ],

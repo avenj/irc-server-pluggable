@@ -61,7 +61,7 @@ has 'session_id' => (
 
 has 'controller' => (
   ## Session ID for controller session
-  ## Set by 'register' event
+  ## Typically set by 'register' event
   lazy      => 1,
   isa       => Value,
   is        => 'ro',
@@ -747,6 +747,9 @@ sub send {
         prefix  => $out->prefix,
         params  => $out->params,
         command => $out->command,
+        (
+          $out->has_tags ? (tags => $out->tags) : ()
+        )
       };
     } elsif ( $out->isa($self->__backend_eventset_class) ) {
       while (my $this_ev = $out->shift) {

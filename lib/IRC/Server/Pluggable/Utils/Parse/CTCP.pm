@@ -22,8 +22,8 @@ my %quote = (
 );
 my %dequote = reverse %quote;
 
-## Borrowed from POE::Filter::IRC::Compat  /  Net::IRC
-##  Copyright BinGOs, fimm, Abigail et al
+## CTCP handling logic borrowed from POE::Filter::IRC::Compat  /  Net::IRC
+##  (by BinGOs, fimm, Abigail et al)
 
 sub ctcp_quote {
   my ($line) = @_;
@@ -84,7 +84,7 @@ sub ctcp_extract {
   my $type = uc($input->command) eq 'PRIVMSG' ? 'ctcp' : 'ctcpreply' ;
   my $line = $input->params->[1];
   my $unquoted = ctcp_unquote($line);
-  return unless $unquoted;
+  return unless $unquoted and @{ $unquoted->{ctcp} };
 
   my ($name, $params);
   CTCP: for my $str ($unquoted->{ctcp}->[0]) {
@@ -147,11 +147,16 @@ Returns an L<IRC::Server::Pluggable::IRC::Event> whose C<command> carries an
 appropriate prefix (one of B<ctcp>, B<ctcpreply>, or B<dcc_request>) prepended
 to the CTCP command:
 
-  $ev->command eq 'ctcp_version'      ## CTCP VERSION
+  ## CTCP VERSION
+  $ev->command eq 'ctcp_version' 
     $ev->params would be sender, target(s), any additional params
-  $ev->command eq 'ctcpreply_version' ## reply to CTCP VERSION
+
+  ## Reply to CTCP VERSION
+  $ev->command eq 'ctcpreply_version'
     $ev->params would be sender, target(s), contents of reply
-  $ev->command eq 'dcc_request_send'  ## DCC SEND
+
+  ## DCC SEND
+  $ev->command eq 'dcc_request_send' 
     $ev->params would be sender and DCC parameters
 
 Returns empty list if no valid CTCP was found.

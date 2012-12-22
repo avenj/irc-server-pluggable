@@ -22,6 +22,7 @@ use IRC::Server::Pluggable qw/
   Backend
   IRC::Event
   IRC::Filter
+  Utils::Parse::CTCP
   Types
 /;
 
@@ -39,14 +40,14 @@ has backend => (
   builder => '_build_backend',
 );
 
-has connector => (
+has conn => (
   lazy      => 1,
   weak_ref  => 1,
   is        => 'ro',
   isa       => Defined,
-  writer    => '_set_connector',
-  predicate => '_has_connector',
-  clearer   => '_clear_connector',
+  writer    => '_set_conn',
+  predicate => '_has_conn',
+  clearer   => '_clear_conn',
 );
 
 has state => (
@@ -64,6 +65,9 @@ has state => (
 
 sub _build_backend {
   my ($self) = @_;
+  prefixed_new( 'Backend' =>
+    filter_irc => prefixed_new( 'IRC::Filter', colonify => 1 );
+  );
   ## FIXME create a Backend with a non-colonifying filter?
   ##  events can be spawned with a filter => specified also ..
   ##  possible we should have a filter attrib passed to ev()
@@ -121,7 +125,7 @@ sub ircsock_connector_open {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
 
-  $self->_set_connector( $conn );
+  $self->_set_conn( $conn );
   ## FIXME Try to register with remote, issue events
 }
 
@@ -130,7 +134,7 @@ sub ircsock_connector_failure {
   my $connector = $_[ARG0];
   my ($op, $errno, $errstr) = @_[ARG1 .. ARG3];
 
-  $self->_clear_connector if $self->_has_connector;
+  $self->_clear_conn if $self->_has_conn;
   ## FIXME failed to connect, retry?
 }
 
@@ -165,6 +169,7 @@ sub N_irc_005 {
   my (undef, $self) = splice @_, 0, 2;
   my $ev = ${ $_[0] };
   ## FIXME parse ISUPPORT
+  EAT_NONE
 }
 
 sub N_irc_nick {
@@ -174,17 +179,39 @@ sub N_irc_nick {
 }
 
 sub N_irc_notice {
-  ## FIXME parse CTCP
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+
+  if (my $ctcp_ev = ctcp_extract($ev)) {
+    $self->emit_now( 'irc_'.$ctcp_ev->command, $ctcp_ev );
+    return EAT_ALL
+  }
+  
   EAT_NONE
 }
 
 sub N_irc_privmsg {
-  ## FIXME split into irc_public_msg / irc_private_msg ?
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+
+  if (my $ctcp_ev = ctcp_extract($ev)) {
+    $self->emit_now( 'irc_'.$ctcp_ev->command, $ctcp_ev );
+    return EAT_ALL
+  }
+
+  my $prefix = substr $ev->params->[0], 0, 1;
+  if (grep {; $_ eq $prefix } ('#', '&', '+') ) {
+    $self->emit_now( 'irc_public_msg', $ev )
+  } else {
+    $self->emit_now( 'irc_private_msg', $ev )
+  }
+
   EAT_ALL
 }
 
 sub N_irc_topic {
-
+  ## FIXME update state/channels
+  EAT_NONE
 }
 
 
@@ -198,7 +225,7 @@ sub connect_to {
 sub _connect_to {
   my ($kern, $self) = @_[KERNEL, OBJECT];
 
-  ## Tell Backend to open a Connector
+  ## FIXME Tell Backend to open a Connector
 }
 
 sub disconnect {
@@ -208,7 +235,8 @@ sub disconnect {
 
 sub _disconnect {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  $self->backend->disconnect( $self->connector->wheel_id );
+  $self->backend->disconnect( $self->conn->wheel->ID );
+    if $self->has_conn and $self->conn->has_wheel;
 }
 
 sub send_raw_line {
@@ -223,7 +251,7 @@ sub send {
 
 sub _send {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  $self->backend->send( $_, $self->connector->wheel_id )
+  $self->backend->send( $_, $self->conn->wheel_id )
     for @_[ARG0 .. $#_];
 }
 
@@ -268,9 +296,12 @@ sub ctcp {
 sub _ctcp {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($type, $target, @data) = @_[ARG0 .. $#_];
-  ## FIXME need a CTCP util module
-  ##  for properly parsing CTCP
-  ##  (see POE::Filter::IRC::Compat)
+  my $line = join ' ', uc($type), @data;
+  my $quoted = ctcp_quote($line);
+  $self->send(
+    command => 'privmsg',
+    params  => [ $target, $quoted ]
+  )
 }
 
 sub mode {

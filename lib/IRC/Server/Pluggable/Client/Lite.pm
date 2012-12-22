@@ -16,7 +16,13 @@ use MooX::Struct -rw,
 
   Channel => [ qw/
     %nicknames
-    topic
+    $topic
+  / ],
+
+  Topic => [ qw/
+    set_by!
+    +set_at
+    topic!
   / ],
 
   ISupport => [ qw/
@@ -312,6 +318,44 @@ sub N_irc_005 {
   EAT_NONE
 }
 
+sub N_irc_332 {
+  ## Topic
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+
+  my (undef, $target, $topic) = @{ $ev->params };
+
+  my $casemap = $self->isupport('casemap');
+  $target     = uc_irc( $target, $casemap );
+
+  my $chan_obj = $self->state->channels->{$target};
+  $chan_obj->topic->topic( $topic );
+
+  EAT_NONE
+}
+
+sub N_irc_333 {
+  ## Topic setter & TS
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+  my (undef, $target, $setter, $ts) = @{ $ev->params };
+ 
+  my $casemap = $self->isupport('casemap');
+  $target     = uc_irc( $target, $casemap );
+
+  my $chan_obj = $self->state->channels->{$target};
+  $chan_obj->topic->set_at( $ts );
+  $chan_obj->topic->set_by( $setter );
+
+  EAT_NONE
+}
+
+sub N_irc_352 {
+  ## WHOREPLY
+  ##  FIXME update nickname(s) for applicable channel(s)
+  ##   add status prefixes?
+}
+
 sub N_irc_nick {
   my (undef, $self) = splice @_, 0, 2;
   my $ev = ${ $_[0] };
@@ -365,14 +409,22 @@ sub N_irc_join {
     ## Us. Add new Channel struct.
     $self->state->channels->{$target} = Channel->new(
       nicknames => {},
-      topic     => '',
+      topic     => Topic->new(
+        set_by => '',
+        set_at => 0,
+        topic  => '',
+      ),
     );
-    ## FIXME request WHO to fill ->nicknames
-    ##  plugin could pull WHO replies to preserve more state
+    ## ... and request a WHO
+    $self->send(
+      ev(
+        command => 'who',
+        params  => [ $ev->params->[0] ],
+      )
+    );
   }
 
   my $chan_obj = $self->state->channels->{$target};
-  ## Array of status prefixes.
   $chan_obj->nicknames->{$nick} = [];
 
   EAT_NONE
@@ -396,9 +448,21 @@ sub N_irc_part {
 sub N_irc_topic {
   my (undef, $self) = splice @_, 0, 2;
   my $ev = ${ $_[0] };
+  
   my ($nick, $user, $host) = parse_user( $ev->prefix );
-  ## FIXME update state/channels
-  ## FIXME Topic struct with nick / user / host / topic / timestamp
+  my ($target, $str) = @{ $ev->params };
+
+  my $casemap = $self->isupport('casemap');
+  $target     = uc_irc( $target, $casemap );
+ 
+  my $chan_obj = $self->state->channels->{$target};
+  $chan_obj->topic( Topic->new(
+      set_at => time(),
+      set_by => $ev->prefix,
+      topic  => $str,
+    )
+  );
+
   EAT_NONE
 }
 

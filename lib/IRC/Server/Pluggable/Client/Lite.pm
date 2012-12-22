@@ -145,15 +145,18 @@ has state => (
   is      => 'ro',
   isa     => Object,
   clearer => '_clear_state',
-  default => sub { 
+  writer  => '_set_state',
+  builder => '_build_state',
+);
+
+sub _build_state { 
     State[
       channels    => [],
       nick_name   => '',
       server_name => '',
       isupport    => ISupport[ casemap => 'rfc1459' ],
     ]
-  },
-);
+}
 
 sub _build_backend {
   my ($self) = @_;
@@ -250,7 +253,7 @@ sub ircsock_disconnect {
   $self->_clear_conn if $self->_has_conn;
   
   my $connected_to = $self->state->server_name;
-  $self->_clear_state;
+  $self->_set_state( $self->_build_state );
   
   $self->emit( 'irc_disconnected', $connected_to, $str );
 }
@@ -286,7 +289,8 @@ sub N_irc_005 {
   my @params = @{ $ev->params };
   ## Drop target nickname, trailing 'are supported by ..':
   shift @params;
-  pop @params;
+  pop   @params;
+
   for my $item (@params) {
     my ($key, $val) = split /=/, $item, 2;
     $key = lc $key;

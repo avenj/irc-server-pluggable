@@ -434,14 +434,28 @@ sub N_irc_part {
   my (undef, $self) = splice @_, 0, 2;
   my $ev = ${ $_[0] };
   
-  my ($nick) = parse_user( $ev->prefix );
-
+  my ($nick)  = parse_user( $ev->prefix );
   my $casemap = $self->isupport('casemap');
   my $target  = uc_irc( $ev->params->[0], $casemap );
   $nick       = uc_irc( $nick, $casemap );
   
   delete $self->state->channels->{$target};
   
+  EAT_NONE
+}
+
+sub N_irc_quit {
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+
+  my ($nick)  = parse_user( $ev->prefix );
+  my $casemap = $self->isupport('casemap');
+  $nick       = uc_irc( $nick, $casemap );
+
+  while (my ($channel, $chan_obj) = each %{ $self->state->channels }) {
+    delete $chan_obj->nicknames->{$nick};
+  }
+
   EAT_NONE
 }
 

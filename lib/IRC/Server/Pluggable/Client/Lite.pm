@@ -338,7 +338,7 @@ sub disconnect {
 
 sub _disconnect {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  $self->backend->disconnect( $self->conn->wheel->ID );
+  $self->backend->disconnect( $self->conn->wheel->ID )
     if $self->has_conn and $self->conn->has_wheel;
 }
 

@@ -275,6 +275,10 @@ sub ircsock_input {
 
 ### Our handlers.
 
+sub N_irc_ping {
+  ## FIXME
+}
+
 sub N_irc_001 {
   my (undef, $self) = splice @_, 0, 2;
   my $ev = ${ $_[0] };
@@ -393,6 +397,65 @@ sub N_irc_privmsg {
   }
 
   EAT_ALL
+}
+
+sub N_irc_mode {
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+  my ($target, $modestr, @params) = @{ $ev->params };
+
+  my $casemap  = $self->isupport('casemap');
+  $target      = uc_irc( $target, $casemap );
+  my $chan_obj = $self->state->channels->{$target} || return EAT_NONE;
+
+  my(@always, @whenset);
+  if (my $cmodes = $self->isupport('chanmodes')) {
+    my ($list, $always, $whenset) = split /,/, $cmodes;
+    push @always,  split('', $list), split('', $always);
+    push @whenset, split '', $whenset;
+  }
+
+  my $mode_array = mode_to_array( $modestr,
+    params       => [ @params ],
+    ( @always   ? (param_always => \@always)  : () ),
+    ( @whenset  ? (param_set    => \@whenset) : () ),
+  );
+
+  my %prefixes = (
+    'o' => '@',
+    'h' => '%',
+    'v' => '+',
+  );
+
+  PREFIX: {
+    if (my $sup_prefix = $self->isupport('prefix')) {
+      my (undef, $modes, $symbols) = split /[\()]/, $sup_prefix;
+      last PREFIX unless $modes and $symbols
+        and length $modes == length $symbols;
+      $modes   = [ split '', $modes ];
+      $symbols = [ split '', $symbols ];
+      @prefixes{@$modes} = @$symbols
+    }
+  }
+
+  MODE: for my $change (@$mode_array) {
+    my ($flag, $char, $param) = @$change;
+    next MODE unless defined $param 
+      and exists $prefixes{$char};
+
+    if ($flag eq '+') {
+      push @{ $chan_obj->nicknames->{ uc_irc($param, $casemap) } },
+        $prefixes{$char};
+    } else {
+      my $this_user = uc_irc($param, $casemap);
+      my @current = @{ $chan_obj->nicknames->{$this_user} };
+      @{ $chan_obj->nicknames->{$this_user} } =
+        grep {; $_ ne $prefixes{$char} } @current;
+    }
+
+  }
+
+  EAT_NONE
 }
 
 sub N_irc_join {

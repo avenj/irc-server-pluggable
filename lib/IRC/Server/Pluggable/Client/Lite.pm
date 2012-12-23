@@ -276,7 +276,17 @@ sub ircsock_input {
 ### Our handlers.
 
 sub N_irc_ping {
-  ## FIXME
+  my (undef, $self) = splice @_, 0, 2;
+  my $ev = ${ $_[0] };
+
+  $self->send(
+    ev(
+      command => 'pong',
+      params  => [ @{ $ev->params } ],
+    )
+  );
+
+  EAT_NONE
 }
 
 sub N_irc_001 {
@@ -308,7 +318,7 @@ sub N_irc_005 {
     if (defined $val) {
       $isupport{$key} = $val
     } else {
-      $isupport{$key} = '0 but true';
+      $isupport{$key} = 1;
     }
   }
 

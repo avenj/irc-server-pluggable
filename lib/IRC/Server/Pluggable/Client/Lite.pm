@@ -329,7 +329,7 @@ sub N_irc_005 {
     }
   }
 
-  for my $key (%isupport) {
+  for my $key (keys %isupport) {
     $self->state->isupport->EXTEND(
       -rw => $key
     ) unless $self->state->isupport->can($key);

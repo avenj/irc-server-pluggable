@@ -57,6 +57,7 @@ has nick => (
   is        => 'ro',
   isa       => Str,
   writer    => 'set_nick',
+  ## FIXME auto-altnick
 );
 after 'set_nick' => sub {
   my ($self, $nick) = @_;
@@ -184,6 +185,7 @@ sub BUILD {
         ircsock_disconnect
       / ],
       $self => {
+        emitter_started => '_emitter_started',
         connect     => '_connect',
         disconnect  => '_disconnect',
         send        => '_send',
@@ -205,7 +207,7 @@ sub BUILD {
 
 sub _emitter_started {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  $kernel->post( $self->backend->session_id, 'register' );
+  $kernel->post( $self->backend->spawn()->session_id, 'register' );
 }
 
 sub stop {
@@ -219,6 +221,8 @@ sub stop {
 sub ircsock_connector_open {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
+
+  warn "connector_open";
 
   $self->_set_conn( $conn );
   ## FIXME send PASS if we have one
@@ -269,6 +273,9 @@ sub ircsock_input {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev) = @_[ARG0, ARG1];
 
+  warn $ev->command;
+
+  return unless $ev->command;
   $self->emit( 'irc_'.lc($ev->command), $ev)
 }
 
@@ -318,7 +325,7 @@ sub N_irc_005 {
     if (defined $val) {
       $isupport{$key} = $val
     } else {
-      $isupport{$key} = 1;
+      $isupport{$key} = -1;
     }
   }
 
@@ -581,7 +588,7 @@ sub connect {
 
 sub _connect {
   my ($kern, $self) = @_[KERNEL, OBJECT];
-
+  
   $self->backend->create_connector(
     remoteaddr => $self->server,
     remoteport => $self->port,
@@ -591,7 +598,7 @@ sub _connect {
     (
       $self->has_bindaddr ? (bindaddr => $self->bindaddr) : ()
     ),
-  )
+  );
 }
 
 sub disconnect {

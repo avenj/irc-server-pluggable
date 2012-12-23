@@ -535,6 +535,7 @@ sub _create_connector {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my %args = @_[ARG0 .. $#_];
 
+  warn "_create_connector";
   $args{lc $_} = delete $args{$_} for keys %args;
 
   my $remote_addr = delete $args{remoteaddr};
@@ -554,20 +555,23 @@ sub _create_connector {
     RemoteAddress  => $remote_addr,
     RemotePort     => $remote_port,
 
+    FailureEvent   => '_connector_failed',
     SuccessEvent   => 
       ( $protocol == 6 ? '_connector_up_v6' : '_connector_up_v4' ),
-    FailureEvent   => '_connector_failed',
 
-    (defined $args{bindaddr} ?
-      (BindAddress => delete $args{bindaddr}) : () ),
+    (
+      defined $args{bindaddr} ?
+        ( BindAddress => delete $args{bindaddr} ) : () 
+    ),
   );
 
   my $id = $wheel->ID;
 
   $self->connectors->{$id} = $self->__backend_connector_class->new(
-    wheel => $wheel,
-    addr  => $remote_addr,
-    port  => $remote_port,
+    wheel     => $wheel,
+    addr      => $remote_addr,
+    port      => $remote_port,
+    protocol  => $protocol,
 
     (defined $args{ssl}      ?
       (ssl      => delete $args{ssl}) : () ),
@@ -586,7 +590,7 @@ sub _connector_up {
   ## Created connector socket.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($sock, $peeraddr, $peerport, $c_id) = @_[ARG0 .. ARG3];
-
+  
   my $type = $_[STATE] eq '_connector_up_v6' ? AF_INET6 : AF_INET;
   $peeraddr = inet_ntop( $type, $peeraddr );
 

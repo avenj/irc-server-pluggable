@@ -425,12 +425,6 @@ sub N_irc_mode {
     push @whenset, split '', $whenset;
   }
 
-  my $mode_array = mode_to_array( $modestr,
-    params       => [ @params ],
-    ( @always   ? (param_always => \@always)  : () ),
-    ( @whenset  ? (param_set    => \@whenset) : () ),
-  );
-
   my %prefixes = (
     'o' => '@',
     'h' => '%',
@@ -448,21 +442,38 @@ sub N_irc_mode {
     }
   }
 
-  MODE: for my $change (@$mode_array) {
-    my ($flag, $char, $param) = @$change;
-    next MODE unless defined $param 
-      and exists $prefixes{$char};
-
-    if ($flag eq '+') {
-      push @{ $chan_obj->nicknames->{ uc_irc($param, $casemap) } },
-        $prefixes{$char};
-    } else {
-      my $this_user = uc_irc($param, $casemap);
-      my @current = @{ $chan_obj->nicknames->{$this_user} };
-      @{ $chan_obj->nicknames->{$this_user} } =
-        grep {; $_ ne $prefixes{$char} } @current;
+  ## FIXME
+  ## Hum. More efficient to use mode_to_hash
+  ## and only deal with the final changes.
+ 
+  my $mode_hash = mode_to_hash( $modestr,
+    params       => [ @params ],
+    ( @always   ? (param_always => \@always)  : () ),
+    ( @whenset  ? (param_set    => \@whenset) : () ),
+  );
+ 
+  MODE_ADD: for my $char (keys %{ $mode_hash->{add} }) {
+    next MODE_ADD unless exists $prefixes{$char}
+      and ref $mode_hash->{add}->{$char} eq 'ARRAY';
+    my $param = $mode_hash->{add}->{$char}->[0];
+    my $this_user;
+    unless ($this_user = $chan_obj->nicknames->{ uc_irc($param, $casemap) }) {
+      warn "Mode change for nonexistant user $param";
+      next MODE_ADD
     }
+    push @$this_user, $prefixes{$char}
+  }
 
+  MODE_DEL: for my $char (keys %{ $mode_hash->{del} }) {
+    next MODE_DEL unless exists $prefixes{$char}
+      and ref $mode_hash->{del}->{$char} eq 'ARRAY';
+    my $param = $mode_hash->{del}->{$char}->[0];
+    my $this_user;
+    unless ($this_user = $chan_obj->nicknames->{ uc_irc($param, $casemap) }) {
+      warn "Mode change for nonexistant user $param";
+      next MODE_DEL
+    }
+    @$this_user = grep {; $_ ne $prefixes{$char} } @$this_user
   }
 
   EAT_NONE

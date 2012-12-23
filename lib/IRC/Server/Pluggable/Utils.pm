@@ -27,6 +27,7 @@ our %EXPORT_TAGS = (
 
     lc_irc
     uc_irc
+    eq_irc
 
   / ],
   
@@ -94,6 +95,12 @@ sub uc_irc ($;$) {
   }
 
   $string
+}
+
+sub eq_irc ($$;$) {
+  my ($first, $second, $casemap) = @_;
+  return unless uc_irc($first, $casemap) eq uc_irc($second, $casemap);
+  1
 }
 
 sub matches_mask {

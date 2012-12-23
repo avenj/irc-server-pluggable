@@ -7,16 +7,34 @@ use Carp 'confess';
 
 
 use MooX::Struct -rw,
-  State => [ qw/
-    %channels
-    $isupport
-    nick_name
-    server_name
-  / ],
+  State => [ 
+    qw/
+      %channels
+      $isupport
+      nick_name
+      server_name
+    /,
+    ## Abuse MooX::Struct a bit to get easy uc_irc():
+    get_channel => sub {
+      my ($self, $channel) = @_;
+      confess "Expected a channel name" unless defined $channel;
+      my $casemap = $self->isupport->casemap;
+      $channel = uc_irc($channel, $casemap);
+      $self->channels->{$channel}
+    },
+    get_status_prefix => sub {
+      my ($self, $channel, $nick) = @_;
+      confess "Expected a channel and nickname"
+        unless defined $channel and defined $nick;
+      my $casemap = $self->isupport->casemap;
+      ($channel, $nick) = map {; uc_irc($_, $casemap) } ($channel, $nick);
+      $self->channels->{$channel}->nicknames->{$nick}
+    },
+  ],
 
   Channel => [ qw/
-    %nicknames
-    $topic
+      %nicknames
+      $topic
   / ],
 
   Topic => [ qw/
@@ -29,6 +47,20 @@ use MooX::Struct -rw,
     casemap!
   / ],
 ;
+
+## Factory method for subclasses.
+sub _create_struct {
+  my ($self, $type) = splice @_, 0, 2;
+  my $obj;
+  for (lc $type) {
+    $obj = Channel->new(@_)  when 'channel';
+    $obj = ISupport->new(@_) when 'isupport';
+    $obj = State->new(@_)    when 'state';
+    $obj = Topic->new(@_)    when 'topic';
+    confess "cannot create struct - unknown type $type"
+  }
+  $obj
+}
 
 use IRC::Server::Pluggable qw/
   Backend
@@ -89,6 +121,16 @@ has ipv6 => (
   writer    => 'set_ipv6',
   predicate => 'has_ipv6',
   default   => sub { 0 },
+);
+
+has pass => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_pass',
+  predicate => 'has_pass',
+  clearer   => 'clear_pass',
+  default   => sub { '' },
 );
 
 has port => (
@@ -223,8 +265,18 @@ sub ircsock_connector_open {
   my $conn = $_[ARG0];
 
   $self->_set_conn( $conn );
-  ## FIXME send PASS if we have one
+
+  my @pre;
+  if ($self->has_pass && (my $pass = $self->pass)) {
+    push @pre, ev(
+      command => 'pass',
+      params  => [
+        $pass
+      ],
+    )
+  }
   $self->send(
+    @pre,
     ev(
       command => 'user',
       params  => [
@@ -604,6 +656,13 @@ sub disconnect {
 
 sub _disconnect {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $message = $_[ARG0];
+  $self->backend->send(
+    ev(
+      command => 'quit',
+      params  => [ $message ],
+    )
+  );
   $self->backend->disconnect( $self->conn->wheel->ID )
     if $self->has_conn and $self->conn->has_wheel;
 }
@@ -722,3 +781,217 @@ sub _part {
 }
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Client::Lite - Lightweight POE IRC client library
+
+=head1 SYNOPSIS
+
+FIXME
+
+=head1 DESCRIPTION
+
+A light-weight, pluggable IRC client library.
+
+FIXME
+
+=head2 new
+
+FIXME
+
+=head2 stop
+
+  $irc->stop;
+
+Disconnect, stop the Emitter, and purge the plugin pipeline.
+
+=head2 IRC Methods
+
+=head3 connect
+
+  $irc->connect;
+
+Attempt an outgoing connection.
+
+=head3 disconnect
+
+  $irc->disconnect($message);
+
+Quit IRC and shut down the wheel.
+
+=head3 send
+
+  use IRC::Server::Pluggable qw/ IRC::Event /;
+  $irc->send(
+    ev(
+      command => 'oper',
+      params  => [ $user, $passwd ],
+    )
+  );
+
+  ## ... or a raw HASH:
+  $irc->send(
+    {
+      command => 'oper',
+      params  => [ $user, $passwd ],
+    }
+  )
+
+  ## ... or a raw line:
+  $irc->send_raw_line('PRIVMSG avenj :some things');
+
+Use C<send()> to send an L<IRC::Server::Pluggable::IRC::Event> or a compatible
+HASH; this method will also take a list of events in either of those formats.
+
+Use C<send_raw_line()> to send a single raw IRC line. This is rarely a good
+idea; L<IRC::Server::Pluggable::Backend> provides an IRCv3-capable filter.
+
+=head3 privmsg
+
+  $irc->privmsg( $target, $string );
+
+Sends a PRIVMSG to the specified target.
+
+=head3 notice
+
+  $irc->notice( $target, $string );
+
+Sends a NOTICE to the specified target.
+
+=head3 ctcp
+
+  $irc->ctcp( $target, $type, @params );
+
+Encodes and sends a CTCP B<request> to the target.
+(To send a CTCP B<reply>, send a L</notice> that has been quoted via
+L<IRC::Server::Pluggable::Utils::Parse::CTCP/"ctcp_quote">.)
+
+=head3 mode
+
+FIXME
+
+=head3 join
+
+  $irc->join( $channel );
+
+Attempts to join the specified channel.
+
+=head3 part
+
+  $irc->part( $channel, $message );
+
+Attempts to leave the specified channel with an optional PART message.
+
+=head3 isupport
+
+  my $casemap = $irc->isupport('casemap');
+
+Returns ISUPPORT values, if they are available.
+
+If the value is a KEY=VALUE pair (e.g. 'MAXMODES=4'), the VALUE portion is
+returned.
+
+A value that is a simple boolean (e.g. 'CALLERID') will return '-1'.
+
+=head2 State
+
+The State struct provides some very basic state information that can be
+queried via accessor methods:
+
+=head3 nick_name
+
+  my $current_nick = $irc->state->nick_name;
+
+Returns the client's current nickname.
+
+=head3 server_name
+
+  my $current_serv = $irc->state->server_name;
+
+Returns the server's announced name.
+
+=head3 get_channel
+
+  my $chan_st = $irc->state->get_channel($channame);
+
+If the channel is found, returns a Channel struct with the following accessor
+methods:
+
+=head4 nicknames
+
+  my @users = keys %{ $chan_st->nicknames };
+
+A HASH whose keys are the users present on the channel.
+
+If a user has status modes, the values are an ARRAY of status prefixes (f.ex,
+o => '@', v => '+', ...)
+
+=head4 status_prefix_for
+
+FIXME
+
+=head4 topic
+
+  my $topic_st = $chan_st->topic;
+  my $topic_as_string = $topic_st->topic();
+
+The Topic struct provides information about the current channel topic via
+accessors:
+
+=over
+
+=item *
+
+B<topic> is the actual topic string
+
+=item *
+
+B<set_at> is the timestamp of the topic change
+
+=item *
+
+B<set_by> is the topic's setter
+
+=back
+
+=head1 IRC Events
+
+All IRC events are emitted as 'irc_$cmd' e.g. 'irc_005' (ISUPPORT) or
+'irc_mode' with a few notable exceptions:
+
+=head3 irc_private_message
+
+FIXME
+
+=head3 irc_public_message
+
+FIXME
+
+=head3 irc_ctcp
+
+FIXME
+
+=head3 irc_ctcpreply
+
+FIXME
+
+=head1 SEE ALSO
+
+L<IRC::Server::Pluggable>
+
+L<IRC::Server::Pluggable::Backend>
+
+L<IRC::Server::Pluggable::IRC::Filter>
+
+L<MooX::Role::POE::Emitter>
+
+L<MooX::Role::Pluggable>
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

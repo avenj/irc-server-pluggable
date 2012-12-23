@@ -222,8 +222,6 @@ sub ircsock_connector_open {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
 
-  warn "connector_open";
-
   $self->_set_conn( $conn );
   ## FIXME send PASS if we have one
   $self->send(
@@ -272,8 +270,6 @@ sub ircsock_disconnect {
 sub ircsock_input {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $ev) = @_[ARG0, ARG1];
-
-  warn $ev->command;
 
   return unless $ev->command;
   $self->emit( 'irc_'.lc($ev->command), $ev)

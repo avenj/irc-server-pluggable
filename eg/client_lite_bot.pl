@@ -36,7 +36,7 @@ sub _start {
 
 sub E_irc_001 {
   my ($kern, $heap, $ev) = @_[KERNEL, HEAP, ARG0];
-  $heap->{irc}->join('#otw','#unix');
+  $heap->{irc}->join('#otw', '#unix');
 }
 
 sub E_irc_public_msg {

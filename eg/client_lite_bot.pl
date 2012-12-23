@@ -35,24 +35,21 @@ sub _start {
 }
 
 sub E_irc_001 {
-  my ($kern, $heap) = @_[KERNEL, HEAP];
-  my $event = $_[ARG0];
+  my ($kern, $heap, $ev) = @_[KERNEL, HEAP, ARG0];
   $heap->{irc}->join('#otw','#unix');
 }
 
 sub E_irc_public_msg {
-  my ($kern, $heap) = @_[KERNEL, HEAP];
-  my $event = $_[ARG0];
-  print Dumper $event;
-  if (lc($event->params->[1] || '') eq 'hello') {
-    $heap->{irc}->privmsg($event->params->[0], "hello, world!");
+  my ($kern, $heap, $ev) = @_[KERNEL, HEAP, ARG0];
+  print Dumper $ev;
+  if (lc($ev->params->[1] || '') eq 'hello') {
+    $heap->{irc}->privmsg($ev->params->[0], "hello, world!");
   }
 }
 
 sub E_irc_ctcp_version {
-  my ($kern, $heap) = @_[KERNEL, HEAP];
-  my $event = $_[ARG0];
-  my $from = parse_user( $event->prefix );
+  my ($kern, $heap, $ev) = @_[KERNEL, HEAP, ARG0];
+  my $from = parse_user( $ev->prefix );
   $heap->{irc}->notice( $from,
     ctcp_quote("VERSION a silly Client::Lite example"),
   );

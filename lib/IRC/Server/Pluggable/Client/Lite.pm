@@ -723,8 +723,10 @@ sub _ctcp {
   my $line = join ' ', uc($type), @data;
   my $quoted = ctcp_quote($line);
   $self->send(
-    command => 'privmsg',
-    params  => [ $target, $quoted ]
+    ev(
+      command => 'privmsg',
+      params  => [ $target, $quoted ]
+    )
   )
 }
 

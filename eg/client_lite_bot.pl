@@ -1,10 +1,13 @@
 #!/usr/bin/env perl
-
 use strictures 1;
+
+my $nickname = 'litebot';
+my $username = 'clientlite';
+my $server   = 'irc.cobaltirc.org';
+my @channels = ( '#otw', '#unix' );
+
 use POE;
-
 use Data::Dumper;
-
 use IRC::Server::Pluggable qw/
   Client::Lite
   Utils
@@ -27,9 +30,9 @@ sub _start {
   my ($kern, $heap) = @_[KERNEL, HEAP];
   $heap->{irc} = prefixed_new( 'Client::Lite' =>
     event_prefix => 'E_',
-    server => 'irc.cobaltirc.org',
-    nick   => 'litebot',
-    username => 'clientlite',
+    server   => $server,
+    nick     => $nickname,
+    username => $username,
   )->connect();
 }
 
@@ -38,12 +41,7 @@ sub E_irc_001 {
 
   ## Chainable methods.
   my $irc = $heap->{irc};
-  $irc->join(
-    '#otw', '#unix'
-  )->privmsg(
-      join(',', '#otw', '#unix'),
-      "hello!"
-  )
+  $irc->join(@channels)->privmsg(join(',', @channels), "hello!");
 }
 
 sub E_irc_public_msg {

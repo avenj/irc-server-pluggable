@@ -535,7 +535,6 @@ sub _create_connector {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my %args = @_[ARG0 .. $#_];
 
-  warn "_create_connector";
   $args{lc $_} = delete $args{$_} for keys %args;
 
   my $remote_addr = delete $args{remoteaddr};

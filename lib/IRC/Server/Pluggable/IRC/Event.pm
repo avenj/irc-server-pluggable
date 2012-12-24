@@ -20,6 +20,14 @@ sub ev {
   __PACKAGE__->new(@_)
 }
 
+sub truncate {
+  ## FIXME truncate raw_line to 512 *with* \r\n
+  ##  but *not* including message tags
+  ##  (and trailing space after them)
+  ##  per http://ircv3.atheme.org/specification/message-tags-3.2
+  ## return new Event
+}
+
 has 'command' => (
   required  => 1,
   is        => 'ro',

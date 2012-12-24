@@ -30,26 +30,36 @@ sub _start {
     server => 'irc.cobaltirc.org',
     nick   => 'litebot',
     username => 'clientlite',
-  );
-  $heap->{irc}->connect;
+  )->connect();
 }
 
 sub E_irc_001 {
   my ($kern, $heap, $ev) = @_[KERNEL, HEAP, ARG0];
-  $heap->{irc}->join('#otw', '#unix');
+
+  ## Chainable methods.
+  my $irc = $heap->{irc};
+  $irc->join(
+    '#otw', '#unix'
+  )->privmsg(
+      join(',', '#otw', '#unix'),
+      "hello!"
+  )
 }
 
 sub E_irc_public_msg {
   my ($kern, $heap, $ev) = @_[KERNEL, HEAP, ARG0];
-  print Dumper $ev;
-  if (lc($ev->params->[1] || '') eq 'hello') {
-    $heap->{irc}->privmsg($ev->params->[0], "hello, world!");
+  my ($target, $string)  = @{ $ev->params };
+
+  if (lc($string || '') eq 'hello') {
+    $heap->{irc}->privmsg($target, "hello, world!");
   }
 }
 
 sub E_irc_ctcp_version {
   my ($kern, $heap, $ev) = @_[KERNEL, HEAP, ARG0];
+
   my $from = parse_user( $ev->prefix );
+
   $heap->{irc}->notice( $from,
     ctcp_quote("VERSION a silly Client::Lite example"),
   );

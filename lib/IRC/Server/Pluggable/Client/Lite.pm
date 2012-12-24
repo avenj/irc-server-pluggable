@@ -618,6 +618,11 @@ sub N_irc_topic {
 
 ### Public
 
+## Since the retval of yield() is $self, many of these can be chained:
+##  $client->connect->join(@channels)->privmsg(
+##    join(',', @channels),  'hello!'
+##  );
+
 sub isupport {
   my ($self, $key) = @_;
   $key = lc($key // confess "Expected a key");
@@ -675,8 +680,10 @@ sub send {
 
 sub _send {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  $self->backend->send( $_, $self->conn->wheel_id )
-    for @_[ARG0 .. $#_];
+  for my $ev (@_[ARG0 .. $#_]) {
+    $self->process( 'outgoing', $ev );
+    $self->backend->send( $ev, $self->conn->wheel_id )
+  }
 }
 
 ## Sugar, and POE-dispatchable counterparts.

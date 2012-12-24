@@ -497,10 +497,6 @@ sub N_irc_mode {
     }
   }
 
-  ## FIXME
-  ## Hum. More efficient to use mode_to_hash
-  ## and only deal with the final changes.
- 
   my $mode_hash = mode_to_hash( $modestr,
     params       => [ @params ],
     ( @always   ? (param_always => \@always)  : () ),

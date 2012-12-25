@@ -30,6 +30,7 @@ use MooX::Struct -rw,
       ($channel, $nick) = map {; uc_irc($_, $casemap) } ($channel, $nick);
       $self->channels->{$channel}->nicknames->{$nick}
     },
+    ## FIXME move isupport here?
   ],
 
   Channel => [ qw/
@@ -815,6 +816,21 @@ Disconnect, stop the Emitter, and purge the plugin pipeline.
 
 =head2 IRC Methods
 
+IRC-related methods can be called via normal method dispatch or sent as a POE
+event:
+
+  ## These are equivalent:
+  $irc->send( $event );
+  $irc->yield( 'send', $event );
+  $poe_kernel->post( $irc_session_id, 'send', $event );
+
+Methods that dispatch to IRC return C<$self>, so they can be chained:
+
+  $irc->connect->join(@channels)->privmsg(
+    join(',', @channels),
+    'hello there!'
+  );
+
 =head3 connect
 
   $irc->connect;
@@ -988,6 +1004,8 @@ FIXME
 L<IRC::Server::Pluggable>
 
 L<IRC::Server::Pluggable::Backend>
+
+L<IRC::Server::Pluggable::IRC::Event>
 
 L<IRC::Server::Pluggable::IRC::Filter>
 

@@ -322,10 +322,10 @@ sub ircsock_disconnect {
 
 sub ircsock_input {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  my ($conn, $ev) = @_[ARG0, ARG1];
+  my ($conn, $ircev) = @_[ARG0, ARG1];
 
-  return unless $ev->command;
-  $self->emit( 'irc_'.lc($ev->command), $ev)
+  return unless $ircev->command;
+  $self->emit( 'irc_'.lc($ircev->command), $ircev)
 }
 
 
@@ -333,12 +333,12 @@ sub ircsock_input {
 
 sub N_irc_ping {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
 
   $self->send(
     ev(
       command => 'pong',
-      params  => [ @{ $ev->params } ],
+      params  => [ @{ $ircev->params } ],
     )
   );
 
@@ -347,12 +347,12 @@ sub N_irc_ping {
 
 sub N_irc_001 {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
 
-  $self->state->server_name( $ev->prefix );
+  $self->state->server_name( $ircev->prefix );
 
   $self->state->nick_name(
-    (split ' ', $ev->raw_line)[2]
+    (split ' ', $ircev->raw_line)[2]
   );
 
   EAT_NONE
@@ -360,10 +360,10 @@ sub N_irc_001 {
 
 sub N_irc_005 {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
 
   my %isupport;
-  my @params = @{ $ev->params };
+  my @params = @{ $ircev->params };
   ## Drop target nickname, trailing 'are supported by ..':
   shift @params;
   pop   @params;
@@ -391,9 +391,9 @@ sub N_irc_005 {
 sub N_irc_332 {
   ## Topic
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
 
-  my (undef, $target, $topic) = @{ $ev->params };
+  my (undef, $target, $topic) = @{ $ircev->params };
 
   my $casemap = $self->isupport('casemap');
   $target     = uc_irc( $target, $casemap );
@@ -407,8 +407,8 @@ sub N_irc_332 {
 sub N_irc_333 {
   ## Topic setter & TS
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
-  my (undef, $target, $setter, $ts) = @{ $ev->params };
+  my $ircev = ${ $_[0] };
+  my (undef, $target, $setter, $ts) = @{ $ircev->params };
  
   my $casemap = $self->isupport('casemap');
   $target     = uc_irc( $target, $casemap );
@@ -428,7 +428,7 @@ sub N_irc_352 {
 
 sub N_irc_nick {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
   ## FIXME update our nick as-needed
   ##  Update our channels as-needed
   EAT_NONE
@@ -436,9 +436,9 @@ sub N_irc_nick {
 
 sub N_irc_notice {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
 
-  if (my $ctcp_ev = ctcp_extract($ev)) {
+  if (my $ctcp_ev = ctcp_extract($ircev)) {
     $self->emit_now( 'irc_'.$ctcp_ev->command, $ctcp_ev );
     return EAT_ALL
   }
@@ -448,18 +448,18 @@ sub N_irc_notice {
 
 sub N_irc_privmsg {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
 
-  if (my $ctcp_ev = ctcp_extract($ev)) {
+  if (my $ctcp_ev = ctcp_extract($ircev)) {
     $self->emit_now( 'irc_'.$ctcp_ev->command, $ctcp_ev );
     return EAT_ALL
   }
 
-  my $prefix = substr $ev->params->[0], 0, 1;
+  my $prefix = substr $ircev->params->[0], 0, 1;
   if (grep {; $_ eq $prefix } ('#', '&', '+') ) {
-    $self->emit_now( 'irc_public_msg', $ev )
+    $self->emit_now( 'irc_public_msg', $ircev )
   } else {
-    $self->emit_now( 'irc_private_msg', $ev )
+    $self->emit_now( 'irc_private_msg', $ircev )
   }
 
   EAT_ALL
@@ -467,8 +467,8 @@ sub N_irc_privmsg {
 
 sub N_irc_mode {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
-  my ($target, $modestr, @params) = @{ $ev->params };
+  my $ircev = ${ $_[0] };
+  my ($target, $modestr, @params) = @{ $ircev->params };
 
   my $casemap  = $self->isupport('casemap');
   $target      = uc_irc( $target, $casemap );
@@ -533,12 +533,12 @@ sub N_irc_mode {
 
 sub N_irc_join {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
 
-  my ($nick, $user, $host) = parse_user( $ev->prefix );
+  my ($nick, $user, $host) = parse_user( $ircev->prefix );
 
   my $casemap = $self->isupport('casemap');
-  my $target  = uc_irc( $ev->params->[0], $casemap );
+  my $target  = uc_irc( $ircev->params->[0], $casemap );
   $nick       = uc_irc( $nick, $casemap );
 
   if ( eq_irc($nick, $self->state->nick_name, $casemap) ) {
@@ -555,7 +555,7 @@ sub N_irc_join {
     $self->send(
       ev(
         command => 'who',
-        params  => [ $ev->params->[0] ],
+        params  => [ $ircev->params->[0] ],
       )
     );
   }
@@ -568,11 +568,11 @@ sub N_irc_join {
 
 sub N_irc_part {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
   
-  my ($nick)  = parse_user( $ev->prefix );
+  my ($nick)  = parse_user( $ircev->prefix );
   my $casemap = $self->isupport('casemap');
-  my $target  = uc_irc( $ev->params->[0], $casemap );
+  my $target  = uc_irc( $ircev->params->[0], $casemap );
   $nick       = uc_irc( $nick, $casemap );
   
   delete $self->state->channels->{$target};
@@ -582,9 +582,9 @@ sub N_irc_part {
 
 sub N_irc_quit {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
 
-  my ($nick)  = parse_user( $ev->prefix );
+  my ($nick)  = parse_user( $ircev->prefix );
   my $casemap = $self->isupport('casemap');
   $nick       = uc_irc( $nick, $casemap );
 
@@ -597,10 +597,10 @@ sub N_irc_quit {
 
 sub N_irc_topic {
   my (undef, $self) = splice @_, 0, 2;
-  my $ev = ${ $_[0] };
+  my $ircev = ${ $_[0] };
   
-  my ($nick, $user, $host) = parse_user( $ev->prefix );
-  my ($target, $str) = @{ $ev->params };
+  my ($nick, $user, $host) = parse_user( $ircev->prefix );
+  my ($target, $str) = @{ $ircev->params };
 
   my $casemap = $self->isupport('casemap');
   $target     = uc_irc( $target, $casemap );
@@ -608,7 +608,7 @@ sub N_irc_topic {
   my $chan_obj = $self->state->channels->{$target};
   $chan_obj->topic( Topic->new(
       set_at => time(),
-      set_by => $ev->prefix,
+      set_by => $ircev->prefix,
       topic  => $str,
     )
   );
@@ -681,9 +681,9 @@ sub send {
 
 sub _send {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-  for my $ev (@_[ARG0 .. $#_]) {
-    $self->process( 'outgoing', $ev );
-    $self->backend->send( $ev, $self->conn->wheel_id )
+  for my $outev (@_[ARG0 .. $#_]) {
+    $self->process( 'outgoing', $outev );
+    $self->backend->send( $outev, $self->conn->wheel_id )
   }
 }
 
@@ -820,9 +820,9 @@ IRC-related methods can be called via normal method dispatch or sent as a POE
 event:
 
   ## These are equivalent:
-  $irc->send( $event );
-  $irc->yield( 'send', $event );
-  $poe_kernel->post( $irc_session_id, 'send', $event );
+  $irc->send( $ircevent );
+  $irc->yield( 'send', $ircevent );
+  $poe_kernel->post( $irc_session_id, 'send', $ircevent );
 
 Methods that dispatch to IRC return C<$self>, so they can be chained:
 

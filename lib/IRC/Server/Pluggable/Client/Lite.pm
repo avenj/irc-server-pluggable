@@ -10,7 +10,7 @@ use MooX::Struct -rw,
   State => [ 
     qw/
       %channels
-      $isupport
+      $isupport_st
       nick_name
       server_name
     /,
@@ -18,7 +18,7 @@ use MooX::Struct -rw,
     get_channel => sub {
       my ($self, $channel) = @_;
       confess "Expected a channel name" unless defined $channel;
-      my $casemap = $self->isupport->casemap;
+      my $casemap = $self->get_isupport('casemap');
       $channel = uc_irc($channel, $casemap);
       $self->channels->{$channel}
     },
@@ -26,11 +26,16 @@ use MooX::Struct -rw,
       my ($self, $channel, $nick) = @_;
       confess "Expected a channel and nickname"
         unless defined $channel and defined $nick;
-      my $casemap = $self->isupport->casemap;
+      my $casemap = $self->get_isupport('casemap');
       ($channel, $nick) = map {; uc_irc($_, $casemap) } ($channel, $nick);
       $self->channels->{$channel}->nicknames->{$nick}
     },
-    ## FIXME move isupport here?
+    get_isupport => sub {
+      my ($self, $key) = @_;
+      confess "Expected a key" unless defined $key;
+      return unless $self->isupport_st->can($key);
+      $self->isupport_st->$key
+    },
   ],
 
   Channel => [ qw/
@@ -212,7 +217,7 @@ sub _build_state {
       channels    => {},
       nick_name   => '',
       server_name => '',
-      isupport    => ISupport->new( casemap => 'rfc1459' ),
+      isupport_st => ISupport->new( casemap => 'rfc1459' ),
     )
 }
 
@@ -379,10 +384,10 @@ sub N_irc_005 {
   }
 
   for my $key (keys %isupport) {
-    $self->state->isupport->EXTEND(
+    $self->state->isupport_st->EXTEND(
       -rw => $key
-    ) unless $self->state->isupport->can($key);
-    $self->state->isupport->$key( $isupport{$key} )
+    ) unless $self->state->isupport_st->can($key);
+    $self->state->isupport_st->$key( $isupport{$key} )
   }
 
   EAT_NONE
@@ -395,7 +400,7 @@ sub N_irc_332 {
 
   my (undef, $target, $topic) = @{ $ircev->params };
 
-  my $casemap = $self->isupport('casemap');
+  my $casemap = $self->state->get_isupport('casemap');
   $target     = uc_irc( $target, $casemap );
 
   my $chan_obj = $self->state->channels->{$target};
@@ -410,7 +415,7 @@ sub N_irc_333 {
   my $ircev = ${ $_[0] };
   my (undef, $target, $setter, $ts) = @{ $ircev->params };
  
-  my $casemap = $self->isupport('casemap');
+  my $casemap = $self->state->get_isupport('casemap');
   $target     = uc_irc( $target, $casemap );
 
   my $chan_obj = $self->state->channels->{$target};
@@ -421,10 +426,34 @@ sub N_irc_333 {
 }
 
 sub N_irc_352 {
-  ## WHOREPLY
+  ## WHO reply
+  my (undef, $self) = splice @_, 0, 2;
+  my $ircev = ${ $_[0] };
+
+  ## We only parse a small chunk.
+  ## The rest of the params are documented here for convenience.
+  my (
+    undef,      ## Target (us)
+    $target,    ## Channel
+    undef,      ## Username
+    undef,      ## Hostname
+    undef,      ## Servername
+    $nick, 
+    $status, 
+    undef       ## Hops + Realname
+  ) = @{ $ircev->params };
+
+  my $casemap = $self->state->get_isupport('casemap');
+  $target     = uc_irc( $target, $casemap ); 
+  $nick       = uc_irc( $nick,   $casemap );
+
+  my $chan_obj = $self->state->channels->{$target};
+  
   ##  FIXME update nickname(s) for applicable channel(s)
-  ##   add status prefixes?
-}
+  ##   add status prefixes
+
+  EAT_NONE
+ }
 
 sub N_irc_nick {
   my (undef, $self) = splice @_, 0, 2;
@@ -470,12 +499,12 @@ sub N_irc_mode {
   my $ircev = ${ $_[0] };
   my ($target, $modestr, @params) = @{ $ircev->params };
 
-  my $casemap  = $self->isupport('casemap');
+  my $casemap  = $self->state->get_isupport('casemap');
   $target      = uc_irc( $target, $casemap );
   my $chan_obj = $self->state->channels->{$target} || return EAT_NONE;
 
   my(@always, @whenset);
-  if (my $cmodes = $self->isupport('chanmodes')) {
+  if (my $cmodes = $self->state->get_isupport('chanmodes')) {
     my ($list, $always, $whenset) = split /,/, $cmodes;
     push @always,  split('', $list), split('', $always);
     push @whenset, split '', $whenset;
@@ -488,7 +517,7 @@ sub N_irc_mode {
   );
 
   PREFIX: {
-    if (my $sup_prefix = $self->isupport('prefix')) {
+    if (my $sup_prefix = $self->state->get_isupport('prefix')) {
       my (undef, $modes, $symbols) = split /[\()]/, $sup_prefix;
       last PREFIX unless $modes and $symbols
         and length $modes == length $symbols;
@@ -537,7 +566,7 @@ sub N_irc_join {
 
   my ($nick, $user, $host) = parse_user( $ircev->prefix );
 
-  my $casemap = $self->isupport('casemap');
+  my $casemap = $self->state->get_isupport('casemap');
   my $target  = uc_irc( $ircev->params->[0], $casemap );
   $nick       = uc_irc( $nick, $casemap );
 
@@ -571,7 +600,7 @@ sub N_irc_part {
   my $ircev = ${ $_[0] };
   
   my ($nick)  = parse_user( $ircev->prefix );
-  my $casemap = $self->isupport('casemap');
+  my $casemap = $self->state->get_isupport('casemap');
   my $target  = uc_irc( $ircev->params->[0], $casemap );
   $nick       = uc_irc( $nick, $casemap );
   
@@ -585,7 +614,7 @@ sub N_irc_quit {
   my $ircev = ${ $_[0] };
 
   my ($nick)  = parse_user( $ircev->prefix );
-  my $casemap = $self->isupport('casemap');
+  my $casemap = $self->state->get_isupport('casemap');
   $nick       = uc_irc( $nick, $casemap );
 
   while (my ($channel, $chan_obj) = each %{ $self->state->channels }) {
@@ -602,7 +631,7 @@ sub N_irc_topic {
   my ($nick, $user, $host) = parse_user( $ircev->prefix );
   my ($target, $str) = @{ $ircev->params };
 
-  my $casemap = $self->isupport('casemap');
+  my $casemap = $self->state->get_isupport('casemap');
   $target     = uc_irc( $target, $casemap );
  
   my $chan_obj = $self->state->channels->{$target};
@@ -623,13 +652,6 @@ sub N_irc_topic {
 ##  $client->connect->join(@channels)->privmsg(
 ##    join(',', @channels),  'hello!'
 ##  );
-
-sub isupport {
-  my ($self, $key) = @_;
-  $key = lc($key // confess "Expected a key");
-  return unless $self->state->isupport->can($key);
-  $self->state->isupport->$key
-}
 
 sub connect {
   my $self = shift;
@@ -802,6 +824,8 @@ FIXME
 
 A light-weight, pluggable IRC client library.
 
+Some minimal state is maintained (see L</State>).
+
 FIXME
 
 =head2 new
@@ -906,17 +930,6 @@ Attempts to join the specified channel.
 
 Attempts to leave the specified channel with an optional PART message.
 
-=head3 isupport
-
-  my $casemap = $irc->isupport('casemap');
-
-Returns ISUPPORT values, if they are available.
-
-If the value is a KEY=VALUE pair (e.g. 'MAXMODES=4'), the VALUE portion is
-returned.
-
-A value that is a simple boolean (e.g. 'CALLERID') will return '-1'.
-
 =head2 State
 
 The State struct provides some very basic state information that can be
@@ -933,6 +946,17 @@ Returns the client's current nickname.
   my $current_serv = $irc->state->server_name;
 
 Returns the server's announced name.
+
+=head3 get_isupport
+
+  my $casemap = $irc->state->get_isupport('casemap');
+
+Returns ISUPPORT values, if they are available.
+
+If the value is a KEY=VALUE pair (e.g. 'MAXMODES=4'), the VALUE portion is
+returned.
+
+A value that is a simple boolean (e.g. 'CALLERID') will return '-1'.
 
 =head3 get_channel
 

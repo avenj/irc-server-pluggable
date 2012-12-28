@@ -147,6 +147,7 @@ Returns an L<IRC::Server::Pluggable::IRC::Event> whose C<command> carries an
 appropriate prefix (one of B<ctcp>, B<ctcpreply>, or B<dcc_request>) prepended
 to the CTCP command:
 
+  ## '$ev' is your incoming or outgoing ::Pluggable::IRC::Event
   ## CTCP VERSION
   $ev->command eq 'ctcp_version' 
     $ev->params would be sender, target(s), any additional params

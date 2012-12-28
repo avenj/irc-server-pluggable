@@ -9,7 +9,6 @@ use Carp 'confess';
 use IRC::Server::Pluggable qw/
   Backend
   IRC::Event
-  IRC::Filter
   Utils
   Utils::Parse::CTCP
   Types

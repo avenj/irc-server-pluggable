@@ -102,6 +102,7 @@ sub _build_state {
 }
 
 
+### Overrides.
 around ircsock_disconnect => sub {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $str) = @_[ARG0, ARG1];

@@ -7,11 +7,15 @@ use Carp 'confess';
 
 extends 'IRC::Server::Pluggable::Client::Lite';
 
+## FIXME add known user state
+## FIXME move the State struct to a real class,
+##  consume all the MooX::Struct bits from there?
+
 use MooX::Struct -rw,
   State => [ 
     qw/
       %channels
-      $isupport_st
+      $isupport_struct
       nick_name
       server_name
     /,
@@ -34,8 +38,8 @@ use MooX::Struct -rw,
     get_isupport => sub {
       my ($self, $key) = @_;
       confess "Expected a key" unless defined $key;
-      return unless $self->isupport_st->can($key);
-      $self->isupport_st->$key
+      return unless $self->isupport_struct->can($key);
+      $self->isupport_struct->$key
     },
   ],
 
@@ -93,7 +97,7 @@ sub _build_state {
       channels    => {},
       nick_name   => '',
       server_name => '',
-      isupport_st => ISupport->new( casemap => 'rfc1459' ),
+      isupport_struct => ISupport->new( casemap => 'rfc1459' ),
     )
 }
 
@@ -148,10 +152,10 @@ sub N_irc_005 {
   }
 
   for my $key (keys %isupport) {
-    $self->state->isupport_st->EXTEND(
+    $self->state->isupport_struct->EXTEND(
       -rw => $key
-    ) unless $self->state->isupport_st->can($key);
-    $self->state->isupport_st->$key( $isupport{$key} )
+    ) unless $self->state->isupport_struct->can($key);
+    $self->state->isupport_struct->$key( $isupport{$key} )
   }
 
   EAT_NONE
@@ -387,6 +391,15 @@ __END__
 
 =pod
 
+=head1 NAME
+
+IRC::Server::Pluggable::Client::Stateful - Stateful Client::Lite subclass
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+This is a state-tracking subclass of L<IRC::Server::Pluggable::Client::Lite>.
 
 FIXME this is the POD as extracted from Lite:
 
@@ -462,6 +475,11 @@ B<set_by> is the topic's setter
 
 =back
 
+
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
 
 =cut
 

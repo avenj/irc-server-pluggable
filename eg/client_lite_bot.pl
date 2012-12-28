@@ -4,7 +4,7 @@ use strictures 1;
 my $nickname = 'litebot';
 my $username = 'clientlite';
 my $server   = 'irc.cobaltirc.org';
-my @channels = ( '#otw', '#unix' );
+my @channels = ( '#eris', '#unix' );
 
 use POE;
 use Data::Dumper;

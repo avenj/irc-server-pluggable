@@ -15,10 +15,6 @@ use IRC::Server::Pluggable qw/
   Types
 /;
 
-with 'IRC::Server::Pluggable::Role::Interface::Client';
-
-with 'MooX::Role::POE::Emitter';
-use MooX::Role::Pluggable::Constants;
 
 ### Required:
 has server => (
@@ -35,13 +31,15 @@ has nick => (
   writer    => 'set_nick',
   ## FIXME auto-altnick
 );
-after 'set_nick' => sub {
+
+after set_nick => sub {
   my ($self, $nick) = @_;
   if ($self->has_conn && $self->conn->has_wheel) {
     ## Try to change IRC nickname as well.
     $self->nick($nick)
   }
 };
+
 
 ### Optional:
 
@@ -141,6 +139,11 @@ has conn => (
   clearer   => '_clear_conn',
 );
 
+
+with 'IRC::Server::Pluggable::Role::Interface::Client';
+
+with 'MooX::Role::POE::Emitter';
+use MooX::Role::Pluggable::Constants;
 
 sub BUILD {
   my ($self) = @_;
@@ -439,10 +442,11 @@ sub join {
 
 sub _join {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
+  my $join_to = CORE::join ',', @_[ARG0 .. $#_];
   $self->send(
     ev(
       command => 'join',
-      params  => [ $_[ARG0] ],
+      params  => [ $join_to ],
     )
   )
 }

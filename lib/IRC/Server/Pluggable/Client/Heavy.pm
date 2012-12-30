@@ -6,12 +6,19 @@ use POE;
 use Carp 'confess';
 
 extends 'IRC::Server::Pluggable::Client::Lite';
-
-## FIXME add known user state
-## FIXME move the State struct to a real class,
-##  consume all the MooX::Struct bits from there?
+#### TODO
+## CAP negotiation.
+##   We have multi-prefix support in our WHO parser.
+##   Filter supports tags; we can support intents and receive server-time
+##   Need sasl, extended-join/-notify, tls, monitor numerics
+## ISON  ?
+## NAMES
+## timers to issue WHO periodically for seen operators
+## methods to check for shared channels
+##  hooks in quit/part/disconnect to clear no-longer-seen users/channels
 
 sub State () { 'IRC::Server::Pluggable::Client::Heavy::State' }
+
 
 use MooX::Role::Pluggable::Constants;
 
@@ -53,8 +60,98 @@ around ircsock_disconnect => sub {
 };
 
 
+### Public.
+sub get_prefix_hash {
+  my ($self) = @_;
+
+  my %prefixes = (
+    'o' => '@',
+    'h' => '%',
+    'v' => '+',
+  );
+
+  PREFIX: {
+    if (my $sup_prefix = $self->state->get_isupport('prefix')) {
+      my (undef, $modes, $symbols) = split /[\()]/, $sup_prefix;
+      last PREFIX unless $modes and $symbols
+        and length $modes == length $symbols;
+      $modes   = [ split '', $modes ];
+      $symbols = [ split '', $symbols ];
+      @prefixes{@$modes} = @$symbols
+    }
+  }
+
+  \%prefixes
+}
+
 
 ### Our handlers.
+
+sub P_preregister {
+  my (undef, $self) = splice @_, 0, 2;
+
+  ## Negotiate CAPAB
+  my @enabled = qw/
+    intents
+    multi-prefix
+    server-time
+  /;
+
+  for my $cap (@enabled) {
+    ## Spec says the server should ACK or NAK the whole set.
+    ## ... not sure if sending one at a time is the right thing to do
+    $self->send( 
+      ev( command => 'cap', params => [ 'req', $cap ] )
+    )
+  }
+
+  EAT_NONE
+}
+
+sub N_irc_cap {
+  my (undef, $self) = splice @_, 0, 2;
+  my $ircev = ${ $_[0] };
+
+  my (undef, $cmd, $capstr) = @{ $ircev->params };
+  my @caps = split ' ', $capstr;
+
+  if ($cmd eq 'ack') {
+    for my $thiscap (@caps) {
+      my $maybe_prefix = substr $thiscap, 0, 1;
+      if (grep {; $_ eq $maybe_prefix } ('-', '=', '~')) {
+        my $actual = $thiscap;
+        substr $actual, 0, 1, '';
+        
+        for ($maybe_prefix) {
+          when ('-') {
+            ## Negated.
+            $self->state->clear_capabs($actual)
+          }
+          when ('=') {
+            ## Sticky.
+            ## We don't track these, at the moment.
+            $self->state->add_capabs($actual)
+          }
+          when ('~') {
+            ## Requires an ACK
+            $self->state->add_capabs($actual);
+            $self->send(
+              ev( command => 'cap', params  => [ 'ack', $actual ] )
+            )
+          }
+          
+        }
+
+      } else {
+        ## Not prefixed.
+        $self->state->add_capabs($thiscap)
+      }
+
+    }
+  }
+
+  EAT_NONE
+}
 
 sub N_irc_001 {
   my (undef, $self) = splice @_, 0, 2;
@@ -127,6 +224,8 @@ sub N_irc_352 {
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
 
+  ## FIXME WHOX
+
   ## We only parse a small chunk.
   ## The rest of the params are documented here for convenience.
   my (
@@ -135,18 +234,41 @@ sub N_irc_352 {
     undef,      ## Username
     undef,      ## Hostname
     undef,      ## Servername
-    $nick, 
-    $status, 
+    $nick,      ## Nickname
+    $status,    ## H*@ f.ex
     undef       ## Hops + Realname
   ) = @{ $ircev->params };
   
   my $chan_obj = $self->state->get_channel($target);
+  my $user_obj = $self->state->get_user($nick);
   
-  ##  FIXME update nickname(s) for applicable channel(s)
-  ##   add status prefixes
+  my @status_bits = split '', $status;
+  my $here_or_not = shift @status_bits;
+  if ($here_or_not eq 'G') {
+    $user_obj->is_away(1);
+    ## FIXME track these (timer?)
+  }
+
+  if (grep {; $_ eq '*' } @status_bits) {
+    $user_obj->is_oper(1);
+    ## FIXME track these (timer?)
+  }
+
+  my %pfx_chars   = map {; $_ => 1 } values %{ $self->get_prefix_hash };
+  my $current_ref = $chan_obj->present->{ $self->upper($nick) };
+  my %current     = map {; $_ => 1 } @$current_ref;
+
+  ## This supports IRCv3.1 multi-prefix extensions:
+  for my $bit (@status_bits) {
+    push @$current_ref, $bit
+      if exists $pfx_chars{$bit}
+      and not $current{$bit};
+  }
 
   EAT_NONE
- }
+}
+
+## FIXME get NAMES reply
 
 sub N_irc_nick {
   my (undef, $self) = splice @_, 0, 2;
@@ -170,38 +292,20 @@ sub N_irc_mode {
     push @whenset, split '', $whenset;
   }
 
-  my %prefixes = (
-    'o' => '@',
-    'h' => '%',
-    'v' => '+',
-  );
-
-
-  PREFIX: {
-    if (my $sup_prefix = $self->state->get_isupport('prefix')) {
-      my (undef, $modes, $symbols) = split /[\()]/, $sup_prefix;
-      last PREFIX unless $modes and $symbols
-        and length $modes == length $symbols;
-      $modes   = [ split '', $modes ];
-      $symbols = [ split '', $symbols ];
-      @prefixes{@$modes} = @$symbols
-    }
-  }
-
   my $mode_hash = mode_to_hash( $modestr,
     params  => [ @params ],
     ( @always  ?  (param_always => \@always)  : () ),
     ( @whenset ?  (param_set    => \@whenset) : () ),
   );
- 
-  ## FIXME ->nicknames accesses need fixed for new State
+
+  my %prefixes = %{ $self->get_prefix_hash };
 
   MODE_ADD: for my $char (keys %{ $mode_hash->{add} }) {
     next MODE_ADD unless exists $prefixes{$char}
       and ref $mode_hash->{add}->{$char} eq 'ARRAY';
     my $param = $mode_hash->{add}->{$char}->[0];
     my $this_user;
-    unless ($this_user = $chan_obj->nicknames->{ uc_irc($param, $casemap) }) {
+    unless ($this_user = $chan_obj->present->{ $self->upper($param) }) {
       warn "Mode change for nonexistant user $param";
       next MODE_ADD
     }
@@ -213,7 +317,7 @@ sub N_irc_mode {
       and ref $mode_hash->{del}->{$char} eq 'ARRAY';
     my $param = $mode_hash->{del}->{$char}->[0];
     my $this_user;
-    unless ($this_user = $chan_obj->nicknames->{ uc_irc($param, $casemap) }) {
+    unless ($this_user = $chan_obj->present->{ $self->upper($param) }) {
       warn "Mode change for nonexistant user $param";
       next MODE_DEL
     }
@@ -232,12 +336,14 @@ sub N_irc_join {
   ## FIXME convert to sane object api for new State
 
   my $casemap = $self->state->get_isupport('casemap');
-  my $target  = uc_irc( $ircev->params->[0], $casemap );
+  my $orig    = $ircev->params->[0];
+  my $target  = uc_irc( $orig, $casemap );
   $nick       = uc_irc( $nick, $casemap );
 
   if ( eq_irc($nick, $self->state->nick_name, $casemap) ) {
     ## Us. Add new Channel struct.
     $self->state->channels->{$target} = Channel->new(
+      name      => $orig,
       nicknames => {},
       topic     => Topic->new(
         set_by => '',
@@ -249,7 +355,7 @@ sub N_irc_join {
     $self->send(
       ev(
         command => 'who',
-        params  => [ $ircev->params->[0] ],
+        params  => [ $orig ],
       )
     );
   }

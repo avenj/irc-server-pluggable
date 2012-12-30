@@ -2,7 +2,8 @@ package IRC::Server::Pluggable::Client::Heavy::State;
 
 use 5.12.1;
 use Moo;
-use Carp 'confess';
+use Carp 'carp', 'confess';
+use Scalar::Util 'weaken';
 
 use IRC::Server::Pluggable qw/
   Types
@@ -11,6 +12,7 @@ use IRC::Server::Pluggable qw/
 
 use MooX::Struct -rw,
   Channel => [ qw/
+    name
     %present
     $topic
   / ],
@@ -21,7 +23,7 @@ use MooX::Struct -rw,
     host
     realname
     +is_away
-    +is_oper  
+    +is_oper
   / ],
 
   Topic   => [ qw/
@@ -61,6 +63,8 @@ sub _create_struct {
 }
 
 ## String-type, ro, with writers.
+##    nick_name
+##    server_name
 has $_ => (
   lazy    => 1,
   is      => 'ro',
@@ -73,6 +77,9 @@ has $_ => (
 /;
 
 ## HASH-type, ro, without writers.
+##    _users
+##    _chans
+##    _capabs
 has $_ => (
   lazy    => 1,
   is      => 'ro',
@@ -80,7 +87,8 @@ has $_ => (
   default => sub { {} },
 ) for qw/ 
   _users 
-  _chans 
+  _chans
+  _capabs
 /;
 
 
@@ -113,16 +121,31 @@ sub get_user {
 }
 
 sub get_status_prefix {
-  my ($self, $channel, $nick) = @_;
+  my ($self, $channel, $nick, $prefix) = @_;
   confess "Expected a channel and nickname"
     unless defined $channel and defined $nick;
 
-  my $chan_obj = $self->_chans->{ $self->upper($channel) }
-    || confess "Cannot locate channel struct for $channel";
+  my $chan_obj = $self->_chans->{ $self->upper($channel) };
+  unless (defined $chan_obj) {
+    carp "Not currently on $channel - cannot retrieve prefix";
+    return ''
+  }
 
-  ## FIXME
-  ##  Should a Channel struct have weak-refs to a User obj
-  ##  present in _users ? probably
+  my $pfx_arr = $chan_obj->present->{$nick};
+  unless (defined $pfx_arr) {
+    carp "User not present on $channel - $nick";
+    return ''
+  }
+
+  if ($prefix) {
+    ## ->get_status_prefix($chan, $nick, '@%')
+    for my $lookup (split '', $prefix) {
+      return $lookup if grep {; $_ eq $lookup } @$pfx_arr;
+    }
+    return
+  }
+
+  join '', @$pfx_arr
 }
 
 sub get_isupport {
@@ -130,6 +153,39 @@ sub get_isupport {
   confess "Expected a key" unless defined $key;
   return unless $self->isupport_struct->can($key);
   $self->isupport_struct->$key
+}
+
+
+sub add_capabs {
+  my ($self, @cap) = @_;
+  @cap = map {; lc $_ } @cap;
+  for my $thiscap (@cap) {
+    $self->_capabs->{$thiscap} = 1
+  }
+  @cap
+}
+
+sub clear_capabs {
+  my ($self, @cap) = @_;
+  my @result;
+  for my $thiscap (map {; lc $_ } @cap) {
+    push @result, delete $self->_capabs->{$thiscap};
+  }
+  @result
+}
+
+sub has_capabs {
+  my ($self, @cap) = @_;
+  my @result;
+  for my $thiscap (map {; lc $_ } @cap) {
+    push @result, $thiscap if exists $self->_capabs->{$thiscap};
+  }
+  @result
+}
+
+sub capabs {
+  my ($self) = @_;
+  keys %{ $self->_capabs }
 }
 
 1;

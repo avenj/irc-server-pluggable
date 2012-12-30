@@ -235,7 +235,7 @@ sub chg_status {
   ## ->chg_status( $nickname, $mode_to_add, $excluded_modes )
   ##  (For example, +o excludes +h on some implementations.)
   ##  Modes currently accepted as strings.
-  ##  FIXME should probably accept arrayrefs or some kind of object also
+  ##  FIXME should probably accept arrayrefs or IRC::ModeChange also
   my ($self, $nickname, $modestr, $exclude) = @_;
 
   confess "chg_status() expected at least nickname and mode string"

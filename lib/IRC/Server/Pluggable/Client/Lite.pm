@@ -195,6 +195,12 @@ sub ircsock_connector_open {
 
   $self->_set_conn( $conn );
 
+  if ($self->process( 'preregister', $conn ) == EAT_ALL) {
+    $self->_clear_conn;
+    $self->emit( 'irc_connector_killed', $conn );
+    return
+  }
+
   my @pre;
   if ($self->has_pass && (my $pass = $self->pass)) {
     push @pre, ev(
@@ -276,6 +282,11 @@ sub N_irc_privmsg {
 
   if (my $ctcp_ev = ctcp_extract($ircev)) {
     $self->emit_now( 'irc_'.$ctcp_ev->command, $ctcp_ev );
+    return EAT_ALL
+  }
+
+  if ($ircev->has_tags && $ircev->get_tag('intent') eq 'ACTION') {
+    $self->emit_now( 'irc_ctcp_action', $ircev );
     return EAT_ALL
   }
 

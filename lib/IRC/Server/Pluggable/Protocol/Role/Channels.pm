@@ -6,6 +6,11 @@ use strictures 1;
 
 use Scalar::Util 'blessed';
 
+use IRC::Server::Pluggable qw/
+  IRC::Event
+  IRC::EventSet
+/;
+
 use namespace::clean;
 
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
@@ -23,7 +28,12 @@ sub cmd_from_client_join {
     return
   }
 
-
+  my @targets = split /,/, $event->params->[0];
+  for my $chan_name (@targets) {
+    ## FIXME
+    ##  Do nothing if user is present
+    ##  Otherwise call add-to-channel method
+  }
 }
 
 sub cmd_from_peer_join {

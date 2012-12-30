@@ -150,15 +150,12 @@ to the CTCP command:
   ## '$ev' is your incoming or outgoing ::Pluggable::IRC::Event
   ## CTCP VERSION
   $ev->command eq 'ctcp_version' 
-    $ev->params would be sender, target(s), any additional params
 
   ## Reply to CTCP VERSION
   $ev->command eq 'ctcpreply_version'
-    $ev->params would be sender, target(s), contents of reply
 
   ## DCC SEND
   $ev->command eq 'dcc_request_send' 
-    $ev->params would be sender and DCC parameters
 
 Returns empty list if no valid CTCP was found.
 

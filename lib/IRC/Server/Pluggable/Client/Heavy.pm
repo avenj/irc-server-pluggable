@@ -116,7 +116,7 @@ sub get_prefix_hash {
   \%prefixes
 }
 
-
+## FIXME these should maybe have POE counterparts
 sub monitor {
   ## FIXME transparently use NOTIFY if no MONITOR support?
 }
@@ -125,7 +125,27 @@ sub unmonitor {
   ## FIXME
 }
 
+sub who {
+  my ($self, $target, $whox) = @_;
 
+  if ($whox || $self->state->get_isupport('whox')) {
+    ## Send WHOX, hope for a compliant implementation.
+    $self->send( 
+      ev( 
+        command => 'who', params => [ $orig, '%tcnuhafr,912' ] 
+      ) 
+    );
+  } else {
+    ## No WHOX, send WHO.
+    $self->send(
+      ev( 
+        command => 'who', params => [ $orig ] 
+      )
+    );
+  }
+
+  $self
+}
 
 ### Our handlers.
 
@@ -274,8 +294,6 @@ sub N_irc_352 {
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
 
-  ## FIXME WHOX, should be issuing with 'a' flag if account-notify
-
   ## FIXME get / update other vars:
   my (
     undef,      ## Target (us)
@@ -290,13 +308,12 @@ sub N_irc_352 {
   
   my $chan_obj = $self->state->get_channel($target);
   my $user_obj = $self->state->get_user($nick);
+  return EAT_NONE unless defined $chan_obj and defined $user_obj;
   
   my @status_bits = split '', $status;
   my $here_or_not = shift @status_bits;
-  if ($here_or_not eq 'G') {
-    $user_obj->is_away(1);
-    ## FIXME track these (timer?)
-  }
+  $here_or_not eq 'G' ? $user_obj->is_away(1) : $user_obj->is_away(0) ;
+  ## FIXME track these via WHO on a timer if we don't have away-notify?
 
   if (grep {; $_ eq '*' } @status_bits) {
     $user_obj->is_oper(1);
@@ -316,6 +333,39 @@ sub N_irc_352 {
 
   EAT_NONE
 }
+
+sub irc_354 {
+  ## WHOX reply
+  my (undef, $self) = splice @_, 0, 2;
+  my $ircev = ${ $_[0] };
+  ## FIXME check for correctness
+  ## Seems these may vary, esp. with (old?) ircu
+  ## Cannot seem to find very many people with useful information on the
+  ## topic, not sure I can be arsed to dig deep on it myself . . .
+  my (
+    $tag,       ## Numeric tag
+    $channel,   ## Channel
+    $user,      ## Username
+    $host,      ## Hostname
+    $nick,      ## Nickname
+    $status,    ## H*@ etc
+    $account,   ## Account or '0'
+    $realname   ## Realname (no hops)
+  ) = @{ $ircev->params };
+
+  my @status_bits = split '', $status;
+  my $here_or_not = shift @status_bits;
+  $here_or_not eq 'G' ? $user_obj->is_away(1) : $user_obj->is_away(0) ;
+  ## FIXME rest of status parser
+  ## FIXME update Structs appropriately
+
+
+  ## FIXME hum. may reach end-of-who before we have all replies,
+  ##  according to ircu behavior?
+
+  EAT_NONE
+}
+
 
 sub irc_730 {
   ## MONONLINE
@@ -473,16 +523,22 @@ sub N_irc_join {
 
   my ($nick, $user, $host) = parse_user( $ircev->prefix );
 
-  ## FIXME convert to sane object api for new State
-
   my $casemap = $self->state->get_isupport('casemap');
-  my $orig    = $ircev->params->[0];
+
+  ## FIXME does our own JOIN include account in extended-join ?
+  my ($account, $orig);
+  if ($self->state->has_capabs('extended-join')) {
+    ($account, $orig) = @{ $ircev->params };
+    $account = undef if $account eq '*';
+  } else {
+    $orig = $ircev->params->[0];
+  }
+
   my $target  = uc_irc( $orig, $casemap );
   $nick       = uc_irc( $nick, $casemap );
 
   if ( eq_irc($nick, $self->state->nick_name, $casemap) ) {
     ## Us. Add new Channel struct.
-    ## FIXME get and set account if we have extended-join
     $self->state->channels->{$target} = Channel->new(
       name      => $orig,
       nicknames => {},
@@ -492,22 +548,17 @@ sub N_irc_join {
         topic  => '',
       ),
     );
-    ## ... and request a WHO
-    ##  FIXME if isupport WHOX request a 'WHO $chan %a` also ?
-    ##   should get us a 354 with account names to add to struct
-    ##    find some damn docs ...
-    $self->send(
-      ev(
-        command => 'who',
-        params  => [ $orig ],
-      )
+    ## ... and request a WHO(X):
+    $self->who( $orig );
+ } else {
+    ##  Not us. Add or update User struct.
+    $self->state->update_user( $nick,
+      user => $user,
+      host => $host,
+      ( defined $account ? (account => $account) : () ),
     );
+    $self->who( $nick );
   }
-
-  ## FIXME
-  ##  If this is the first we've seen of this user,
-  ##  add a struct to State with as much info as possible
-  ##  update when we get WHO
 
   my $chan_obj = $self->state->channels->{$target};
   $chan_obj->present->{$nick} = [];
@@ -520,6 +571,7 @@ sub N_irc_part {
   my $ircev = ${ $_[0] };
 
   ## FIXME object api for new State
+  ## FIXME check for users we no longer share channels with
 
   my ($nick)  = parse_user( $ircev->prefix );
   my $casemap = $self->state->get_isupport('casemap');

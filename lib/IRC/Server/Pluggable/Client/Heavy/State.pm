@@ -109,16 +109,12 @@ sub casemap {
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
 
+
+## Channels
 sub get_channel {
   my ($self, $channel) = @_;
   confess "Expected a channel name" unless defined $channel;
   $self->_chans->{ $self->upper($channel) }
-}
-
-sub get_user {
-  my ($self, $nick) = @_;
-  confess "Expected a nickname" unless defined $nick;
-  $self->_users->{ $self->upper($nick) }
 }
 
 sub get_status_prefix {
@@ -149,6 +145,36 @@ sub get_status_prefix {
   join '', @$pfx_arr
 }
 
+
+## Users
+sub update_user {
+  ## Add or update a User struct.
+  my ($self, $nick, %params) = @_;
+  my $upper = $self->upper($nick);
+
+  my $struct;
+  if ($struct = $self->_users->{$upper}) {
+    ## Update existing struct.
+    while (my ($key, $value) = each %params) {
+      $struct->$key( $value )
+    }
+  } else {
+    ## New struct.
+    $struct = User->new( nick => $nick, %params );
+    $self->_users->{$upper} = $struct;
+  }
+
+  $struct
+}
+
+sub get_user {
+  my ($self, $nick) = @_;
+  confess "Expected a nickname" unless defined $nick;
+  $self->_users->{ $self->upper($nick) }
+}
+
+
+## ISUPPORT
 sub get_isupport {
   my ($self, $key) = @_;
   confess "Expected a key" unless defined $key;
@@ -158,6 +184,7 @@ sub get_isupport {
 }
 
 
+## CAP
 sub add_capabs {
   my ($self, @cap) = @_;
   @cap = map {; lc $_ } @cap;

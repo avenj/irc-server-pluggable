@@ -18,6 +18,7 @@ use MooX::Struct -rw,
   / ],
 
   User    => [ qw/
+    account
     nick
     user
     host

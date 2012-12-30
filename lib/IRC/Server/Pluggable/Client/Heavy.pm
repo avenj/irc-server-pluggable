@@ -49,6 +49,9 @@ has state => (
 
 
 ### Overrides.
+
+## FIXME override _send to do flood prot ?
+
 around ircsock_disconnect => sub {
   my $orig = shift;
   my ($kernel, $self) = @_[KERNEL, OBJECT];
@@ -130,13 +133,16 @@ sub P_preregister {
   my (undef, $self) = splice @_, 0, 2;
 
   ## Negotiate CAPAB
-  my @enabled = qw/
+  my @enabled_caps = qw/
+    away-notify
+    account-notify
+    extended-join
     intents
     multi-prefix
     server-time
   /;
 
-  for my $cap (@enabled) {
+  for my $cap (@enabled_caps) {
     ## Spec says the server should ACK or NAK the whole set.
     ## ... not sure if sending one at a time is the right thing to do
     $self->send( 
@@ -268,7 +274,7 @@ sub N_irc_352 {
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
 
-  ## FIXME WHOX
+  ## FIXME WHOX, should be issuing with 'a' flag if account-notify
 
   ## FIXME get / update other vars:
   my (
@@ -352,6 +358,55 @@ sub irc_734 {
 
 ## FIXME get NAMES reply
 
+sub N_irc_account {
+  ## account-notify
+  my (undef, $self) = splice @_, 0, 2;
+  my $ircev = ${ $_[0] };
+  
+  my ($nick, $user, $host) = parse_user( $ircev->prefix );
+  
+  my $user_obj = $self->state->get_user($nick);
+  unless ($user_obj) {
+    warn "Received ACCOUNT from server for unknown user $nick";
+    return EAT_NONE
+  }
+  
+  my $acct = $ircev->params->[0];
+  if ($acct eq '*') {
+    $user_obj->account('');
+    $self->emit( 'account_notify_cleared', $nick );
+  } else {
+    $user_obj->account($acct);
+    $self->emit( 'account_notify_set', $nick, $acct );
+  }
+
+  EAT_NONE
+}
+
+sub N_irc_away {
+  ## away-notify
+  my (undef, $self) = splice @_, 0, 2;
+  my $ircev = ${ $_[0] };
+
+  my ($nick, $user, $host) = parse_user( $ircev->prefix );
+
+  my $user_obj = $self->state->get_user($nick);
+  unless ($user_obj) {
+    warn "Received AWAY from server for unknown user $nick";
+    return EAT_NONE
+  }
+
+  if (@{ $ircev->params }) {
+    ## Went away.
+    $user_obj->is_away(1);
+  } else {
+    ## Came back.
+    $user_obj->is_away(0);
+  }
+
+  EAT_NONE
+}
+
 sub N_irc_nick {
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
@@ -427,6 +482,7 @@ sub N_irc_join {
 
   if ( eq_irc($nick, $self->state->nick_name, $casemap) ) {
     ## Us. Add new Channel struct.
+    ## FIXME get and set account if we have extended-join
     $self->state->channels->{$target} = Channel->new(
       name      => $orig,
       nicknames => {},
@@ -437,6 +493,9 @@ sub N_irc_join {
       ),
     );
     ## ... and request a WHO
+    ##  FIXME if isupport WHOX request a 'WHO $chan %a` also ?
+    ##   should get us a 354 with account names to add to struct
+    ##    find some damn docs ...
     $self->send(
       ev(
         command => 'who',
@@ -445,8 +504,13 @@ sub N_irc_join {
     );
   }
 
+  ## FIXME
+  ##  If this is the first we've seen of this user,
+  ##  add a struct to State with as much info as possible
+  ##  update when we get WHO
+
   my $chan_obj = $self->state->channels->{$target};
-  $chan_obj->nicknames->{$nick} = [];
+  $chan_obj->present->{$nick} = [];
 
   EAT_NONE
 }
@@ -526,8 +590,30 @@ FIXME
 
 =head1 DESCRIPTION
 
-This is a IRCv3-compatible state-tracking subclass of 
+This is a mostly-IRCv3-compatible state-tracking subclass of 
 L<IRC::Server::Pluggable::Client::Lite>.
+
+=head2 IRCv3 compatibility
+
+Supported:
+
+B<away-notify>
+
+B<account-notify>
+
+B<extended-join>
+
+B<intents>
+
+B<multi-prefix>
+
+B<server-time>
+
+B<MONITOR>
+
+
+B<sasl> and B<tls> are currently missing. TLS may be a challenge due to a lack of
+STARTTLS-compatible POE Filters/Components; input/patches welcome, of course.
 
 
 

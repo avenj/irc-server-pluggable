@@ -151,6 +151,7 @@ sub get_status_prefix {
 sub get_isupport {
   my ($self, $key) = @_;
   confess "Expected a key" unless defined $key;
+  $key = lc $key;
   return unless $self->isupport_struct->can($key);
   $self->isupport_struct->$key
 }

@@ -10,7 +10,7 @@ extends 'IRC::Server::Pluggable::Client::Lite';
 ## CAP negotiation.
 ##   We have multi-prefix support in our WHO parser.
 ##   Filter supports tags; we can support intents and receive server-time
-##   Need sasl, extended-join/-notify, tls, monitor numerics
+##   Need sasl, extended-join/-notify, tls
 ## ISON  ?
 ## NAMES
 ## timers to issue WHO periodically for seen operators
@@ -28,6 +28,8 @@ use IRC::Server::Pluggable qw/
   IRC::Event
   
   Utils
+  Utils::Parse::CTCP
+
   Types
 /;
 
@@ -48,6 +50,7 @@ has state => (
 
 ### Overrides.
 around ircsock_disconnect => sub {
+  my $orig = shift;
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my ($conn, $str) = @_[ARG0, ARG1];
   
@@ -57,6 +60,32 @@ around ircsock_disconnect => sub {
   $self->_set_state( $self->_build_state );
   
   $self->emit( 'irc_disconnected', $str, $connected_to );
+};
+
+around _ctcp => sub {
+  my $orig = shift;
+  my ($kernel, $self)        = @_[KERNEL, OBJECT];
+  my ($type, $target, @data) = @_[ARG0 .. $#_];
+
+  $type = uc $type;
+
+  if ($type eq 'ACTION' && $self->state->has_capabs('intents')) {
+    $self->send(
+      ev(
+        command => 'privmsg',
+        params  => [ $target, join(' ', @data) ],
+        tags    => { intent => 'ACTION' },
+      )
+    )
+  } else {
+    my $quoted = ctcp_quote( join(' ', $type, @data) );
+    $self->send(
+      ev(
+        command => 'privmsg',
+        params  => [ $target, $quoted ],
+      )
+    )
+  }
 };
 
 
@@ -85,6 +114,16 @@ sub get_prefix_hash {
 }
 
 
+sub monitor {
+  ## FIXME transparently use NOTIFY if no MONITOR support?
+}
+
+sub unmonitor {
+  ## FIXME
+}
+
+
+
 ### Our handlers.
 
 sub P_preregister {
@@ -101,7 +140,8 @@ sub P_preregister {
     ## Spec says the server should ACK or NAK the whole set.
     ## ... not sure if sending one at a time is the right thing to do
     $self->send( 
-      ev( command => 'cap', params => [ 'req', $cap ] )
+      ev( command => 'cap', params => [ 'req', $cap ] ),
+      ev( command => 'cap', params => [ 'end' ] )
     )
   }
 
@@ -125,16 +165,19 @@ sub N_irc_cap {
         for ($maybe_prefix) {
           when ('-') {
             ## Negated.
-            $self->state->clear_capabs($actual)
+            $self->state->clear_capabs($actual);
+            $self->emit( 'cap_cleared', $actual );
           }
           when ('=') {
             ## Sticky.
             ## We don't track these, at the moment.
-            $self->state->add_capabs($actual)
+            $self->state->add_capabs($actual);
+            $self->emit( 'cap_added', $actual );
           }
           when ('~') {
             ## Requires an ACK
             $self->state->add_capabs($actual);
+            $self->emit( 'cap_added', $actual );
             $self->send(
               ev( command => 'cap', params  => [ 'ack', $actual ] )
             )
@@ -144,7 +187,8 @@ sub N_irc_cap {
 
       } else {
         ## Not prefixed.
-        $self->state->add_capabs($thiscap)
+        $self->state->add_capabs($thiscap);
+        $self->emit( 'cap_added', $thiscap );
       }
 
     }
@@ -226,8 +270,7 @@ sub N_irc_352 {
 
   ## FIXME WHOX
 
-  ## We only parse a small chunk.
-  ## The rest of the params are documented here for convenience.
+  ## FIXME get / update other vars:
   my (
     undef,      ## Target (us)
     $target,    ## Channel
@@ -268,6 +311,45 @@ sub N_irc_352 {
   EAT_NONE
 }
 
+sub irc_730 {
+  ## MONONLINE
+  my (undef, $self) = splice @_, 0, 2;
+  my $ircev = ${ $_[0] };
+
+  return unless $self->state->get_isupport('monitor');
+
+  my @targets = split /,/, $ircev->params->[1];
+  $self->emit( 'monitor_online', @targets );
+
+  EAT_NONE
+}
+
+sub irc_731 {
+  ## MONOFFLINE
+  my (undef, $self) = splice @_, 0, 2;
+  my $ircev = ${ $_[0] };
+
+  return unless $self->state->get_isupport('monitor');
+
+  my @targets = split /,/, $ircev->params->[1];
+  $self->emit( 'monitor_offline', @targets );
+
+  EAT_NONE
+}
+
+sub irc_734 {
+  ## MONLISTFULL
+  my (undef, $self) = splice @_, 0, 2;
+  my $ircev = ${ $_[0] };
+
+  return unless $self->state->get_isupport('monitor');
+
+  my (undef, $limit, $targets) = @{ $ircev->params };
+  $self->emit( 'monitor_list_full', $limit, split(/,/, $targets) );
+
+  EAT_NONE
+}
+
 ## FIXME get NAMES reply
 
 sub N_irc_nick {
@@ -292,6 +374,9 @@ sub N_irc_mode {
     push @whenset, split '', $whenset;
   }
 
+  ## FIXME
+  ##  Needs to use mode_to_array
+  ##  Needs to be able to cancel earlier changes e.g. -o+o-o+o X X X X
   my $mode_hash = mode_to_hash( $modestr,
     params  => [ @params ],
     ( @always  ?  (param_always => \@always)  : () ),
@@ -433,15 +518,21 @@ __END__
 
 =head1 NAME
 
-IRC::Server::Pluggable::Client::Heavy - Stateful Client::Lite subclass
+IRC::Server::Pluggable::Client::Heavy - Stateful IRCv3 client
 
 =head1 SYNOPSIS
 
+FIXME
+
 =head1 DESCRIPTION
 
-This is a state-tracking subclass of L<IRC::Server::Pluggable::Client::Lite>.
+This is a IRCv3-compatible state-tracking subclass of 
+L<IRC::Server::Pluggable::Client::Lite>.
 
-FIXME this is the POD as extracted from Lite:
+
+
+FIXME this is the POD as extracted from Lite, it needs to move to Heavy::State
+POD:
 
 
 =head2 State

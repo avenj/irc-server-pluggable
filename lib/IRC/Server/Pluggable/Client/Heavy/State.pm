@@ -167,6 +167,12 @@ sub update_user {
   $struct
 }
 
+sub del_user {
+  my ($self, $nick) = @_;
+  confess "Expected a nickname" unless defined $nick;
+  delete $self->_users->{ $self->upper($nick) }
+}
+
 sub get_user {
   my ($self, $nick) = @_;
   confess "Expected a nickname" unless defined $nick;

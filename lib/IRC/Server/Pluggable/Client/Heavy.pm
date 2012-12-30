@@ -570,15 +570,18 @@ sub N_irc_part {
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
 
-  ## FIXME object api for new State
-  ## FIXME check for users we no longer share channels with
-
   my ($nick)  = parse_user( $ircev->prefix );
   my $casemap = $self->state->get_isupport('casemap');
   my $target  = uc_irc( $ircev->params->[0], $casemap );
   $nick       = uc_irc( $nick, $casemap );
   
   delete $self->state->channels->{$target};
+
+  my $seen;
+  while (my ($channel, $chan_obj) = each %{ $self->state->channels }) {
+    $seen++ if exists $chan_obj->present->{$nick};
+  }
+  $self->state->del_user($nick) unless $seen;
   
   EAT_NONE
 }
@@ -587,15 +590,15 @@ sub N_irc_quit {
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
 
-  ## FIXME object api for new State
-
   my ($nick)  = parse_user( $ircev->prefix );
   my $casemap = $self->state->get_isupport('casemap');
   $nick       = uc_irc( $nick, $casemap );
 
   while (my ($channel, $chan_obj) = each %{ $self->state->channels }) {
-    delete $chan_obj->nicknames->{$nick};
+    delete $chan_obj->present->{$nick}
   }
+
+  $self->state->del_user($nick);
 
   EAT_NONE
 }

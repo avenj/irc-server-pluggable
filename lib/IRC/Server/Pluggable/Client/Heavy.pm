@@ -165,6 +165,7 @@ sub P_preregister {
   for my $cap (@enabled_caps) {
     ## Spec says the server should ACK or NAK the whole set.
     ## ... not sure if sending one at a time is the right thing to do
+    ## ... for now, we're doing it
     $self->send( 
       ev( command => 'cap', params => [ 'req', $cap ] ),
       ev( command => 'cap', params => [ 'end' ] )
@@ -334,7 +335,7 @@ sub N_irc_352 {
   EAT_NONE
 }
 
-sub irc_354 {
+sub N_irc_354 {
   ## WHOX reply
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
@@ -353,6 +354,8 @@ sub irc_354 {
     $realname   ## Realname (no hops)
   ) = @{ $ircev->params };
 
+  $account = undef if $account eq '0';
+
   my @status_bits = split '', $status;
   my $here_or_not = shift @status_bits;
   $here_or_not eq 'G' ? $user_obj->is_away(1) : $user_obj->is_away(0) ;
@@ -362,12 +365,14 @@ sub irc_354 {
 
   ## FIXME hum. may reach end-of-who before we have all replies,
   ##  according to ircu behavior?
+  ##  Use NAMES to build full list and reissue WHO for incomplete
+  ##  User structs...?
 
   EAT_NONE
 }
 
 
-sub irc_730 {
+sub N_irc_730 {
   ## MONONLINE
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
@@ -380,7 +385,7 @@ sub irc_730 {
   EAT_NONE
 }
 
-sub irc_731 {
+sub N_irc_731 {
   ## MONOFFLINE
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };
@@ -393,7 +398,7 @@ sub irc_731 {
   EAT_NONE
 }
 
-sub irc_734 {
+sub N_irc_734 {
   ## MONLISTFULL
   my (undef, $self) = splice @_, 0, 2;
   my $ircev = ${ $_[0] };

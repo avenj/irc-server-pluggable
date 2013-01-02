@@ -113,7 +113,7 @@ sub r_channels_chk_can_join {
   ##  Does not currently check to see if user is over max chan limit here.
   my ($self, $user_obj, $chan_name, %opts) = @_;
 
-  my $errset = prefixed_new( 'IRC::EventSet' );
+  my $err_ev;
   $user_obj = $self->users->by_name($user_obj) unless blessed $user_obj;
 
   my $channels = $self->channels;
@@ -128,12 +128,10 @@ sub r_channels_chk_can_join {
     ## Banned (+b) check
     if
     ($self->r_channels_chk_user_banned($channels, $chan_name, $user_obj)) {
-      $errset->push(
-        $self->numeric->to_hash( 474,
-          prefix => $self->config->server_name,
-          target => $user_obj->nick,
-          params => [ $chan_name ],
-        )
+      $err_ev = $self->numeric->to_event( 474,
+        prefix => $self->config->server_name,
+        target => $user_obj->nick,
+        params => [ $chan_name ],
       );
       last JOINCHK
     }
@@ -141,12 +139,10 @@ sub r_channels_chk_can_join {
     ## Invite-only (+i) check
     if
     ($self->r_channels_chk_invite_only($channels, $chan_name, $user_obj)) {
-      $errset->push(
-        $self->numeric->to_hash( 473,
-          prefix => $self->config->server_name,
-          target => $user_obj->nick,
-          params => [ $chan_name ],
-        )
+      $err_ev = $self->numeric->to_event( 473,
+        prefix => $self->config->server_name,
+        target => $user_obj->nick,
+        params => [ $chan_name ],
       );
       last JOINCHK
     }
@@ -155,12 +151,10 @@ sub r_channels_chk_can_join {
     ## Key should be passed along in params, see docs
     if ( $opts{key} && (my $ckey = $chan_obj->channel_has_mode('k')) ) {
       unless ( $self->equal($opts{key}, $ckey) ) {
-        $errset->push(
-          $self->numeric->to_hash( 475,
-            prefix => $self->config->server_name,
-            target => $user_obj->nick,
-            params => [ $chan_name ],
-          )
+        $err_ev =  $self->numeric->to_event( 475,
+          prefix => $self->config->server_name,
+          target => $user_obj->nick,
+          params => [ $chan_name ],
         );
         last JOINCHK
       }
@@ -168,23 +162,19 @@ sub r_channels_chk_can_join {
 
     ## Limit (+l) check
     if ( $self->r_channels_chk_over_limit( $chan_obj ) ) {
-      $errset->push(
-        $self->numeric->to_hash( 475,
-          prefix => $self->config->server_name,
-          target => $user_obj->nick,
-          params => [ $chan_name ],
-        )
+      $err_ev = $self->numeric->to_event( 475,
+        prefix => $self->config->server_name,
+        target => $user_obj->nick,
+        params => [ $chan_name ],
       );
       last JOINCHK
     }
   } ## JOINCHK
 
-  if ($errset->has_events) {
-    $self->send_to_routes( $errset, $user_obj->route )
-      unless exists $opts{send_errors}
-      and !$opts{send_errors};
-
-      return
+  if ($err_ev) {
+    $self->send_to_routes( $err_ev, $user_obj->route )
+      unless exists $opts{send_errors} and !$opts{send_errors};
+    return
   }
 
   ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
@@ -217,7 +207,7 @@ sub user_cannot_send_to_chan {
   my $channels = $self->channels;
 
   my $cantsend = sub {
-    $self->numeric->as_event( 404,
+    $self->numeric->to_event( 404,
       target => $user_obj->nick,
       prefix => $self->config->server_name,
       params => [ $chan_name ],

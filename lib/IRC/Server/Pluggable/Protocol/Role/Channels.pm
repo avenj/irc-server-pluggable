@@ -15,6 +15,8 @@ use namespace::clean;
 
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 
+requires 'equal';
+
 ## FIXME join methods, call Channels->add_user_to_channel?
 ## FIXME same for part
 
@@ -64,9 +66,12 @@ sub cmd_from_peer_part {
 
 ## FIXME channel-related commands?
 
+
+
+
 #### Joinable/sendable checks.
 
-## +b check/send
+## +b check
 sub r_channels_chk_user_banned {
   my ($self, $channels, $chan_name, $user_obj) = @_;
 
@@ -77,18 +82,8 @@ sub r_channels_chk_user_banned {
   return
 }
 
-sub r_channels_send_user_banned {
-  my ($self, $user_obj, $chan_name) = @_;
 
-  $self->send_numeric( 474,
-    target => $user_obj->nick,
-    params => [ $chan_name ],
-    routes => $user_obj->route,
-  );
-}
-
-
-## +i check/send
+## +i check
 sub r_channels_chk_invite_only {
   my ($self, $channels, $chan_name, $user_obj) = @_;
 
@@ -98,18 +93,7 @@ sub r_channels_chk_invite_only {
   return
 }
 
-sub r_channels_send_invite_only {
-  my ($self, $user_obj, $chan_name) = @_;
-
-  $self->send_numeric( 473,
-    target => $user_obj->nick,
-    params => [ $chan_name ],
-    routes => $user_obj->route,
-  );
-}
-
-
-## +l check/send
+## +l check
 sub r_channels_chk_over_limit {
   my ($self, $chan_obj) = @_;
 
@@ -120,77 +104,87 @@ sub r_channels_chk_over_limit {
   return
 }
 
-sub r_channels_send_over_limit {
-  my ($self, $user_obj, $chan_name) = @_;
-
-  $self->send_numeric( 471,
-    target => $user_obj->nick,
-    params => [ $chan_name ],
-    routes => $user_obj->route,
-  );
-}
-
-## +k send, comparison happens in r_channels_chk_can_join
-sub r_channels_send_bad_key {
-  my ($self, $user_obj, $chan_name) = @_;
-
-  $self->send_numeric( 475,
-    target => $user_obj->nick,
-    params => [ $chan_name ],
-    routes => $user_obj->route,
-  );
-}
-
 sub r_channels_chk_can_join {
   ## r_channels_chk_can_join( $user_obj, $chan_name, key => $key, . . . )
   ##  Return true if the User can join.
-  ##  Return false and dispatches an error numeric to User if not.
+  ##  Return false and dispatch errors to user if not.
+  ##  (If 'send_errors => 0' is specified, only return boolean without
+  ##   dispatch)
+  ##  Does not currently check to see if user is over max chan limit here.
   my ($self, $user_obj, $chan_name, %opts) = @_;
 
-  ## Public methods can try to retrieve a user obj from nick, if needed:
-  return unless $self->_r_channels_check_user_arg($user_obj);
+  my $errset = prefixed_new( 'IRC::EventSet' );
+  $user_obj = $self->users->by_name($user_obj) unless blessed $user_obj;
 
   my $channels = $self->channels;
-
-  my $chan_obj = $channels->by_name($chan_name);
-  unless ( $chan_obj ) {
-    ## FIXME channel creation method
-  }
 
   ## Services can always join.
   return 1 if $user_obj->is_flagged_as('SERVICE');
 
-  ## Banned (+b) check
-  if
-  ($self->r_channels_chk_user_banned($channels, $chan_name, $user_obj)) {
-    $self->r_channels_send_user_banned( $user_obj, $chan_name );
-    return
-  }
+  ## Can always join a nonexistant channel.
+  my $chan_obj = $channels->by_name($chan_name) || return 1;
 
-  ## Invite-only (+i) check
-  if
-  ($self->r_channels_chk_invite_only($channels, $chan_name, $user_obj)) {
-    $self->r_channels_send_invite_only( $user_obj, $chan_name );
-    return
-  }
-
-  ## Key (+k) check
-  ## Key should be passed along in params, see docs
-  if ( $opts{key} && (my $ckey = $chan_obj->channel_has_mode('k')) ) {
-    unless ( $opts{key} eq $ckey ) {
-      $self->r_channels_send_bad_key(
-        $user_obj, $chan_name
+  JOINCHK: {
+    ## Banned (+b) check
+    if
+    ($self->r_channels_chk_user_banned($channels, $chan_name, $user_obj)) {
+      $errset->push(
+        $self->numeric->to_hash( 474,
+          prefix => $self->config->server_name,
+          target => $user_obj->nick,
+          params => [ $chan_name ],
+        )
       );
-      return
+      last JOINCHK
     }
-  }
 
-  ## Limit (+l) check
-  if ( $self->r_channels_chk_over_limit( $chan_obj ) ) {
-    $self->r_channels_send_over_limit(
-      $user_obj, $chan_name
-    );
-    return
+    ## Invite-only (+i) check
+    if
+    ($self->r_channels_chk_invite_only($channels, $chan_name, $user_obj)) {
+      $errset->push(
+        $self->numeric->to_hash( 473,
+          prefix => $self->config->server_name,
+          target => $user_obj->nick,
+          params => [ $chan_name ],
+        )
+      );
+      last JOINCHK
+    }
+
+    ## Key (+k) check
+    ## Key should be passed along in params, see docs
+    if ( $opts{key} && (my $ckey = $chan_obj->channel_has_mode('k')) ) {
+      unless ( $self->equal($opts{key}, $ckey) ) {
+        $errset->push(
+          $self->numeric->to_hash( 475,
+            prefix => $self->config->server_name,
+            target => $user_obj->nick,
+            params => [ $chan_name ],
+          )
+        );
+        last JOINCHK
+      }
+    }
+
+    ## Limit (+l) check
+    if ( $self->r_channels_chk_over_limit( $chan_obj ) ) {
+      $errset->push(
+        $self->numeric->to_hash( 475,
+          prefix => $self->config->server_name,
+          target => $user_obj->nick,
+          params => [ $chan_name ],
+        )
+      );
+      last JOINCHK
+    }
+  } ## JOINCHK
+
+  if ($errset->has_events) {
+    $self->send_to_routes( $errset, $user_obj->route )
+      unless exists $opts{send_errors}
+      and !$opts{send_errors};
+
+      return
   }
 
   ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
@@ -214,7 +208,8 @@ sub user_cannot_send_to_chan {
   ## Return an error numeric IRC::Event if not.
   ## FIXME optionally take a chan_obj instead
   my ($self, $user_obj, $chan_name) = @_;
-  $self->_r_channels_check_user_arg($user_obj);
+  $user_obj  = $self->users->by_name($user_obj) unless blessed $user_obj;
+  $chan_name = $chan_name->name if blessed $chan_name;
 
   ## SERVICE can always send.
   return if $user_obj->is_flagged_as('SERVICE');
@@ -251,22 +246,5 @@ sub user_cannot_send_to_chan {
 }
 
 
-#### Internals.
-
-sub _r_channels_check_user_arg {
-  my $self = shift;
-  ## Allow methods to take either a user_obj or an identifier
-  ## Attempt to modify caller's args
-  ## If we can't get either, carp and return
-  unless ( blessed($_[0]) ) {
-    $_[0] = $self->users->by_name($_[0]);
-    unless ($_[0]) {
-      my $called = (caller(1))[3];
-      carp "$called nonexistant user specified";
-      return
-    }
-  }
-  $_[0]
-}
 
 1;

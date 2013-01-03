@@ -17,6 +17,20 @@ requires qw/
 ### FIXME should sendq management live here... ?
 
 
+sub send_to_local_peers {
+  my ($self, $output, %opts) = @_;
+  ## ->send_to_local_peers( $output,
+  ##   except => $peer_obj,
+  ## );
+
+  my @ids;
+  push @ids, grep {;
+    $opts{except} ? $_ ne $opts{except} : $_
+  } map {; $_->route } $self->peers->list_local_peers;
+
+  $self->send_to_routes( $output, @ids )
+}
+
 sub send_to_route  { shift->send_to_routes(@_) }
 sub send_to_routes {
   my ($self, $output, @ids) = @_;

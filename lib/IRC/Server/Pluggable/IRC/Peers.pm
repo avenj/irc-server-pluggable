@@ -51,9 +51,14 @@ sub add {
   $peer
 }
 
+sub list_local_peers {
+  my ($self) = @_;
+  values %{ $self->_peers_by_id }
+}
+
 sub as_array {
   my ($self) = @_;
-
+  ## FIXME should just return Peer objs
   [ map { $self->_peers->{$_}->name } keys %{ $self->_peers } ]
 }
 

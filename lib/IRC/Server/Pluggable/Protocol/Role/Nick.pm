@@ -64,7 +64,9 @@ sub r_nick_from_peer_intro {
   my (undef, $hops, $ts, $modestr, $username, $hostname, $server, $gecos)
     = @{ $event->params };
 
-  ## FIXME
+  ## hopcount++
+  $event->params->[1]++;
+  ## FIXME intro user and relay to list_local_peers
 }
 
 sub r_nick_intro_conflicting {
@@ -80,15 +82,13 @@ sub r_nick_intro_conflicting {
   my (undef, $hops, $ts, $modestr, $username, $hostname, $server, $gecos)
     = @{ $event->params };
 
-  my $old = $user->user .'@'. $user->host;
-  my $new = $username   .'@'. $hostname;
-
   ## See doc/irc/ts3.txt:
-  if ($old eq $new) {
+  if ($user->user eq $username && $user->host eq $hostname) {
     ## Hosts match and incoming is older. Ignore line.
     return if $ts < $user->ts;
     ## Otherwise kill ours and propogate new
     ## FIXME call disconnect
+    $event->params->[1]++;
     $self->send_to_local_peers( $event,
       except => $peer
     );
@@ -97,6 +97,7 @@ sub r_nick_intro_conflicting {
     ## Ignore line if incoming TS is older than ours.
     return if $ts > $user->ts;
     ## FIXME call disconnect
+    $event->params->[1]++;
     $self->send_to_local_peers( $event,
       except => $peer
     );

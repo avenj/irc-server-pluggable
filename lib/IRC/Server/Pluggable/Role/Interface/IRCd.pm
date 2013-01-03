@@ -9,10 +9,13 @@ requires qw/
   channels
   config
   disconnect
+  equal
+  lower
   numeric
   peers
   send_numeric
   send_to_routes
+  upper
   users
 /;
 

@@ -150,8 +150,10 @@ sub user_can_join_chan {
     }
 
     ## Key (+k) check
-    ## Key should be passed along in params, see docs
+    ## Key should be passed along in params as key => $key
     if ( $opts{key} && (my $ckey = $chan_obj->channel_has_mode('k')) ) {
+      ## Keys appear to follow IRC upper/lower rules
+      ## (at least, that's what hyb7 does)
       unless ( $self->equal($opts{key}, $ckey) ) {
         $err_ev =  $self->numeric->to_event( 475,
           prefix => $self->config->server_name,

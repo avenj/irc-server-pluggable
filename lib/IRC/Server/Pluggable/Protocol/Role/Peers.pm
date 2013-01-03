@@ -9,10 +9,8 @@ use POE;
 
 use namespace::clean;
 
-
-sub cmd_from_peer_nick {
   ## FIXME
-  ## maybe this should be in Register.pm?
+  ## Move to Role::Nick
   ## TS3 NICK rules.
   ## nick-change:
   ##  :oldnick NICK newnick :<TS>
@@ -29,7 +27,55 @@ sub cmd_from_peer_nick {
   ##  - if ts() are equal kill both if it was a nick change
   ##  - if the incoming TS is older, ignore, kill old if nick change
   ##  - if the incoming TS is newer, kill ours, relay new
+
+
+sub cmd_from_peer_nick {
+  my ($self, $conn, $event, $peer) = @_;
+
+  unless (@{ $event->params }) {
+    warn "Missing params in NICK from ".$peer->name;
+    return
+  }
+
+  my $type;
+  if (@{ $event->params } >= 2) {
+    ## Nick change, :prefix NICK newnick  or  :prefix NICK newnick :<TS>
+    my $type = 'change';
+  } elsif (@{ $event->params } == 7) {
+    ## Introduction:
+    ##  NICK <nick> <hops> <ts> +<umode> <user> <host> <serv> :<gecos>
+    my $type = 'intro';
+  } else {
+    ## Dunno.
+    warn "Malformed params in NICK (introduction) from ".$peer->name;
+    return
+  }
+
+  $self->r_nick_from_peer_$type($conn, $event, $peer);
 }
+
+sub r_nick_from_peer_change {
+  my ($self, $conn, $event, $peer) = @_;
+  
+  my ($nick) = parse_user( $event->prefix );
+  my $user   = $self->users->by_name($nick);
+  unless ($user) {
+    warn "Malformed NICK from peer; no such user $nick";
+    return
+  }
+
+  ## FIXME
+}
+
+sub r_nick_from_peer_intro {
+  my ($self, $conn, $event, $peer) = @_;
+
+  my ($nick, $hops, $ts, $modestr, $username, $hostname, $server, $gecos)
+    = @{ $event->params };
+
+  ## FIXME
+}
+
 
 sub cmd_from_peer_server {
   ## Peer introducing server.

@@ -12,12 +12,7 @@ sub PROTO_ROLE_PREFIX () {
 }
 
 my @base_roles = map { PROTO_ROLE_PREFIX . $_ } qw/
-  Register
-
-  Clients
-  Peers
-
-  Channels
+ ## FIXME
 /;
 
 

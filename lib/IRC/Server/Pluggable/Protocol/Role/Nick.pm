@@ -87,13 +87,19 @@ sub r_nick_intro_conflicting {
   if ($old eq $new) {
     ## Hosts match and incoming is older. Ignore line.
     return if $ts < $user->ts;
-    ## FIXME otherwise kill ours and propogate new
-    ## FIXME method to send to all directly-linked except specified peer?
+    ## Otherwise kill ours and propogate new
+    ## FIXME call disconnect
+    $self->send_to_local_peers( $event,
+      except => $peer
+    );
   } else {
     ## Hosts don't match.
     ## Ignore line if incoming TS is older than ours.
     return if $ts > $user->ts;
-    ## FIXME otherwise kill ours and propogate new
+    ## FIXME call disconnect
+    $self->send_to_local_peers( $event,
+      except => $peer
+    );
   }
 }
 

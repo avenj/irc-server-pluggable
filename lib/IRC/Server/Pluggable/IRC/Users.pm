@@ -65,7 +65,11 @@ sub add {
 
 sub as_array {
   my ($self) = @_;
+  values %{ $self->_users }
+}
 
+sub nicknames_as_array {
+  my ($self) = @_;
   [ map { $self->_users->{$_}->nick } keys %{ $self->_users } ]
 }
 

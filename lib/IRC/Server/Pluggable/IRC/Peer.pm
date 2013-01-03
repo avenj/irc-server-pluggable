@@ -67,6 +67,20 @@ has 'name' => (
   writer   => 'set_name',
 );
 
+has 'type' => (
+  lazy   => 1,
+  is     => 'ro',
+  isa    => Str,
+  writer => 'set_type',
+  ## FIXME need an authoritative types list and a Moo type for same
+  default => sub { 'TS' },
+);
+## FIXME 'version' attrib to go with type ?
+
+has '_capabs' => (
+
+);
+
 
 ## FIXME methods  to add/del ->linked() peers ?
 

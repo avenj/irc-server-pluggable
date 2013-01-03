@@ -44,6 +44,7 @@ use namespace::clean;
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 requires qw/
   channel_types
+  user_can_send_to_chan
   user_cannot_send_to_chan
 /;
 
@@ -141,9 +142,12 @@ sub cmd_from_peer_notice {
 
 ### Public util methods.
 
-sub user_cannot_send_to_user {
+sub user_can_send_to_user {
   ## FIXME
-  ##  User-to-user counterpart to Channels->user_cannot_send_to_chan
+}
+sub user_cannot_send_to_user {
+  ## user_can_send_to_user counterpart
+  ## Similar to Role::Channels->user_cannot_send_to_chan
 }
 
 
@@ -550,6 +554,10 @@ sub r_msgs_relay_to_channel_prefixed {
     return
   }
 
+  ## FIXME 482 if user doesn't have any status modes
+  ##  and not ->is_flagged_as('SERVICE')
+  ## Otherwise we can skip can_send check
+
   my $routes = $self->r_msgs_accumulate_targets_statustype(
     $status_prefix,
     $chan_obj
@@ -574,7 +582,6 @@ sub r_msgs_relay_to_channel_prefixed {
 
     $self->send_to_routes($ref, $id)
   }
-  ## FIXME what're the can-send rules here ...?
 
   $routes
 }

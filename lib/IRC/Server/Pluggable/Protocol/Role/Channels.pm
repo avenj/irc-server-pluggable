@@ -104,8 +104,10 @@ sub r_channels_chk_over_limit {
   return
 }
 
-sub r_channels_chk_can_join {
-  ## r_channels_chk_can_join( $user_obj, $chan_name, key => $key, . . . )
+
+### Public.
+sub user_can_join_chan {
+  ## user_can_join_chan( $user_obj, $chan_name, key => $key, . . . )
   ##  Return true if the User can join.
   ##  Return false and dispatch errors to user if not.
   ##  (If 'send_errors => 0' is specified, only return boolean without
@@ -174,35 +176,30 @@ sub r_channels_chk_can_join {
   if ($err_ev) {
     $self->send_to_routes( $err_ev, $user_obj->route )
       unless exists $opts{send_errors} and !$opts{send_errors};
-    return
+    return $opts{return_errors} ? $err_ev : ()
   }
-
-  ## Extra subclass checks (ssl-only, reg-only, ...) can be implemented
-  ## In a subclass:
-  ##  around 'r_channels_chk_can_join' => sub {
-  ##    my ($orig, $self, $user, $chan_name, %opts) = @_;
-  ##    ## Check if super (here) would allow this user:
-  ##    return unless $self->$orig($user, $chan_name, %opts);
-  ##    . . . extra checks here . . .
-  ##  };
 
   return 1
 }
 
+sub user_cannot_join_chan {
+  my $self = shift;
+  my $err_ev = $self->user_can_join_chan( @_,
+    send_errors   => 0,
+    return_errors => 1,
+  );
+  return unless blessed $err_ev;
+  $err_ev
+}
 
-## FIXME
-##  482 .. ?
-##  user_cannot_join_chan refactor for above also ?
-sub user_cannot_send_to_chan {
-  ## Return false if user is clear to send to channel.
-  ## Return an error numeric IRC::Event if not.
-  ## FIXME optionally take a chan_obj instead
-  my ($self, $user_obj, $chan_name) = @_;
+
+sub user_can_send_to_chan {
+  my ($self, $user_obj, $chan_name, %opts) = @_;
   $user_obj  = $self->users->by_name($user_obj) unless blessed $user_obj;
   $chan_name = $chan_name->name if blessed $chan_name;
 
   ## SERVICE can always send.
-  return if $user_obj->is_flagged_as('SERVICE');
+  return 1 if $user_obj->is_flagged_as('SERVICE');
 
   my $channels = $self->channels;
 
@@ -214,27 +211,49 @@ sub user_cannot_send_to_chan {
     )
   };
 
-  unless ( $channels->user_is_present($user_obj, $chan_name) ) {
-    ## External user. Check +n first.
-    if ( $channels->channel_has_mode($chan_name, 'n') ) {
-      return $cantsend->()
+  my $err_ev;
+
+  SENDCHK: {
+    unless ( $channels->user_is_present($user_obj, $chan_name) ) {
+      ## External user. Check +n first.
+      if ( $channels->channel_has_mode($chan_name, 'n') ) {
+        $err_ev = $cantsend->()
+        last SENDCHK
+      }
+    }
+
+    if ( $channels->user_is_moderated($user_obj, $chan_name) ) {
+      $err_ev = $cantsend->()
+      last SENDCHK
+    }
+
+    if ( $channels->user_is_banned($user_obj, $chan_name)
+      && !$channels->status_char_for_user($user_obj, $chan_name) ) {
+      ## Banned and no status modes.
+      $err_ev = $cantsend->()
+      last SENDCHK
     }
   }
 
-  if ( $channels->user_is_moderated($user_obj, $chan_name) ) {
-    return $cantsend->()
+  if ($err_ev) {
+    $self->send_to_routes( $err_ev, $user_obj->route )
+      unless exists $opts{$send_errors} and !$opts{send_errors};
+    return $opts{return_errors} ? $err_ev : ()
   }
 
-  if ( $channels->user_is_banned($user_obj, $chan_name)
-    && !$channels->status_char_for_user($user_obj, $chan_name) ) {
-    ## Banned and no status modes.
-    return $cantsend->()
-  }
-
-  ## Good to go.
-  return
+  1
 }
 
-
+sub user_cannot_send_to_chan {
+  ## Counterpart to can_send; returns empty list or an error event.
+  ## Dispatches no messages. Used to accumulate EventSets externally.
+  my $self = shift;
+  my $err_ev = $self->user_can_send_to_chan( @_, 
+    send_errors   => 0,
+    return_errors => 1 
+  );
+  return unless blessed $err_ev;
+  $err_ev
+}
 
 1;

@@ -28,7 +28,13 @@ sub BUILD {
 
   unless ($self->has_conn || $self->has_route) {
     confess
-      "A Peer needs either a conn() or a route() at construction time"
+      "A Peer needs either a 'conn =>' or a 'route =>' at construction time"
+  }
+
+  if ($self->type eq 'TS' && $self->type_version == 6) {
+    ## TS6 Peers need a SID.
+    confess "A TS6 IRC::Peer needs a 'sid =>' at construction time"
+      unless $self->has_sid;
   }
 }
 
@@ -67,6 +73,16 @@ has 'name' => (
   writer   => 'set_name',
 );
 
+has 'sid' => (
+  ## SIDs for (->type eq 'TS' && ->type_version == 6) peers
+  lazy      => 1,
+  is        => 'ro',
+  isa       => Str,
+  writer    => 'set_sid',
+  predicate => 'has_sid',
+  ## FIXME BUILD should make sure we have a sid() if needed
+);
+
 has 'type' => (
   lazy   => 1,
   is     => 'ro',
@@ -75,7 +91,14 @@ has 'type' => (
   ## FIXME need an authoritative types list and a Moo type for same
   default => sub { 'TS' },
 );
-## FIXME 'version' attrib to go with type ?
+
+has 'type_version' => (
+  lazy    => 1,
+  is      => 'ro',
+  isa     => Defined,
+  writer  => 'set_type_version',
+  default => sub { '6' },
+);
 
 has '_capabs' => (
 

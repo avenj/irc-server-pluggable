@@ -104,14 +104,40 @@ has 'ts' => (
 );
 
 
-## Host information
-
 has 'nick' => (
   required => 1,
   is       => 'ro',
   isa      => Str,
   writer   => 'set_nick',
   trigger  =>  1, ## _trigger_nick
+);
+
+## A TS6 user will have an ID / UID.
+has 'id' => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => TS_ID,
+  writer    => 'set_id',
+  predicate => 'has_id',
+  builder   => '_build_id',
+);
+sub _build_id {
+  my ($self) = @_;
+  ## Default to nick() -- a non-TS ircd can just not give us an ID.
+  $self->nick
+}
+
+has 'uid' => (
+  ## TS6.txt: UID = sid() . id()
+  lazy      => 1,
+  is        => 'ro',
+  isa       => TS_ID,
+  writer    => 'set_uid',
+  predicate => 'has_uid',
+  default   => sub {
+    confess
+      "uid() requested but none specified, is this a TS6 implementation?"
+  },
 );
 
 has 'user' => (

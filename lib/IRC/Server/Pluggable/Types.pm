@@ -45,6 +45,13 @@ my $type_definitions = [
     test => \&test_valid_hostname,
     message => sub { "$_[0] is not a valid IRC hostname" },
   },
+  {
+    name => 'TS_ID',
+    test => sub {
+      is_Str($_[0]) && $_[0] =~ /^[A-Z][A-Z0-9]+$/
+    },
+    message => sub { "$_[0] is not a valid TS6 ID" },
+  },
 
   ## Misc
   {

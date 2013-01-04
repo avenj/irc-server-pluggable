@@ -40,8 +40,13 @@ with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 
 
 ### Handlers.
+
+## QUIT
+
 sub cmd_from_unknown_quit {
   my ($self, $conn) = @_;
+  ## Some ircds will display the QUIT back to the unregistered conn.
+  ## ... not sure we care:
   $self->disconnect( $conn,
     type => 'error',
     msg  => 'Client Quit',
@@ -67,6 +72,16 @@ sub cmd_from_client_quit {
   );
 }
 
+
+## SQUIT
+
+sub cmd_from_client_squit {
+  ## FIXME
+}
+
+sub cmd_from_peer_squit {
+  ## FIXME
+}
 
 ### Internal.
 

@@ -82,31 +82,50 @@ sub r_nick_intro_conflicting {
   my (undef, $hops, $ts, $modestr, $username, $hostname, $server, $gecos)
     = @{ $event->params };
 
-  ## See doc/irc/ts3.txt:
-  if ($user->user eq $username && $user->host eq $hostname) {
-    ## Hosts match and incoming is older. Ignore line.
-    return if $ts < $user->ts;
-    ## Otherwise kill ours and propogate new
-    ## FIXME call disconnect
-    $event->params->[1]++;
-    $self->send_to_local_peers( $event,
-      except => $peer
-    );
+  $event->params->[1]++;
+  if ($ts < $user->ts) {
+    ## Received TS lower than existing TS.
+    ## Collide new if u@h match, otherwise collide existing.
+    if ($user->user eq $username && $user->host eq $hostname) {
+      $collided = $nick
+    } else {
+      $collided = $user->id
+    }
+  } elsif ($ts > $user->ts) {
+    ## Received TS higher than existing TS.
+    ## Collided existing if u@h match, otherwise collide new.
+    if ($user->user eq $username && $user->host eq $hostname) {
+      $collided = $user->id
+    } else {
+      $collided = $nick
+    }
   } else {
-    ## Hosts don't match.
-    ## Ignore line if incoming TS is older than ours.
-    return if $ts > $user->ts;
-    ## FIXME call disconnect
-    $event->params->[1]++;
-    $self->send_to_local_peers( $event,
-      except => $peer
-    );
+    ## TS are equal, collide both.
+    ## FIXME
   }
+
+  ## FIXME see ts6-v8.txt 'Nick TS collisions'
+  $self->disconnect(
+    target => $collided,
+    type   => 'kill',
+    ## FIXME
+    msg    => 'Nickname collision',
+  );
+
+  ## FIXME propogate NICK 
+  $self->send_to_local_peers( $event,
+    except => $peer
+  );
 }
 
 sub r_nick_change_conflicting {
   ## FIXME similar to r_nick_intro_conflicting
 }
+
+## Different u@h:
+##  - incoming_TS < existing_TS == kill existing
+## Same u@h:
+##  - incoming_TS < ex
 
 ## CONFLICTS:
 ## if from non-TS peer:

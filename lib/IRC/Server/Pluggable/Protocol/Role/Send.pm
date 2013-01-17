@@ -21,13 +21,6 @@ requires qw/
 
 ### FIXME should sendq management live here... ?
 
-## send_to_local_peers(
-##   event  => $ev,
-##  # Optional:
-##   except => $peer_name_or_obj || [ @peers ],
-##   from   => 'localuser' || 'localserver',
-## )
-
 sub __send_retrieve_route {
   my ($self, $peer_name_or_obj) = @_;
   if ( is_Object($peer_name_or_obj) ) {
@@ -73,18 +66,16 @@ sub send_to_local_peers {
       }
     }
 
-    if ($opts{id_or_name}) {
-      ## Items in params that should be replaced appropriately.
-      ## The item to be replaced should be a User obj.
-      my @indexes = ref $opts{id_or_name} eq 'ARRAY' ?
-        @{ $opts{id_or_name} } : $opts{id_or_name};
-      for my $idx (@indexes) {
-        my $user = is_Object($as_hash->{params}->[$idx]) ?
-          $as_hash->{params}->[$idx]
-          : $self->users->by_name($as_hash->{params}->[$idx]);
-        $as_hash->{params}->[$idx] = $self->id_or_nick($user, $peer);
-      }
-    }
+    ## Automagically id_or_nick() any User obj in params
+    $as_hash->{params} = [
+      map {;
+        my $param = $_;
+        $param = $self->id_or_nick($param, $peer)
+          if is_Object($param)
+          and $param->isa('IRC::Server::Pluggable::IRC::User');
+        $param
+      } @{ $as_hash->{params} || [] }
+    ];
 
     $self->send_to_routes( ev(%$as_hash), $route );
     ++$sent

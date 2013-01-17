@@ -142,12 +142,11 @@ sub _r_disconnect_user_kill {
     ## Local user.
     ## FIXME call for cleanup
     $self->send_to_local_peers(
-      event => ev(
+      event => {
         command => 'kill',
         params  => [ $user, $msg ],
-      ),
+      },
       from       => 'localserver',
-      id_or_name => 0,
     );
   } elsif ($target_type == REMOTE_USER) {
     ## Remote user

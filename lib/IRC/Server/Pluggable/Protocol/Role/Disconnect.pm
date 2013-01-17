@@ -143,12 +143,11 @@ sub _r_disconnect_user_kill {
     ## FIXME call for cleanup
     $self->send_to_local_peers(
       event => ev(
-        ## prefix is added automagically by send_to_local_peers
         command => 'kill',
-        ## FIXME is this supposed to be ID or UID?
-        params  => [ $user->id, $msg ],
+        params  => [ $user, $msg ],
       ),
-      from => 'localserver',
+      from       => 'localserver',
+      id_or_name => 0,
     );
   } elsif ($target_type == REMOTE_USER) {
     ## Remote user

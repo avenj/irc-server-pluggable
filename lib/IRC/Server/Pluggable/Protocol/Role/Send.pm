@@ -44,13 +44,6 @@ sub send_to_local_peers {
   confess "Expected at least an 'event =>' parameter"
     unless ($event = delete $opts{event}) and ref $event;
 
-  if ($opts{from}) {
-    my @valid = qw/ localuser localserver /;
-    unless (grep {; $_ eq $opts{from} } @valid) {
-      confess "Unknown 'from =>' option ".$opts{from}
-    }
-  }
-
   my %except_route;
 
   if ($opts{except}) {
@@ -67,7 +60,8 @@ sub send_to_local_peers {
   LPEER: for my $peer ($self->peers->list_local_peers) {
     my $route = $peer->route;
     next LPEER if $except_route{$route};
-    for ($opts{from}) {
+
+    for ($opts{from} // '') {
       ## Use SID or name as-needed.
       when ('localserver') {
         $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer)
@@ -75,14 +69,23 @@ sub send_to_local_peers {
       when ('localuser') {
         ## FIXME similar to localserver but we need a User obj
         ## & get prefix based on remote peer type
-        ## (just retrieve from event prefix & assume we were passed a TS ID
-        ##  if there's no such nickname? would require a parse_user call
-        ##  to handle being passed ->full ...)
-        ## ... actually it would be smarter to have a public id_or_name
-        ##  similar to hyb
         ## FIXME add localuser_nickonly ?
       }
     }
+
+    if ($opts{id_or_name}) {
+      ## Items in params that should be replaced appropriately.
+      ## The item to be replaced should be a User obj.
+      my @indexes = ref $opts{id_or_name} eq 'ARRAY' ?
+        @{ $opts{id_or_name} } : $opts{id_or_name};
+      for my $idx (@indexes) {
+        my $user = is_Object($as_hash->{params}->[$idx]) ?
+          $as_hash->{params}->[$idx]
+          : $self->users->by_name($as_hash->{params}->[$idx]);
+        $as_hash->{params}->[$idx] = $self->id_or_nick($user, $peer);
+      }
+    }
+
     $self->send_to_routes( ev(%$as_hash), $route );
     ++$sent
   } # LPEER
@@ -101,17 +104,6 @@ sub __send_peer_correct_self_prefix {
       if $peer->type_version == 6
   }
   $self->config->server_name
-}
-
-sub __send_peer_correct_user_prefix {
-  ## 
-  my ($self, $peer, $user) = @_;
-  if ($peer->type eq 'TS' && $peer->type_version == 6) {
-    ## FIXME hum, id or uid?
-    return $user->id
-  }
-  ## FIXME support returning full or nick-only
-  $user->full
 }
 
 

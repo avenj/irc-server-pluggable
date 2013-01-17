@@ -1,0 +1,41 @@
+---
+## FIXME feed back in and sort
+## FIXME tiny mgmt tool with validation
+## FIXME spec for this file..
+##   'String'
+##   'Source User' 'Target List'
+##   'Nickname' 'Channel'
+##   'TS'
+privmsg:
+  USER:
+    PARAMS:
+      - "Target List"
+      - "String"
+    ERRS:
+      - 404
+      - 412
+      - 461
+  SERV:
+    PREFIXED:
+      WITH: "Source User"
+      PARAMS:
+        - "Target List"
+        - "String"
+
+nick:
+  USER:
+    PARAMS:
+      - "Nickname"
+    ERRS:
+      - 431
+      - 432
+      - 433
+  SERV:
+    PREFIXED:
+      WITH: "Source User"
+      PARAMS:
+        - "Nickname"
+        - "TS"
+    NO_PREFIX:
+      PARAMS:
+        ## FIXME

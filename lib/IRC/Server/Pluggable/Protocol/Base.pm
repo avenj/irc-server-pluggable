@@ -507,6 +507,36 @@ sub irc_ev_unknown_cmd {
 }
 
 
+sub id_or_full {
+  my ($self, $user, $peer) = @_;
+  
+  confess "Expected an IRC::User and IRC::Peer respectively"
+    unless blessed $user and blessed $peer
+      and $user->isa('IRC::Server::Pluggable::IRC::User')
+      and $peer->isa('IRC::Server::Pluggable::IRC::Peer');
+
+  if ($peer->type eq 'TS' && $peer->type_version == 6) {
+    ## FIXME hum, id or uid?
+    return $user->id
+  }
+  $user->full
+}
+
+sub id_or_nick {
+  my ($self, $user, $peer) = @_;
+
+  confess "Expected an IRC::User and IRC::Peer respectively"
+    unless blessed $user and blessed $peer
+      and $user->isa('IRC::Server::Pluggable::IRC::User');
+      and $peer->isa('IRC::Server::Pluggable::IRC::Peer');
+
+  if ($peer->type eq 'TS' && $peer->type_version == 6) {
+    return $user->id
+  }
+  $user->nick
+}
+
+
 no warnings 'void';
 q{
 <Gilded> Arrh, gather around men, for I saw a user of the female variety

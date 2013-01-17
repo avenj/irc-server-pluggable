@@ -141,38 +141,15 @@ sub _r_disconnect_user_kill {
   if ($target_type == LOCAL_USER) {
     ## Local user.
     ## FIXME call for cleanup
-    ## FIXME methods to flexibly send from/to TS6 IDs or non-TS names?
-    ##  Probably ought have an ->id attrib we can call instead of ->name
-    ##  non-TS items can just redirect to ->name
-    my @local_peers = $self->peers->list_local_peers;
-    for my $peer (@local_peers) {
-      if ($peer->type eq 'TS' && $peer->type_version == 6) {
-        $self->send_to_routes(
-          ev(
-            prefix  => 
-              ( $self->config->sid // $self->config->server_name ),
-            command => 'kill',
-            ## FIXME should this be ID or UID?
-            params  => [ $user->id, $msg ],
-          ),
-          $peer->route
-        ),
-        ## Prefix with SID, target UID.
-      } else {
-        ## Not a TS6 peer.
-        $self->send_to_routes(
-          ev(
-            prefix  => $self->config->server_name,
-            command => 'kill',
-            ## FIXME could just use ->id here also
-            ## and kill the code dupe
-            params  => [ $user->nick, $msg ],
-          ),
-          $peer->route
-        );
-      }
-
-    }
+    $self->send_to_local_peers(
+      event => ev(
+        ## prefix is added automagically by send_to_local_peers
+        command => 'kill',
+        ## FIXME is this supposed to be ID or UID?
+        params  => [ $user->id, $msg ],
+      ),
+      from => 'localserver',
+    );
   } elsif ($target_type == REMOTE_USER) {
     ## Remote user
     ##  FIXME

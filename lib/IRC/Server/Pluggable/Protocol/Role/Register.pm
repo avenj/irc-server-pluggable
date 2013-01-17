@@ -63,6 +63,7 @@ sub register_user_local {
   $conn->is_client(1);
 
   ## Auth check.
+  ## FIXME overridable / pluggable method instead
   if (defined $pending_ref->{pass}) {
     ## FIXME
     ##  figure out ->config attribs for local user auth config
@@ -89,6 +90,7 @@ sub register_user_local {
     ##  then just relay $user->modes() after lusers/motd, below
   );
 
+  ## FIXME method to check for bans also, subclasses are faster
   ## Ban-type plugins can grab P_user_registering
   ## Banned users should be disconnected at the backend and the
   ## event should be eaten.

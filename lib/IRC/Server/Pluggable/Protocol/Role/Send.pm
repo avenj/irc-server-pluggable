@@ -42,7 +42,7 @@ sub send_to_local_peers {
   my ($self, %opts) = @_;
   my $event;
   confess "Expected at least an 'event =>' parameter"
-    unless $event = delete $opts{event};
+    unless ($event = delete $opts{event}) and ref $event;
 
   if ($opts{from}) {
     my @valid = qw/ localuser localserver /;
@@ -63,18 +63,31 @@ sub send_to_local_peers {
   }
 
   my $as_hash = %$event;
-  
-  my @local_peers = $self->peers->list_local_peers;
-  LPEER: for my $peer (@local_peers) {
+  my $sent; 
+  LPEER: for my $peer ($self->peers->list_local_peers) {
     my $route = $peer->route;
     next LPEER if $except_route{$route};
-    if ($opts{from} && $opts{from} eq 'localserver') {
-      $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer);
+    for ($opts{from}) {
+      ## Use SID or name as-needed.
+      when ('localserver') {
+        $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer)
+      }
+      when ('localuser') {
+        ## FIXME similar to localserver but we need a User obj
+        ## & get prefix based on remote peer type
+        ## (just retrieve from event prefix & assume we were passed a TS ID
+        ##  if there's no such nickname? would require a parse_user call
+        ##  to handle being passed ->full ...)
+        ## ... actually it would be smarter to have a public id_or_name
+        ##  similar to hyb
+        ## FIXME add localuser_nickonly ?
+      }
     }
-    $self->send_to_routes( ev(%$as_hash), $route )
+    $self->send_to_routes( ev(%$as_hash), $route );
+    ++$sent
   } # LPEER
 
-  @local_peers
+  $sent
 }
 
 
@@ -88,6 +101,17 @@ sub __send_peer_correct_self_prefix {
       if $peer->type_version == 6
   }
   $self->config->server_name
+}
+
+sub __send_peer_correct_user_prefix {
+  ## 
+  my ($self, $peer, $user) = @_;
+  if ($peer->type eq 'TS' && $peer->type_version == 6) {
+    ## FIXME hum, id or uid?
+    return $user->id
+  }
+  ## FIXME support returning full or nick-only
+  $user->full
 }
 
 

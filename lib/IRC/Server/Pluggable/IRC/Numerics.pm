@@ -28,7 +28,7 @@ has 'rpl_map' => (
 sub to_event {
   my $self = shift;
   my $hashified = $self->to_hash(@_);
-  IRC::Server::Pluggable::IRC::Event->new( %$hashified )
+  ev(%$hashified)
 }
 
 sub to_hash {
@@ -49,11 +49,17 @@ sub to_hash {
   confess "to_hash() called for unknown numeric $numeric"
     unless defined $this_rpl;
 
+  my $target = $params{target};
+  if (blessed $target 
+    && $target->isa('IRC::Server::Pluggable::IRC::User') ) {
+    $target = $target->nick
+  }
+
   my %input = (
     command => $numeric,
     prefix  => $params{prefix},
     ## First specified param is always the target.
-    params  => [ $params{target} ],
+    params  => [ $target ],
   );
 
   my ($count, $string) = @$this_rpl;

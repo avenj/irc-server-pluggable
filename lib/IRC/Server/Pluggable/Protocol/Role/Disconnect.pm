@@ -137,17 +137,20 @@ sub _r_disconnect_user_quit {
 sub _r_disconnect_user_kill {
   ## Low-level KILL send method
   ## FIXME higher-level method to construct pretty kill messages
-  my ($self, $target_type, $user, $msg) = @_;
+  ## FIXME drop target_type
+  my ($self, $target_type, $from, $user, $msg) = @_;
   if ($target_type == LOCAL_USER) {
     ## Local user.
-    ## FIXME call for cleanup
+    ## FIXME build path, see rb/modules/core/m_kill.c relay_kill
     $self->send_to_local_peers(
       event => {
+        prefix  => $from,
         command => 'kill',
         params  => [ $user, $msg ],
       },
-      from       => 'localserver',
     );
+    ## FIXME send 'KILL' to user?
+    ## FIXME call for cleanup/disconnect
   } elsif ($target_type == REMOTE_USER) {
     ## Remote user
     ##  FIXME

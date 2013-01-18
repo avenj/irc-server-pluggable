@@ -3,12 +3,20 @@ use strictures 1;
 use Carp;
 
 use namespace::clean;
-
+use overload
+  '""' => 'as_string',
+  fallback => 1;
+  ## FIXME overload numeric equality, numeric increment?
 
 sub new {
   my ($class, $start) = @_;
   my $self = [ split '', ($start || 'AAAAAA' ) ];
   bless \$self, $class
+}
+
+sub as_string {
+  my ($self) = @_;
+  join '', @$self
 }
 
 sub next {
@@ -36,8 +44,5 @@ sub next {
 
   $self->as_string
 }
-
-
-## FIXME
 
 1;

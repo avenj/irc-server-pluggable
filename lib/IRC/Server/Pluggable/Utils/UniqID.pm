@@ -11,7 +11,7 @@ use overload
 sub new {
   my ($class, $start) = @_;
   my $self = [ split '', ($start || 'AAAAAA' ) ];
-  bless \$self, $class
+  bless $self, $class
 }
 
 sub as_string {
@@ -21,8 +21,8 @@ sub as_string {
 
 sub next {
   my ($self) = @_;
-  my $pos = 6;
 
+  my $pos = @$self;
   while (--$pos) {
     if ($self->[$pos] eq 'Z') {
       $self->[$pos] = 0;

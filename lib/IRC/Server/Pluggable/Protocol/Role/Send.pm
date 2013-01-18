@@ -5,6 +5,8 @@ use Carp;
 use Moo::Role;
 use strictures 1;
 
+use Scalar::Util 'blessed';
+
 use IRC::Server::Pluggable qw/
   IRC::Event
   Types
@@ -23,12 +25,22 @@ requires qw/
 
 sub __send_retrieve_route {
   my ($self, $peer_name_or_obj) = @_;
-  if ( is_Object($peer_name_or_obj) ) {
+  if ( blessed($peer_name_or_obj) ) {
     ## Peer obj.
     return $peer_name_or_obj->route
   }
   ## Name or route ID, we hope.
   return $self->peers->by_name($peer_name_or_obj) || $peer_name_or_obj    
+}
+
+sub send_to_local_peer {
+  my ($self, %opts) = @_;
+  confess "Expected 'peer =>'" unless $opts{peer};
+  my $peer = delete $opts{peer};
+  $self->send_to_local_peers(
+    peers => [ $peer, ($opts{peers} ? @{ $opts{peers} } : ())  ],
+    %opts
+  )
 }
 
 sub send_to_local_peers {
@@ -48,31 +60,49 @@ sub send_to_local_peers {
     }
   }
 
+  my $use_full = $opts{nick_only} || 1;
+
+  my @local_peers = $opts{peers} ? @{ $opts{peers} }
+    : $self->peers->list_local_peers;
+
   my $as_hash = %$event;
+  my $from = $opts{from} || '';
   my $sent; 
-  LPEER: for my $peer ($self->peers->list_local_peers) {
+  LPEER: for my $peer (@local_peers) {
     my $route = $peer->route;
     next LPEER if $except_route{$route};
 
-    for ($opts{from} // '') {
-      ## Use SID or name as-needed.
-      when ('localserver') {
-        $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer)
+    ## Determine a proper prefix, depending on what kind of link we are
+    ## talking to:
+    CASE_FROM: {
+      if ($from eq $self || $from eq 'localserver') {
+        $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer);
+        last CASE_FROM
       }
-      when ('localuser') {
-        ## FIXME similar to localserver but we need a User obj
-        ## & get prefix based on remote peer type
-        ## FIXME add localuser_nickonly ?
+      if (blessed $from && $from->isa('IRC::Server::Pluggable::IRC::User')) {
+        $as_hash->{prefix} = $self->uid_or_nick($from, $peer);  
+        last CASE_FROM
+      }
+      if (blessed $from && $from->isa('IRC::Server::Pluggable::IRC::Peer')) {
+        $as_hash->{prefix} = $from->has_sid ? $param->sid : $param->name;
+        last CASE_FROM
       }
     }
 
-    ## Automagically id_or_nick() any User obj in params
+    ## Automagically uid_or_nick/uid_or_full any User/Peer objs in params:
     $as_hash->{params} = [
       map {;
         my $param = $_;
-        $param = $self->id_or_nick($param, $peer)
-          if is_Object($param)
-          and $param->isa('IRC::Server::Pluggable::IRC::User');
+
+        if (blessed $param) {
+          ( $param = $use_full ? $self->uid_or_full($param, $peer)
+                      :  $self->uid_or_nick($param, $peer) )
+            if $param->isa('IRC::Server::Pluggable::IRC::User');
+
+          ( $param = $param->has_sid ? $param->sid : $param->name )
+            if $param->isa('IRC::Server::Pluggable::IRC::Peer');
+        }
+
         $param
       } @{ $as_hash->{params} || [] }
     ];
@@ -97,10 +127,14 @@ sub __send_peer_correct_self_prefix {
   $self->config->server_name
 }
 
-
 sub send_to_route  { shift->send_to_routes(@_) }
 sub send_to_routes {
   my ($self, $output, @ids) = @_;
+  ## FIXME
+  ##  This should go away in favor of send_to_user & send_to_local_peers
+  ##  send_to_user should do TS vs non-TS translation like send_to_local_peers
+  ##  we should deal only in objects at higher layers, leave ->route for
+  ##  lowlevel operations
   unless (ref $output && @ids) {
     confess "send_to_routes() received insufficient params";
     return

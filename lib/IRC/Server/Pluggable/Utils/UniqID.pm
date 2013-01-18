@@ -2,11 +2,17 @@ package IRC::Server::Pluggable::Utils::UniqID;
 use strictures 1;
 use Carp;
 
-use namespace::clean;
+use Exporter 'import';
+our @EXPORT = 'ts6_id';
+sub ts6_id {
+  __PACKAGE__->new(@_)
+}
+
 use overload
   '""' => 'as_string',
   fallback => 1;
   ## FIXME overload numeric equality, numeric increment?
+
 
 sub new {
   my ($class, $start) = @_;
@@ -36,8 +42,7 @@ sub next {
   }
 
   if ($self->[0] eq 'Z') {
-    ## We're fucked.
-    confess "Ran out of IDs at ".$self->as_string
+    croak "Ran out of IDs after ".$self->as_string
   } else {
     $self->[$pos]++
   }
@@ -46,3 +51,37 @@ sub next {
 }
 
 1;
+
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Utils::UniqID - Generate TS6 IDs
+
+=head1 SYNOPSIS
+
+  use IRC::Server::Pluggable qw/
+    Utils::UniqID
+  /;
+
+  my $id = ts6_id;
+  my $next_id = $id->next;
+  say "First two IDs are $id and $next_id";
+
+=head1 DESCRIPTION
+
+Lightweight array-type objects that can produce sequential TS6 IDs.
+
+The exported B<ts6_id> function will instance a new ID object. B<ts6_id>
+optionally takes a start-point as a string (defaults to 'AAAAAA' similar to
+C<ratbox>).
+
+Calling B<next> on the produced object will return the next unique identifier. 
+If no more IDs are available, B<next> will croak.
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>, conceptually derived from the relevant
+C<ratbox> function.
+
+=cut

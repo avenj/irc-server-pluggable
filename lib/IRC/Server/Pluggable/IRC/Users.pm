@@ -27,19 +27,27 @@ has 'casemap' => (
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
+## FIXME
+##  hash keyed on TS6 UIDs with weak-refs back to user obj?
+##  need to be able to check link type for remote user and translate
+##  between names and UIDs ?
 
 has '_users' => (
   ## Map (lowercased) nicknames to User objects.
   lazy => 1,
   is   => 'ro',
-  isa  => HashRef,
   default => sub { {} },
 );
 
-has '_by_id' => (
+has '_by_uid' => (
   lazy => 1,
   is   => 'ro',
-  isa  => HashRef,
+  default => sub { {} },
+);
+
+has '_by_wheelid' => (
+  lazy => 1,
+  is   => 'ro',
   default => sub { {} },
 );
 
@@ -53,11 +61,13 @@ sub add {
   my $nick = $self->lower( $user->nick );
 
   $self->_users->{$nick} = $user;
+  $self->_by_uid->{ $user->uid } = $user;
+  weaken $self->_by_uid->{ $user->uid };
 
   if ($user->has_conn) {
     ## Local user. Map their route ID to a weakened User ref.
-    $self->_by_id->{ $user->conn->wheel_id } = $user;
-    weaken($self->_by_id->{ $user->conn->wheel_id });
+    $self->_by_wheelid->{ $user->conn->wheel_id } = $user;
+    weaken $self->_by_wheelid->{ $user->conn->wheel_id };
   }
 
   $user
@@ -77,7 +87,7 @@ sub by_name {
   my ($self, $nick) = @_;
 
   unless (defined $nick) {
-    carp "by_name() called with no nickname specified";
+    confess "by_name() called with no nickname specified";
     return
   }
 
@@ -88,11 +98,22 @@ sub by_id {
   my ($self, $id) = @_;
 
   unless (defined $id) {
-    carp "by_id() called with no ID specified";
+    confess "by_id() called with no ID specified";
     return
   }
 
-  $self->_by_id->{$id}
+  $self->_by_wheelid->{$id}
+}
+
+sub by_uid {
+  my ($self, $uid) = @_;
+
+  unless (defined $uid) {
+    confess "by_uid() called with no UID specified";
+    return
+  }
+
+  $self->_by_uid->{$uid}
 }
 
 sub del {
@@ -104,7 +125,8 @@ sub del {
   $nick = $self->lower($nick);
 
   if (my $user = delete $self->_users->{$nick}) {
-    delete $self->_by_id->{ $user->conn->wheel_id }
+    delete $self->_by_uid->{ $user->uid };
+    delete $self->_by_wheelid->{ $user->conn->wheel_id }
       if $user->has_conn;
     return $user
   }

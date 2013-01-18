@@ -66,27 +66,31 @@ sub send_to_local_peers {
     : $self->peers->list_local_peers;
 
   my $as_hash = %$event;
-  my $from = $opts{from} || '';
   my $sent; 
   LPEER: for my $peer (@local_peers) {
     my $route = $peer->route;
     next LPEER if $except_route{$route};
 
-    ## Determine a proper prefix, depending on what kind of link we are
-    ## talking to:
-    CASE_FROM: {
-      if ($from eq $self || $from eq 'localserver') {
-        $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer);
-        last CASE_FROM
-      }
-      if (blessed $from && $from->isa('IRC::Server::Pluggable::IRC::User')) {
-        $as_hash->{prefix} = $self->uid_or_nick($from, $peer);  
-        last CASE_FROM
-      }
-      if (blessed $from && $from->isa('IRC::Server::Pluggable::IRC::Peer')) {
-        $as_hash->{prefix} = $from->has_sid ? $param->sid : $param->name;
-        last CASE_FROM
-      }
+    if (blessed $as_hash->{prefix}) {
+      my $pfix = $as_hash->{prefix};
+      CASE_FROM: {
+        if ($pfix eq $self || $pfix eq 'localserver') {
+          ## Self talking to peer.
+          $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer);
+          last CASE_FROM
+        }
+        if ($pfix->isa('IRC::Server::Pluggable::IRC::User')) {
+          ## User relaying to peer.
+          $as_hash->{prefix} = $self->uid_or_nick($pfix, $peer);
+          last CASE_FROM
+        }
+        if ($pfix->isa('IRC::Server::Pluggable::IRC::Peer')) {
+          ## Peer relaying to peer.
+          $as_hash->{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name;
+          last CASE_FROM
+        }
+        confess "Do not know how to handle blessed prefix $pfix"
+      } # CASE_FROM
     }
 
     ## Automagically uid_or_nick/uid_or_full any User/Peer objs in params:
@@ -127,12 +131,61 @@ sub __send_peer_correct_self_prefix {
   $self->config->server_name
 }
 
+sub send_to_targets_from {
+  ## FIXME $from irrelevant now per new send_to_local_peers
+  my ($self, $from, $event, @targets) = @_;
+  confess "Expected an IRC::Event or compatible HASH"
+    unless ref $event;
+
+  TARGET: for my $target (@targets) {
+    confess "Expected an IRC::User or IRC::Peer"
+      unless blessed $target;
+
+    if ($target->has_conn) {
+      if ($target->isa('IRC::Server::Pluggable::IRC::User') ) {
+        ## Local user.
+        ## FIXME do we need to do any TS translation at all?
+        $self->send_to_routes( $event, $target->route );
+        next TARGET
+      } elsif ($target->isa('IRC::Server::Pluggable::IRC::Peer') ) {
+        ## Local peer.
+        $self->send_to_local_peer(
+          event => $event,
+          peer  => $target,
+          from  => $from,
+        );
+      }
+    }
+
+    my $next_hop = $target->route;
+    my $peer = $self->peers->by_id($next_hop);
+    unless ($peer) {
+      carp "Cannot relay to nonexistant peer (route ID $next_hop)";
+      next TARGET
+    }
+
+    $self->send_to_local_peer(
+      event => $event,
+      peer  => $peer,
+      from  => $from,
+    );
+  }
+}
+
 sub send_to_route  { shift->send_to_routes(@_) }
 sub send_to_routes {
   my ($self, $output, @ids) = @_;
   ## FIXME
   ##  This should go away in favor of send_to_user & send_to_local_peers
   ##  send_to_user should do TS vs non-TS translation like send_to_local_peers
+  ##  (or genericize to send_to_targets?)
+  ##  if User obj:
+  ##    * event directed at local or remote User
+  ##    - if our user, relay direct
+  ##    - if not our user, send_to_local_peer for next-hop peers
+  ##  if Peer obj:
+  ##    * event directed at local or remote Server
+  ##    - send_to_local_peers for the next-hop peers
   ##  we should deal only in objects at higher layers, leave ->route for
   ##  lowlevel operations
   unless (ref $output && @ids) {

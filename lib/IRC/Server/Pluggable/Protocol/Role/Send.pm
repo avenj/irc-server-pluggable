@@ -21,6 +21,25 @@ requires qw/
 /;
 
 
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Protocol::Role::Send
+
+=head1 SYNOPSIS
+
+FIXME
+
+=head1 DESCRIPTION
+
+Send/relay methods consumed by a Protocol.
+
+See L<IRC::Server::Pluggable::Protocol>.
+
+=cut
+
+
 ### FIXME should sendq management live here... ?
 
 sub __send_retrieve_route {
@@ -33,6 +52,21 @@ sub __send_retrieve_route {
   return $self->peers->by_name($peer_name_or_obj) || $peer_name_or_obj    
 }
 
+=pod
+
+=head2 send_to_local_peer
+
+  $proto->send_to_local_peer(
+    event => $event_obj,
+    peer  => $peer_obj,
+    except => $origin_peer,
+  );
+
+Relay to a single next-hop peer. Sugar for L</send_to_local_peers>; parameters
+documented there also apply here.
+
+=cut
+
 sub send_to_local_peer {
   my ($self, %opts) = @_;
   confess "Expected 'peer =>'" unless $opts{peer};
@@ -42,6 +76,43 @@ sub send_to_local_peer {
     %opts
   )
 }
+
+
+=pod
+
+=head2 send_to_local_peers
+
+  ## Relay to all local peers:
+  $proto->send_to_local_peers(
+    event => {
+      ## $self translated to our server name or SID:
+      prefix  => $self,
+      command => 'frobulate',
+      ## $user translated to user's nickname or UID:
+      params  => [ $user ],
+    },
+  );
+
+  ## Relay to all local peers except one:
+  $proto->send_to_local_peers(
+    event  => $event_obj,
+    except => $origin_peer,
+  );
+
+  ## Relay to a specific peer/set of peers:
+  $proto->send_to_local_peers(
+    event  => $event_obj,
+    peers  => [ @peer_objs ],
+  );
+
+Basic traffic relay.
+
+Does TS6 ID translation. If the B<nick_only> option is passed, user objects
+will be translated to either a nickname or UID (depending on the remote peer
+type); by default, they are translated to either a full C<nick!user@host> or
+UID.
+
+=cut
 
 sub send_to_local_peers {
   my ($self, %opts) = @_;
@@ -60,6 +131,8 @@ sub send_to_local_peers {
     }
   }
 
+  ## FIXME option to send only to peers with a certain CAPAB
+
   my $use_full = $opts{nick_only} || 1;
 
   my @local_peers = $opts{peers} ? @{ $opts{peers} }
@@ -71,9 +144,11 @@ sub send_to_local_peers {
     my $route = $peer->route;
     next LPEER if $except_route{$route};
 
+    ## Automagic $self / IRC::User / IRC::Peer prefix translation:
     if (blessed $as_hash->{prefix}) {
-      my $pfix = $as_hash->{prefix};
-      CASE_FROM: {
+      CASE_FROM: { 
+        my $pfix = $as_hash->{prefix};
+
         if ($pfix eq $self || $pfix eq 'localserver') {
           ## Self talking to peer.
           $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer);
@@ -89,6 +164,7 @@ sub send_to_local_peers {
           $as_hash->{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name;
           last CASE_FROM
         }
+
         confess "Do not know how to handle blessed prefix $pfix"
       } # CASE_FROM
     }
@@ -111,7 +187,7 @@ sub send_to_local_peers {
       } @{ $as_hash->{params} || [] }
     ];
 
-    $self->send_to_routes( ev(%$as_hash), $route );
+    $self->dispatcher->to_irc( ev(%$as_hash), $route );
     ++$sent
   } # LPEER
 
@@ -131,9 +207,11 @@ sub __send_peer_correct_self_prefix {
   $self->config->server_name
 }
 
-sub send_to_targets_from {
-  ## FIXME $from irrelevant now per new send_to_local_peers
-  my ($self, $from, $event, @targets) = @_;
+sub send_to_targets {
+  ## Handle relaying to arbitrary targets.
+  ## $event should have a translatable prefix
+  ## See send_to_local_peers
+  my ($self, $event, @targets) = @_;
   confess "Expected an IRC::Event or compatible HASH"
     unless ref $event;
 
@@ -145,14 +223,13 @@ sub send_to_targets_from {
       if ($target->isa('IRC::Server::Pluggable::IRC::User') ) {
         ## Local user.
         ## FIXME do we need to do any TS translation at all?
-        $self->send_to_routes( $event, $target->route );
+        $self->dispatcher->to_irc( $event, $target );
         next TARGET
       } elsif ($target->isa('IRC::Server::Pluggable::IRC::Peer') ) {
         ## Local peer.
         $self->send_to_local_peer(
           event => $event,
           peer  => $target,
-          from  => $from,
         );
       }
     }
@@ -167,7 +244,6 @@ sub send_to_targets_from {
     $self->send_to_local_peer(
       event => $event,
       peer  => $peer,
-      from  => $from,
     );
   }
 }
@@ -175,17 +251,9 @@ sub send_to_targets_from {
 sub send_to_route  { shift->send_to_routes(@_) }
 sub send_to_routes {
   my ($self, $output, @ids) = @_;
+  carp "send_to_routes is deprecated";
   ## FIXME
-  ##  This should go away in favor of send_to_user & send_to_local_peers
-  ##  send_to_user should do TS vs non-TS translation like send_to_local_peers
-  ##  (or genericize to send_to_targets?)
-  ##  if User obj:
-  ##    * event directed at local or remote User
-  ##    - if our user, relay direct
-  ##    - if not our user, send_to_local_peer for next-hop peers
-  ##  if Peer obj:
-  ##    * event directed at local or remote Server
-  ##    - send_to_local_peers for the next-hop peers
+  ##  Deprecate in favor of send_to_targets, move to low-level api
   ##  we should deal only in objects at higher layers, leave ->route for
   ##  lowlevel operations
   unless (ref $output && @ids) {
@@ -198,6 +266,7 @@ sub send_to_routes {
 
 sub send_to_routes_now {
   my ($self, $output, @ids) = @_;
+  carp "send_to_routes_now is deprecated";
   unless (ref $output && @ids) {
     confess "send_to_routes_now() received insufficient params";
     return
@@ -206,6 +275,19 @@ sub send_to_routes_now {
   $self->dispatcher->to_irc_now( $output, @ids )
 }
 
+=pod
+
+=head2 send_numeric
+
+  $proto->send_numeric( $numeric =>
+    target => $user_obj,
+    routes => [ @routes ],
+    params => [ @extra_params ],
+  );
+
+=cut
+
+## FIXME does TS6 send uid_or_nick with peer-directed numerics ?
 sub send_numeric {
   ## send_numeric(  $numeric,
   ##   target => ...,
@@ -227,6 +309,7 @@ sub send_numeric {
     target => $params{target},
 
     ## Default to our server name.
+    ## FIXME ..or SID? check rb
     prefix => (
       $params{prefix} ?
         $params{prefix} : $self->config->server_name
@@ -238,8 +321,17 @@ sub send_numeric {
     ),
   );
 
+  ## FIXME send_to_routes is deprecated
   $self->send_to_routes( $output, @routes )
 }
 
 
 1;
+
+=pod
+
+=head1 AUTHOR
+
+Jon Portnoy <avenj@cobaltirc.org>
+
+=cut

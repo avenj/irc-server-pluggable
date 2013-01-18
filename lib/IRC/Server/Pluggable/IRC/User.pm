@@ -325,6 +325,23 @@ sub is_flagged_as {
 }
 
 
+sub BUILDARGS {
+  my ($self, %opts) = @_;
+
+  ## If we were given an ID and SID, we can create UID
+  if (defined $opts{id}) {
+    confess "'id =>' specified but no 'sid' or 'uid' given"
+      unless defined $opts{sid} or defined $opts{uid};
+
+    ## FIXME make sure Register is adding a full UID
+    if (defined $opts{sid} && !defined $opts{uid}) {
+      $opts{uid} = $opts{sid} . $opts{id}
+    }
+  }
+
+  +{%opts}
+}
+
 
 no warnings 'void';
 q{

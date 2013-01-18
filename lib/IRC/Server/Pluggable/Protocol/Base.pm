@@ -459,6 +459,7 @@ sub irc_ev_peer_numeric {
   my $target_nick = $event->params->[0];
   my $target_user = $self->users->by_name($target_nick) || return;
 
+  ## FIXME TS translation?
   $self->send_to_routes( $event, $target_user->route );
 }
 
@@ -507,7 +508,7 @@ sub irc_ev_unknown_cmd {
 }
 
 
-sub id_or_full {
+sub uid_or_full {
   my ($self, $user, $peer) = @_;
   
   confess "Expected an IRC::User and IRC::Peer respectively"
@@ -516,13 +517,12 @@ sub id_or_full {
       and $peer->isa('IRC::Server::Pluggable::IRC::Peer');
 
   if ($peer->type eq 'TS' && $peer->type_version == 6) {
-    ## FIXME hum, id or uid?
-    return $user->id
+    return $user->uid
   }
   $user->full
 }
 
-sub id_or_nick {
+sub uid_or_nick {
   my ($self, $user, $peer) = @_;
 
   confess "Expected an IRC::User and IRC::Peer respectively"
@@ -531,7 +531,7 @@ sub id_or_nick {
       and $peer->isa('IRC::Server::Pluggable::IRC::Peer');
 
   if ($peer->type eq 'TS' && $peer->type_version == 6) {
-    return $user->id
+    return $user->uid
   }
   $user->nick
 }

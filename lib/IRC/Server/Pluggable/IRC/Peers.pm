@@ -19,15 +19,19 @@ use namespace::clean -except => 'meta';
 has '_peers' => (
   lazy    => 1,
   is      => 'ro',
-  isa     => HashRef,
   writer  => '_set_peers',
   default => sub { {} },
 );
 
-has '_peers_by_id' => (
+has '_peers_by_sid' => (
   lazy    => 1,
   is      => 'ro',
-  isa     => HashRef,
+  default => sub { {} },
+);
+
+has '_peers_by_wheelid' => (
+  lazy    => 1,
+  is      => 'ro',
   default => sub { {} },
 );
 
@@ -42,10 +46,15 @@ sub add {
 
   $self->_peers->{$s_name} = $peer;
 
-  ## Only local peers should have a _peers_by_id entry:
+  if ($peer->has_sid) {
+    $self->_peers_by_sid->{ $peer->sid } = $peer;
+    weaken $self->_peers_by_sid->{ $peer->sid };
+  }
+
+  ## Only local peers should have a _peers_by_wheelid entry:
   if ($peer->has_conn) {
-    $self->_peers_by_id->{ $peer->conn->wheel_id } = $peer;
-    weaken($self->_peers_by_id->{ $peer->conn->wheel_id });
+    $self->_peers_by_wheelid->{ $peer->conn->wheel_id } = $peer;
+    weaken($self->_peers_by_wheelid->{ $peer->conn->wheel_id });
   }
 
   $peer
@@ -53,7 +62,7 @@ sub add {
 
 sub list_local_peers {
   my ($self) = @_;
-  values %{ $self->_peers_by_id }
+  values %{ $self->_peers_by_wheelid }
 }
 
 sub as_array {
@@ -67,7 +76,7 @@ sub by_id {
   confess "by_id() called with no ID specified"
     unless defined $id;
 
-  $self->_peers_by_id->{$id}
+  $self->_peers_by_wheelid->{$id}
 }
 
 sub by_name {
@@ -86,8 +95,11 @@ sub del {
     unless defined $s_name;
 
   if (my $peer = delete $self->_peers->{ lc($s_name) }) {
-    delete $self->_peers_by_id->{ $peer->conn->wheel_id }
+    delete $self->_peers_by_wheelid->{ $peer->conn->wheel_id }
       if $peer->has_conn;
+    delete $self->_peers_by_sid->{ $peer->sid }
+      if $peer->has_sid;
+
     return $peer
   }
 }

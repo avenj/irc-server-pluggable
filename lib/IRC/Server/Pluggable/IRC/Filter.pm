@@ -211,7 +211,6 @@ IRC::Server::Pluggable::IRC::Filter - POE::Filter::IRCD with IRCv3 knobs
     Filters => [ $line, $ircd ],
   );
 
-
 =head1 DESCRIPTION
 
 A L<POE::Filter> for IRC traffic derived from L<POE::Filter::IRCD>.
@@ -219,7 +218,7 @@ A L<POE::Filter> for IRC traffic derived from L<POE::Filter::IRCD>.
 Adds IRCv3 tag support along with some cleanups and optimization.
 
 Like any proper L<POE::Filter>, there are no POE-specific bits involved 
-here and the filter can be used stand-alone to parse IRC traffic.
+here; the filter can be used stand-alone to parse IRC traffic.
 
 =head2 get_one_start, get_one, get_pending
 
@@ -254,6 +253,8 @@ The sender prefix, if any.
 
 A HASH of key => value pairs matching IRCv3.2 "message tags" -- see 
 L<http://ircv3.atheme.org>.
+
+(Note that a tag can be present, but have an undefined value.)
 
 =head2 put
 

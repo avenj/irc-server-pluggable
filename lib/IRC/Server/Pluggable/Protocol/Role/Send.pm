@@ -1,5 +1,26 @@
 package IRC::Server::Pluggable::Protocol::Role::Send;
 
+=pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Protocol::Role::Send
+
+=head1 SYNOPSIS
+
+Provides:
+
+  FIXME
+
+=head1 DESCRIPTION
+
+Send/relay methods consumed by a Protocol.
+
+See L<IRC::Server::Pluggable::Protocol>.
+
+=cut
+
+
 use 5.12.1;
 use Carp;
 use Moo::Role;
@@ -21,25 +42,6 @@ requires qw/
 /;
 
 
-=pod
-
-=head1 NAME
-
-IRC::Server::Pluggable::Protocol::Role::Send
-
-=head1 SYNOPSIS
-
-FIXME
-
-=head1 DESCRIPTION
-
-Send/relay methods consumed by a Protocol.
-
-See L<IRC::Server::Pluggable::Protocol>.
-
-=cut
-
-
 ### FIXME should sendq management live here... ?
 
 sub __send_retrieve_route {
@@ -51,6 +53,19 @@ sub __send_retrieve_route {
   ## Name or route ID, we hope.
   return $self->peers->by_name($peer_name_or_obj) || $peer_name_or_obj    
 }
+
+sub __send_peer_correct_self_prefix {
+  my ($self, $peer) = @_;
+  ## Get correct prefix for messages we are sending to a local peer.
+  # FIXME Move me out to a generic Peers role, make public?
+  # Subclasses should be able to override to provide other prefixes
+  if ($peer->type eq 'TS') {
+    return $self->config->sid
+      if $peer->type_version == 6
+  }
+  $self->config->server_name
+}
+
 
 =pod
 
@@ -195,17 +210,13 @@ sub send_to_local_peers {
 }
 
 
-sub __send_peer_correct_self_prefix {
-  my ($self, $peer) = @_;
-  ## Get correct prefix for messages we are sending to a local peer.
-  # FIXME Move me out to a generic Peers role, make public?
-  # Subclasses should be able to override to provide other prefixes
-  if ($peer->type eq 'TS') {
-    return $self->config->sid
-      if $peer->type_version == 6
-  }
-  $self->config->server_name
-}
+=pod
+
+=head2 send_to_targets
+
+FIXME
+
+=cut
 
 sub send_to_targets {
   ## Handle relaying to arbitrary targets.
@@ -248,32 +259,6 @@ sub send_to_targets {
   }
 }
 
-sub send_to_route  { shift->send_to_routes(@_) }
-sub send_to_routes {
-  my ($self, $output, @ids) = @_;
-  carp "send_to_routes is deprecated";
-  ## FIXME
-  ##  Deprecate in favor of send_to_targets, move to low-level api
-  ##  we should deal only in objects at higher layers, leave ->route for
-  ##  lowlevel operations
-  unless (ref $output && @ids) {
-    confess "send_to_routes() received insufficient params";
-    return
-  }
-
-  $self->dispatcher->to_irc( $output, @ids )
-}
-
-sub send_to_routes_now {
-  my ($self, $output, @ids) = @_;
-  carp "send_to_routes_now is deprecated";
-  unless (ref $output && @ids) {
-    confess "send_to_routes_now() received insufficient params";
-    return
-  }
-
-  $self->dispatcher->to_irc_now( $output, @ids )
-}
 
 =pod
 
@@ -321,9 +306,43 @@ sub send_numeric {
     ),
   );
 
-  ## FIXME send_to_routes is deprecated
-  $self->send_to_routes( $output, @routes )
+  $self->dispatcher->to_irc( $output, @routes )
 }
+
+
+
+##### FIXME deprecated #####
+
+sub send_to_route  { shift->send_to_routes(@_) }
+sub send_to_routes {
+  my ($self, $output, @ids) = @_;
+  carp "send_to_routes is deprecated";
+  ## FIXME
+  ##  Deprecate in favor of send_to_targets, move to low-level api
+  ##  we should deal only in objects at higher layers, leave ->route for
+  ##  lowlevel operations
+  unless (ref $output && @ids) {
+    confess "send_to_routes() received insufficient params";
+    return
+  }
+
+  $self->dispatcher->to_irc( $output, @ids )
+}
+
+sub send_to_routes_now {
+  my ($self, $output, @ids) = @_;
+  carp "send_to_routes_now is deprecated";
+  unless (ref $output && @ids) {
+    confess "send_to_routes_now() received insufficient params";
+    return
+  }
+
+  $self->dispatcher->to_irc_now( $output, @ids )
+}
+
+ ##########################
+
+
 
 
 1;

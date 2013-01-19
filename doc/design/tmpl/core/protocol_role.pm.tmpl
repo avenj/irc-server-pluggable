@@ -1,0 +1,58 @@
+package <PACKAGE>;
+
+=pod
+
+=head1 NAME
+
+<PACKAGE>
+
+=head1 SYNOPSIS
+
+Provides:
+
+  FIXME
+
+=head1 DESCRIPTION
+
+FIXME
+
+See L<IRC::Server::Pluggable::Protocol>.
+
+=cut
+
+use 5.12.1;
+use Carp;
+use Moo::Role;
+use strictures 1;
+
+use IRC::Server::Pluggable qw/
+  Types
+/;
+
+with 'IRC::Server::Pluggable::Role::Interface::IRCd';
+
+use namespace::clean;
+
+=pod
+
+=head2 myrole_some_method
+
+FIXME
+
+=cut
+
+sub myrole_some_method {
+  
+}
+
+
+
+1;
+
+=pod
+
+=head1 AUTHOR
+
+FIXME
+
+=cut

@@ -13,13 +13,14 @@ use Scalar::Util 'weaken';
 use IRC::Server::Pluggable qw/
   Types
   Utils
+  Utils::TS::ID
 /;
 
 
 use namespace::clean;
 
 
-has 'casemap' => (
+has casemap => (
   required => 1,
   is       => 'ro',
   isa      => CaseMap,
@@ -27,29 +28,36 @@ has 'casemap' => (
 
 with 'IRC::Server::Pluggable::Role::CaseMap';
 
-## FIXME
-##  hash keyed on TS6 UIDs with weak-refs back to user obj?
-##  need to be able to check link type for remote user and translate
-##  between names and UIDs ?
-
-has '_users' => (
+has _users => (
   ## Map (lowercased) nicknames to User objects.
   lazy => 1,
   is   => 'ro',
   default => sub { {} },
 );
 
-has '_by_uid' => (
+has _by_uid => (
   lazy => 1,
   is   => 'ro',
   default => sub { {} },
 );
 
-has '_by_wheelid' => (
+has _by_wheelid => (
   lazy => 1,
   is   => 'ro',
   default => sub { {} },
 );
+
+has _uniq_id => (
+  lazy => 1,
+  is   => 'ro',
+  default => sub { ts6_id },
+);
+
+sub next_unique_id {
+  my ($self) = @_;
+  $self->_uniq_id->next
+}
+
 
 sub add {
   my ($self, $user) = @_;

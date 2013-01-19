@@ -1,4 +1,4 @@
-package IRC::Server::Pluggable::Utils::UniqID;
+package IRC::Server::Pluggable::Utils::TS::ID;
 use strictures 1;
 use Carp;
 
@@ -17,7 +17,7 @@ use overload
 
 sub new {
   my ($class, $start) = @_;
-  my $self = [ split '', ($start || 'AAAAAA' ) ];
+  my $self = [ split '', $start || 'A'x6 ];
   bless $self, $class
 }
 
@@ -57,12 +57,12 @@ sub next {
 
 =head1 NAME
 
-IRC::Server::Pluggable::Utils::UniqID - Generate TS6 IDs
+IRC::Server::Pluggable::Utils::TS::ID - Generate TS6 IDs
 
 =head1 SYNOPSIS
 
   use IRC::Server::Pluggable qw/
-    Utils::UniqID
+    Utils::TS::ID
   /;
 
   my $id = ts6_id;
@@ -82,7 +82,7 @@ If no more IDs are available, B<next> will croak.
 
 =head1 AUTHOR
 
-Jon Portnoy <avenj@cobaltirc.org>, conceptually derived from the relevant
+Jon Portnoy <avenj@cobaltirc.org>; conceptually derived from the relevant
 C<ratbox> function.
 
 =cut

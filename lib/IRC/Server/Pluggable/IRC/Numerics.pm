@@ -8,6 +8,8 @@ use strictures 1;
 use Carp;
 use Moo;
 
+use Scalar::Util 'blessed';
+
 use IRC::Server::Pluggable qw/
   IRC::Event
   Types

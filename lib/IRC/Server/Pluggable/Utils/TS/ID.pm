@@ -11,7 +11,6 @@ sub ts6_id {
 use overload
   bool => sub { 1 },
   '""' => 'as_string',
-  '++' => 'next',
   fallback => 1;
 
 

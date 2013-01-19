@@ -11,4 +11,9 @@ my $cur = "$id";
 cmp_ok( $cur, 'eq', $id->as_string, 'stringification' );
 cmp_ok( $cur, 'ne', $id->next, 'next returned fresh ID' );
 
+my @ids = map {; $id->next } 1 .. 50_000;
+my %seen;
+@ids = grep {; !$seen{$_}++ } @ids;
+cmp_ok( @ids, '==', 50_000, 'created 50k unique IDs' );
+
 done_testing;

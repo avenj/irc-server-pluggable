@@ -9,9 +9,10 @@ sub ts6_id {
 }
 
 use overload
+  bool => sub { 1 },
   '""' => 'as_string',
+  '++' => 'next',
   fallback => 1;
-  ## FIXME overload numeric equality, numeric increment?
 
 
 sub new {

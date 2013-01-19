@@ -16,4 +16,7 @@ my %seen;
 @ids = grep {; !$seen{$_}++ } @ids;
 cmp_ok( @ids, '==', 50_000, 'created 50k unique IDs' );
 
+my $dies = ts6_id( 'Z99999' );
+dies_ok(sub { $dies->next }, 'dies when IDs run dry' );
+
 done_testing;

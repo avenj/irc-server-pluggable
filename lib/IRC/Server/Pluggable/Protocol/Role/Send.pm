@@ -155,6 +155,96 @@ sub __send_parse_identifiers {
 }
 
 
+
+###### PUBLIC: send_to_targets
+
+=pod
+
+=head2 send_to_targets
+
+## FIXME
+ ... optional per-target opts
+   i.e. @targets = ( [ $target_obj, $opts_hash ] ) ?
+   otherwise need named params so we can pass send opts
+   (or force use of a specific method)
+ ... pull in send-related bits from Messages?
+ ... ideally other roles are primarily command handlers
+     that use core logic found in the slimmest possible set
+ ... handle eventsets (build new evset from parsed events)
+ ... move up and document as primary send API
+
+=cut
+
+sub send_to_targets {
+  ## Handle relaying to arbitrary targets.
+  ## $event should have a translatable prefix
+  ## See send_to_local_peers
+  my ($self, %opts) = @_;
+  my $event = $opts{event};
+  confess "Expected at least 'event =>' and 'targets =>' params"
+    unless Scalar::Util::reftype $event eq 'HASH'
+    and ref $opts{targets} eq 'ARRAY'; 
+
+  my %extra = defined $opts{options} ? %{ $opts{options} } : ();
+
+  TARGET: while (my $target = shift @{ $opts{targets} }) {
+    confess "Expected an IRC::User, IRC::Peer, or IRC::Channel"
+      unless blessed $target;
+
+    if ($target->isa('IRC::Server::Pluggable::IRC::Channel') ) {
+      ## Relaying to channel.
+      ## FIXME import existing relay bits to method we can dispatch to?
+      ##  or dispatch out to a new Channels role managing rules?
+      next TARGET
+    }
+
+    ## Otherwise we should have a Peer or User.
+
+    if ($target->has_conn) {
+      ## Local connect.
+
+      if ($target->isa('IRC::Server::Pluggable::IRC::User') ) {
+        ## Local user.
+        $self->send_to_routes( 
+          $self->__send_parse_identifiers(
+            event => $event,
+            local => 1,
+            %extra,
+          ),
+          $target->route
+        );
+      } elsif ($target->isa('IRC::Server::Pluggable::IRC::Peer') ) {
+        ## Local peer.
+        $self->send_to_local_peer(
+          event => $event,
+          peer  => $target,
+          %extra,
+        );
+      } else {
+        confess 
+          "No clue how to dispatch target type @{[ref $target]} ($target)"
+      }
+
+      next TARGET
+    }
+
+    ## ... elsewise we have a remote peer or user.
+    ## FIXME check TS6 translation behavior, pass opts
+    my $next_hop = $target->route;
+    my $peer = $self->peers->by_id($next_hop);
+    unless ($peer) {
+      carp "Cannot relay to nonexistant peer (route ID $next_hop)";
+      next TARGET
+    }
+
+    $self->send_to_local_peer(
+      event => $event,
+      peer  => $peer,
+    );
+  }
+}
+
+
 ###### PUBLIC: send_to_local_peer
 ######         send_to_local_peers
 
@@ -251,6 +341,7 @@ sub send_to_local_peers {
     my $parsed_ev = $self->__send_parse_identifiers(
       peer  => $peer, 
       event => $event,
+      ## FIXME needs to use newer iface
       nick_only => $opts{nick_only},
     );
     $self->send_to_routes( $parsed_ev, $route );
@@ -260,68 +351,6 @@ sub send_to_local_peers {
   $sent
 }
 
-
-###### PUBLIC: send_to_targets
-
-=pod
-
-=head2 send_to_targets
-
-FIXME is this API a stupid idea?
- will likely at least want to be able to push per-target opts
- optional @targets = ( [ $target_obj, $opts_hash ] ) ?
- ... or just always use correct methods ...
- ... pull in send-related bits from Messages?
- ... ideally other roles are primarily command handlers
-     that use core logic found in the slimmest possible set
-
-=cut
-
-sub send_to_targets {
-  ## Handle relaying to arbitrary targets.
-  ## $event should have a translatable prefix
-  ## See send_to_local_peers
-  my ($self, $event, @targets) = @_;
-  confess "Expected an IRC::Event or compatible HASH"
-    unless ref $event;
-
-  TARGET: for my $target (@targets) {
-    confess "Expected an IRC::User or IRC::Peer"
-      unless blessed $target;
-
-    if ($target->has_conn) {
-      if ($target->isa('IRC::Server::Pluggable::IRC::User') ) {
-        ## Local user.
-        ## FIXME dispatch out, do auto-translate to proper names on objs
-        ##   $peer -> $peer->name
-        ##   $user -> $user->full
-        ##  (see rb/src/send.c sendto_anywhere f.ex)
-        $self->dispatcher->to_irc( $event, $target );
-        next TARGET
-      } elsif ($target->isa('IRC::Server::Pluggable::IRC::Peer') ) {
-        ## Local peer.
-        $self->send_to_local_peer(
-          event => $event,
-          peer  => $target,
-        );
-      }
-    }
-
-    ## FIXME handle dispatching IRC::Channel types (->send_to_channel)
-
-    my $next_hop = $target->route;
-    my $peer = $self->peers->by_id($next_hop);
-    unless ($peer) {
-      carp "Cannot relay to nonexistant peer (route ID $next_hop)";
-      next TARGET
-    }
-
-    $self->send_to_local_peer(
-      event => $event,
-      peer  => $peer,
-    );
-  }
-}
 
 
 ###### PUBLIC: send_numeric
@@ -375,7 +404,7 @@ sub send_numeric {
     ),
   );
 
-  $self->dispatcher->to_irc( $output, @routes )
+  $self->send_to_routes( $output, @routes )
 }
 
 
@@ -386,7 +415,7 @@ sub send_numeric {
 
 =head2 send_to_routes
 
-B<send_to_routes> and B<send_to_routes_now> are low-level Protocol message
+B<send_to_routes> / B<send_to_route> are low-level Protocol message
 dispatchers; these bridge the Dispatcher layer and are used by the 
 higher-level methods detailed above.
 
@@ -399,11 +428,6 @@ sub send_to_routes {
   confess "send_to_routes() received insufficient params"
     unless @ids;
   $self->dispatcher->to_irc( $output, @ids )
-}
-
-sub send_to_routes_now {
-  my ($self, $output, @ids) = @_;
-  $self->dispatcher->to_irc_now( $output, @ids )
 }
 
 

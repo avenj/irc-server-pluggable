@@ -2,7 +2,12 @@ package IRC::Server::Pluggable::Dispatcher;
 use 5.12.1;
 use strictures 1;
 
-use Carp;
+use Carp qw/
+  carp 
+  cluck 
+  confess
+/;
+
 use Moo;
 use POE;
 use Scalar::Util 'blessed';
@@ -36,7 +41,7 @@ has '_backend_class' => (
   builder => '_build_backend_class',
 );
 
-sub _build_backend_class { "IRC::Server::Pluggable::Backend" }
+sub _build_backend_class { 'IRC::Server::Pluggable::Backend' }
 
 
 has 'backend' => (
@@ -142,12 +147,6 @@ sub _shutdown {
 sub to_irc {
   my $self = shift;
 
-  $self->yield( 'to_irc', @_ )
-}
-
-sub to_irc_now {
-  my $self = shift;
-
   $self->call( 'to_irc', @_ )
 }
 
@@ -159,7 +158,7 @@ sub _to_irc {
   ##   or objs that can give us one
   my ($out, @conns) = @_[ARG0 .. $#_];
   unless (@conns) {
-    carp "to_irc() dispatched without any routes! Nothing to do.";
+    cluck "to_irc() dispatched without any routes! Nothing to do.";
     return
   }
 
@@ -172,7 +171,7 @@ sub _to_irc {
          : () ;
 
       unless (defined $id) {
-        carp "Unknown target type $item, ID undefined";
+        cluck "Unknown target type $item, ID undefined";
         next TARGET
       }
       $routes{$id}++

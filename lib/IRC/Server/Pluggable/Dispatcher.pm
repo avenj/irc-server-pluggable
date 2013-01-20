@@ -1,22 +1,17 @@
 package IRC::Server::Pluggable::Dispatcher;
-
-## FIXME
-##  Hum.
-##  All of this should be torn out and moved into
-##  either Backend (to_irc bits) or a Protocol::Role
-##  (ircsock_* handlers)
-
 use 5.12.1;
 use strictures 1;
 
 use Carp;
 use Moo;
 use POE;
+use Scalar::Util 'blessed';
 
 use IRC::Server::Pluggable qw/
   Constants
   Types
 /;
+
 
 use namespace::clean;
 
@@ -163,14 +158,19 @@ sub _to_irc {
   ## + List of either Backend::Connect wheel IDs
   ##   or objs that can give us one
   my ($out, @conns) = @_[ARG0 .. $#_];
-  return unless @conns;
+  unless (@conns) {
+    carp "to_irc() dispatched without any routes! Nothing to do.";
+    return
+  }
 
   my %routes;
 
   TARGET: for my $item (@conns) {
-    if ( is_Object($item) ) {
+    if (blessed $item) {
       my $id = $item->can('route') ? $item->route
-         : $item->can('wheel_id')  ? $item->wheel_id : undef ;
+         : $item->can('wheel_id')  ? $item->wheel_id
+         : () ;
+
       unless (defined $id) {
         carp "Unknown target type $item, ID undefined";
         next TARGET

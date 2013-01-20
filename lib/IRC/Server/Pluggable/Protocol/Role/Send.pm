@@ -44,14 +44,16 @@ requires qw/
 
 ### FIXME should sendq management live here... ?
 
+
+###### Internals.
+
 sub __send_retrieve_route {
   my ($self, $peer_name_or_obj) = @_;
   if ( blessed($peer_name_or_obj) ) {
     ## Peer obj.
     return $peer_name_or_obj->route
   }
-  ## Name or route ID, we hope.
-  return $self->peers->by_name($peer_name_or_obj) || $peer_name_or_obj    
+  $self->peers->by_name($peer_name_or_obj) || $peer_name_or_obj    
 }
 
 sub __send_peer_correct_self_prefix {
@@ -59,13 +61,78 @@ sub __send_peer_correct_self_prefix {
   ## Get correct prefix for messages we are sending to a local peer.
   # FIXME Move me out to a generic Peers role, make public?
   # Subclasses should be able to override to provide other prefixes
-  if ($peer->type eq 'TS') {
-    return $self->config->sid
-      if $peer->type_version == 6
-  }
+  return $self->config->sid 
+    if  $peer->type eq 'TS' 
+    and $peer->type_version == 6;
   $self->config->server_name
 }
 
+sub __send_parse_identifiers {
+  my ($self, %opts) = @_;
+  ## Look for $user or $peer objects in an Event.
+  ## Translate depending on Peer type.
+  ## FIXME make public, document?
+
+  my $as_hash  = %{ $opts{event}  || confess "Expected an 'event =>'" };
+  ## FIXME separate prefix_nick_only / params_nick_only
+  my $use_full = $opts{nick_only} || 1;
+
+  my $peer = $opts{peer};
+  confess "Expected either a 'peer =>' obj or 'local => 1'"
+    unless blessed $peer or $opts{local};
+  ## FIXME if no peer, always assume we want uid_or_full prefix
+  ##  and user-obj-in-param to nick
+
+  ## Automagic $self / IRC::User / IRC::Peer prefix translation:
+  if (blessed $as_hash{prefix}) {
+      CASE_FROM: { 
+        my $pfix = $as_hash{prefix};
+
+        if ($pfix eq $self || $pfix eq 'localserver') {
+        ## Self talking to peer.
+          $as_hash{prefix} = $self->__send_peer_correct_self_prefix($peer);
+          last CASE_FROM
+        }
+
+        if ($pfix->isa('IRC::Server::Pluggable::IRC::User')) {
+          $as_hash{prefix} = 
+            $use_full ? $self->uid_or_full : $self->uid_or_nick($pfix, $peer);
+          last CASE_FROM
+        }
+
+        if ($pfix->isa('IRC::Server::Pluggable::IRC::Peer')) {
+        ## Peer relaying to peer.
+          $as_hash{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name;
+          last CASE_FROM
+        }
+
+        confess "Do not know how to handle blessed prefix $pfix"
+      } # CASE_FROM
+  }
+
+  ## Automagically uid_or_nick/uid_or_full any User/Peer objs in params:
+  $as_hash{params} = [
+    map {;
+        my $param = $_;
+
+        if (blessed $param) {
+          ( $param = $self->uid_or_nick($param, $peer) )
+            if $param->isa('IRC::Server::Pluggable::IRC::User');
+
+          ( $param = $param->has_sid ? $param->sid : $param->name )
+            if $param->isa('IRC::Server::Pluggable::IRC::Peer');
+        }
+
+        $param
+      } @{ $as_hash{params} || [] }
+  ];
+
+  ev(%$as_hash)
+}
+
+
+###### PUBLIC: send_to_local_peer
+######         send_to_local_peers
 
 =pod
 
@@ -91,7 +158,6 @@ sub send_to_local_peer {
     %opts
   )
 }
-
 
 =pod
 
@@ -147,62 +213,23 @@ sub send_to_local_peers {
   }
 
   ## FIXME option to send only to peers with a certain CAPAB
+  ##  Needs IRC::Peer tweak
 
-  my $use_full = $opts{nick_only} || 1;
 
   my @local_peers = $opts{peers} ? @{ $opts{peers} }
     : $self->peers->list_local_peers;
 
-  my $as_hash = %$event;
   my $sent; 
   LPEER: for my $peer (@local_peers) {
     my $route = $peer->route;
     next LPEER if $except_route{$route};
 
-    ## Automagic $self / IRC::User / IRC::Peer prefix translation:
-    if (blessed $as_hash->{prefix}) {
-      CASE_FROM: { 
-        my $pfix = $as_hash->{prefix};
-
-        if ($pfix eq $self || $pfix eq 'localserver') {
-          ## Self talking to peer.
-          $as_hash->{prefix} = $self->__send_peer_correct_self_prefix($peer);
-          last CASE_FROM
-        }
-        if ($pfix->isa('IRC::Server::Pluggable::IRC::User')) {
-          ## User relaying to peer.
-          $as_hash->{prefix} = $self->uid_or_nick($pfix, $peer);
-          last CASE_FROM
-        }
-        if ($pfix->isa('IRC::Server::Pluggable::IRC::Peer')) {
-          ## Peer relaying to peer.
-          $as_hash->{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name;
-          last CASE_FROM
-        }
-
-        confess "Do not know how to handle blessed prefix $pfix"
-      } # CASE_FROM
-    }
-
-    ## Automagically uid_or_nick/uid_or_full any User/Peer objs in params:
-    $as_hash->{params} = [
-      map {;
-        my $param = $_;
-
-        if (blessed $param) {
-          ( $param = $use_full ? $self->uid_or_full($param, $peer)
-                      :  $self->uid_or_nick($param, $peer) )
-            if $param->isa('IRC::Server::Pluggable::IRC::User');
-
-          ( $param = $param->has_sid ? $param->sid : $param->name )
-            if $param->isa('IRC::Server::Pluggable::IRC::Peer');
-        }
-
-        $param
-      } @{ $as_hash->{params} || [] }
-    ];
-
-    $self->dispatcher->to_irc( ev(%$as_hash), $route );
+    my $parsed_ev = $self->__send_parse_identifiers(
+      peer  => $peer, 
+      event => $event,
+      nick_only => $opts{nick_only},
+    );
+    $self->send_to_routes( $parsed_ev, $route );
     ++$sent
   } # LPEER
 
@@ -210,11 +237,19 @@ sub send_to_local_peers {
 }
 
 
+###### PUBLIC: send_to_targets
+
 =pod
 
 =head2 send_to_targets
 
-FIXME
+FIXME is this API a stupid idea?
+ will likely at least want to be able to push per-target opts
+ optional @targets = ( [ $target_obj, $opts_hash ] ) ?
+ ... or just always use correct methods ...
+ ... pull in send-related bits from Messages?
+ ... ideally other roles are primarily command handlers
+     that use core logic found in the slimmest possible set
 
 =cut
 
@@ -233,7 +268,10 @@ sub send_to_targets {
     if ($target->has_conn) {
       if ($target->isa('IRC::Server::Pluggable::IRC::User') ) {
         ## Local user.
-        ## FIXME do we need to do any TS translation at all?
+        ## FIXME dispatch out, do auto-translate to proper names on objs
+        ##   $peer -> $peer->name
+        ##   $user -> $user->full
+        ##  (see rb/src/send.c sendto_anywhere f.ex)
         $self->dispatcher->to_irc( $event, $target );
         next TARGET
       } elsif ($target->isa('IRC::Server::Pluggable::IRC::Peer') ) {
@@ -244,6 +282,8 @@ sub send_to_targets {
         );
       }
     }
+
+    ## FIXME handle dispatching IRC::Channel types (->send_to_channel)
 
     my $next_hop = $target->route;
     my $peer = $self->peers->by_id($next_hop);
@@ -260,6 +300,8 @@ sub send_to_targets {
 }
 
 
+###### PUBLIC: send_numeric
+
 =pod
 
 =head2 send_numeric
@@ -269,6 +311,9 @@ sub send_to_targets {
     routes => [ @routes ],
     params => [ @extra_params ],
   );
+
+Create and send a predefined numeric-type error response; see
+L<IRC::Server::Pluggable::IRC::Numerics>.
 
 =cut
 
@@ -311,38 +356,31 @@ sub send_numeric {
 
 
 
-##### FIXME deprecated #####
+###### Low-level public methods.
+
+=pod
+
+=head2 send_to_routes
+
+B<send_to_routes> and B<send_to_routes_now> are low-level Protocol message
+dispatchers; these bridge the Dispatcher layer and are used by the 
+higher-level methods detailed above.
+
+=cut
 
 sub send_to_route  { shift->send_to_routes(@_) }
 sub send_to_routes {
   my ($self, $output, @ids) = @_;
-  carp "send_to_routes is deprecated";
-  ## FIXME
-  ##  Deprecate in favor of send_to_targets, move to low-level api
-  ##  we should deal only in objects at higher layers, leave ->route for
-  ##  lowlevel operations
   unless (ref $output && @ids) {
-    confess "send_to_routes() received insufficient params";
-    return
-  }
-
+  confess "send_to_routes() received insufficient params"
+    unless @ids;
   $self->dispatcher->to_irc( $output, @ids )
 }
 
 sub send_to_routes_now {
   my ($self, $output, @ids) = @_;
-  carp "send_to_routes_now is deprecated";
-  unless (ref $output && @ids) {
-    confess "send_to_routes_now() received insufficient params";
-    return
-  }
-
   $self->dispatcher->to_irc_now( $output, @ids )
 }
-
- ##########################
-
-
 
 
 1;

@@ -74,14 +74,18 @@ sub __send_parse_identifiers {
   ## FIXME make public, document?
 
   my $as_hash  = %{ $opts{event}  || confess "Expected an 'event =>'" };
-  ## FIXME separate prefix_nick_only / params_nick_only
-  my $use_full = $opts{nick_only} || 1;
 
+  ## FIXME document, rework existing _local_peers iface/POD
+  ##  wrt prefix/params replacement opts
   my $peer = $opts{peer};
-  confess "Expected either a 'peer =>' obj or 'local => 1'"
-    unless blessed $peer or $opts{local};
-  ## FIXME if no peer, always assume we want uid_or_full prefix
-  ##  and user-obj-in-param to nick
+  ## If no peer, always assume we want no IDs
+  unless (blessed $peer) {
+    confess "Expected either a 'peer =>' obj or 'local => 1'"
+      unless $opts{local};
+    $opts{prefix_nick_only} //= 0;
+  }
+  $opts{prefix_nick_only} //= 1;
+  $opts{params_nick_only} //= 1;
 
   ## Automagic $self / IRC::User / IRC::Peer prefix translation:
   if (blessed $as_hash{prefix}) {
@@ -89,20 +93,37 @@ sub __send_parse_identifiers {
         my $pfix = $as_hash{prefix};
 
         if ($pfix eq $self || $pfix eq 'localserver') {
-        ## Self talking to peer.
-          $as_hash{prefix} = $self->__send_peer_correct_self_prefix($peer);
+        ## Self talking to local or peer.
+          $as_hash{prefix} = $opts{local} ?
+            $self->config->server_name
+            : $self->__send_peer_correct_self_prefix($peer);
+
           last CASE_FROM
         }
 
         if ($pfix->isa('IRC::Server::Pluggable::IRC::User')) {
-          $as_hash{prefix} = 
-            $use_full ? $self->uid_or_full : $self->uid_or_nick($pfix, $peer);
+        ## User talking to local or peer.
+          if ($opts{local}) {
+            $as_hash{prefix} = $opts{prefix_nick_only} ?
+              $pfix->nick 
+              : $pfix->full
+          } else {
+            $as_hash{prefix} = $opts{prefix_nick_only} ?
+              $self->uid_or_nick($pfix, $peer) 
+              : $self->uid_or_full($pfix, $peer)
+          }
+
           last CASE_FROM
         }
 
         if ($pfix->isa('IRC::Server::Pluggable::IRC::Peer')) {
-        ## Peer relaying to peer.
-          $as_hash{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name;
+        ## Peer relaying to local or peer.
+          if ($opts{local}) {
+            $as_hash{prefix} = $pfix->name
+          } else {
+            $as_hash{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name
+          }
+
           last CASE_FROM
         }
 
@@ -111,6 +132,9 @@ sub __send_parse_identifiers {
   }
 
   ## Automagically uid_or_nick/uid_or_full any User/Peer objs in params:
+  ## FIXME needs to handle params_nick_only
+  ## FIXME needs to be well-documented; consumers should be explicit if
+  ##  necessary
   $as_hash{params} = [
     map {;
         my $param = $_;

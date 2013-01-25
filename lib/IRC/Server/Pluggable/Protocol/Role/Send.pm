@@ -414,10 +414,45 @@ sub send_numeric {
     );
   } else {
     ## Remote user.
-    ## Call ->send_to_targets ?
     ## We want name/SID of self or 'prefix =>' peer
     ## + numeric + target UID or nick
+    my $next_hop  = $target->route;
+    my $peer      = $self->peers->by_id($next_hop);
+    my $prefix;
+    NPREFIX: {
+      unless (defined $params{prefix}) {
+        ## Assume from local.
+        $prefix = $self->__send_peer_correct_self_prefix($peer);
+        last NPREFIX
+      }
+
+      if (blessed $params{prefix}) {
+        if ($peer->has_sid && $params{prefix}->has_sid) {
+          $params{prefix}->sid
+        } else {
+          $prefix = $params{prefix}->name
+        }
+        last NPREFIX
+      }
+
+      $prefix = $params{prefix}
+    }
+
+    my $params = ref $params{params} eq 'ARRAY' ?
+      $params{params} : [ $params{params} || () ];
+    my $endpoint = $self->uid_or_nick($target, $peer);
+
+    $self->send_to_routes(
+      +{
+        command => $numeric,
+        prefix  => $prefix,
+        params  => [ $endpoint, @$params ],
+      },
+      $target
+    );
   }
+
+  1
 }
 
 

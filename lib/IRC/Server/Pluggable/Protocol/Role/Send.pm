@@ -45,7 +45,6 @@ requires qw/
 ### FIXME should sendq management live here... ?
 
 
-###### Internals.
 
 sub __send_retrieve_route {
   my ($self, $peer_name_or_obj) = @_;
@@ -77,8 +76,8 @@ sub __send_parse_identifiers {
 
   ## FIXME document, rework existing _local_peers iface/POD
   ##  wrt prefix/params replacement opts
+
   my $peer = $opts{peer};
-  ## If no peer, always assume we want no IDs
   unless (blessed $peer) {
     confess "Expected either a 'peer =>' obj or 'local => 1'"
       unless $opts{local};
@@ -92,7 +91,7 @@ sub __send_parse_identifiers {
       CASE_FROM: { 
         my $pfix = $as_hash{prefix};
 
-        if ($pfix eq $self || $pfix eq 'localserver') {
+        if  ($pfix eq $self || $pfix eq 'localserver') {
         ## Self talking to local or peer.
           $as_hash{prefix} = $opts{local} ?
             $self->config->server_name
@@ -156,7 +155,6 @@ sub __send_parse_identifiers {
 
 
 
-###### PUBLIC: send_to_targets
 
 =pod
 
@@ -191,19 +189,20 @@ sub send_to_targets {
     confess "Expected an IRC::User, IRC::Peer, or IRC::Channel"
       unless blessed $target;
 
-    if ($target->isa('IRC::Server::Pluggable::IRC::Channel') ) {
-      ## Relaying to channel.
+    if        ($target->isa('IRC::Server::Pluggable::IRC::Channel')) {
+      ## FIXME Relaying to channel.
+
       ## FIXME import existing relay bits to method we can dispatch to?
       ##  or dispatch out to a new Channels role managing rules?
+
       next TARGET
     }
 
     ## Otherwise we should have a Peer or User.
-
     if ($target->has_conn) {
       ## Local connect.
 
-      if ($target->isa('IRC::Server::Pluggable::IRC::User') ) {
+      if      ($target->isa('IRC::Server::Pluggable::IRC::User')) {
         ## Local user.
         $self->send_to_routes( 
           $self->__send_parse_identifiers(
@@ -213,7 +212,7 @@ sub send_to_targets {
           ),
           $target->route
         );
-      } elsif ($target->isa('IRC::Server::Pluggable::IRC::Peer') ) {
+      } elsif ($target->isa('IRC::Server::Pluggable::IRC::Peer')) {
         ## Local peer.
         $self->send_to_local_peer(
           event => $event,
@@ -228,7 +227,7 @@ sub send_to_targets {
       next TARGET
     }
 
-    ## ... elsewise we have a remote peer or user.
+    ## Remote peer or user.
     ## FIXME check TS6 translation behavior, pass opts
     my $next_hop = $target->route;
     my $peer = $self->peers->by_id($next_hop);
@@ -241,12 +240,11 @@ sub send_to_targets {
       event => $event,
       peer  => $peer,
     );
-  }
+  }  # TARGET
 }
 
 
-###### PUBLIC: send_to_local_peer
-######         send_to_local_peers
+
 
 =pod
 
@@ -353,7 +351,6 @@ sub send_to_local_peers {
 
 
 
-###### PUBLIC: send_numeric
 
 =pod
 
@@ -370,46 +367,60 @@ L<IRC::Server::Pluggable::IRC::Numerics>.
 
 =cut
 
-## FIXME does TS6 send uid_or_nick with peer-directed numerics ?
+## FIXME
+##  Needs to send TS6 prefix & targets appropriately
+##  see rb/send.c sendto_one_numeric
+##   - needs to take objects, not routes
+##       target => $params{target},          ## User
+##       prefix => $optional_specified_pfix, ## Convert Peer or $self objs
+##       params => [ ],  ## Stays the same
+##   - needs to check remote types
+##     peers get self name/ID, numeric, target name/ID
+##     local gets numeric->to_hash()
+##   - consumers should always call send_numeric
+##     for automagic TS translation
+
 sub send_numeric {
-  ## send_numeric(  $numeric,
-  ##   target => ...,
-  ##   routes => \@routes,
-  ## );
-  ## Optionally pass prefix / params
   my ($self, $numeric, %params) = @_;
-  $params{lc $_} = delete $params{$_} for keys %params;
+  my $target = $params{target};
+  confess "Expected a numeric and an IRC::User 'target =>'"
+    unless blessed $target
+    and $target->isa('IRC::Server::Pluggable::IRC::User');
 
-  confess "Expected a numeric and at least 'target' and 'routes' params"
-    unless defined $params{target}
-    and    defined $params{routes};
+  if ($target->has_conn) {
+    ## Local user. Do prefix conversion.
+    my $prefix;
+    if (defined $params{prefix}) {
+      if (blessed $params{prefix}) {
+        $prefix = $params{prefix} == $self ?
+          $self->config->server_name : $params{prefix}->name;
+      } else {
+        $prefix = $params{prefix}
+      }
+    } else {
+      $prefix = $self->config->server_name
+    }
 
-  my @routes = ref $params{routes} eq 'ARRAY' ?
-                 @{ $params{routes} }
-                 : $params{routes} ;
-
-  my $output = $self->numeric->to_hash( $numeric,
-    target => $params{target},
-
-    ## Default to our server name.
-    ## FIXME ..or SID? check rb
-    prefix => (
-      $params{prefix} ?
-        $params{prefix} : $self->config->server_name
-    ),
-
-    params => (
-      ref $params{params} eq 'ARRAY' ?
-        $params{params} : [ $params{params}||() ]
-    ),
-  );
-
-  $self->send_to_routes( $output, @routes )
+    $self->send_to_routes(
+      $self->numeric->to_hash(
+        target => $target,
+        prefix => $prefix,
+        params => ( 
+          ref $params{params} eq 'ARRAY' ?
+            $params{params} : [ $params{params}||() ]
+        ),
+      ), 
+      $target
+    );
+  } else {
+    ## Remote user.
+    ## Call ->send_to_targets ?
+    ## We want name/SID of self or 'prefix =>' peer
+    ## + numeric + target UID or nick
+  }
 }
 
 
-
-###### Low-level public methods.
 
 =pod
 

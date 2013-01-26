@@ -21,38 +21,30 @@ requires qw/
 /;
 
 
-sub r_proto_build_isupport {
-  my ($self, $eventset) = @_;
-  ## 005 ISUPPORT
-  $eventset //= eventset();
-
+sub __version_send_isupport {
+  my ($self, $target) = @_;
   ## FIXME
-  $eventset->push(
-    {
+  $self->send_to_targets(
+    event => ev(
       command => '005',
-      prefix  => $self->config->server_name,
-      params  => [ 'HI, I suck and have no ISUPPORT yet.' ],
-    },
+      prefix  => $self,
+      params  => [ 'HI, I suck and have no ISUPPORT yet' ],
+    ),
+    targets => [ $target ],
   );
-
-  $eventset
 }
 
-sub r_proto_build_version {
-  my ($self, $eventset) = @_;
-  ## 351 VERSION
-  $eventset //= eventset();
-
-  ## FIXME current composed version is braindead
-  $eventset->push(
-    {
+sub __version_send_version {
+  my ($self, $target) = @_;
+  ## FIXME
+  $self->send_to_targets(
+    event => ev(
       command => '351',
-      prefix  => $self->config->server_name,
+      prefix  => $self,
       params  => [ $self->version_string ],
-    },
+    ),
+    targets => [ $target ],
   );
-
-  $eventset
 }
 
 
@@ -66,37 +58,37 @@ sub cmd_from_client_version {
     my $peer  = ( $self->peers->matching($first) )[0];
     unless (defined $peer) {
       ## No such server.
-      $self->send_to_routes(
-        $self->numeric->as_hash( 402,
-          target => $user->nick,
-          prefix => $server_name,
-          params => [ $event->params->[0] ],
-        ),
-        $user->route
+      $self->send_numeric( 402 =>
+        prefix => $self,
+        target => $user,
+        params => [ $event->params->[0] ],
       );
+      return
     }
 
     unless ( $self->equal($server_name, $peer->name) ) {
       ## Not us; relay.
-      $self->send_to_routes(
-        {
-          prefix  => $user->nick,
+      $self->send_to_targets(
+        event => ev(
+          prefix  => $user,
           command => 'VERSION',
-          params  => $peer->name,
-        },
-        $peer->route
+          params  => [ $peer->name ],
+        ),
+        targets => [ $peer ],
+        ## FIXME do we need to tweak options => at all ?
       );
       return
     }
   }
 
-  my $version_set  = $self->r_proto_build_version;
-  my $isupport_set = $self->r_proto_build_isupport($version_set);
-  $self->send_to_routes( $isupport_set, $user->route );
+  ## Us.
+  $self->__version_send_isupport($user);
+  $self->__version_send_version($user);
 }
 
 
 sub cmd_from_peer_version {
+  ## FIXME new send iface
   my ($self, $conn, $event, $peer) = @_;
 
   my $dest = $event->params->[0];

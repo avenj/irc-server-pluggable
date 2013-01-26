@@ -58,8 +58,6 @@ sub __send_retrieve_route {
 sub __send_peer_correct_self_prefix {
   my ($self, $peer) = @_;
   ## Get correct prefix for messages we are sending to a local peer.
-  # FIXME Move me out to a generic Peers role, make public?
-  # Subclasses should be able to override to provide other prefixes
   return $self->config->sid 
     if  $peer->type eq 'TS' 
     and $peer->type_version == 6;
@@ -160,15 +158,18 @@ sub __send_parse_identifiers {
 
 =head2 send_to_targets
 
+  $proto->send_to_targets(
+    event   => $ev,
+    targets => [ @objects ],
+    options => +{
+      ## Passed to appropriate handler for target type:
+      params_nick_only => 1,
+    },
+  );
+
 ## FIXME
- ... optional per-target opts
-   i.e. @targets = ( [ $target_obj, $opts_hash ] ) ?
-   otherwise need named params so we can pass send opts
-   (or force use of a specific method)
- ... pull in send-related bits from Messages?
- ... ideally other roles are primarily command handlers
-     that use core logic found in the slimmest possible set
- ... handle eventsets (build new evset from parsed events)
+ ... handle eventsets (build new evset from parsed events)?
+     -> or just deprecate eventsets
  ... move up and document as primary send API
 
 =cut
@@ -179,26 +180,18 @@ sub send_to_targets {
   ## See send_to_local_peers
   my ($self, %opts) = @_;
   my $event = $opts{event};
+
   confess "Expected at least 'event =>' and 'targets =>' params"
     unless Scalar::Util::reftype $event eq 'HASH'
     and ref $opts{targets} eq 'ARRAY'; 
 
   my %extra = defined $opts{options} ? %{ $opts{options} } : ();
 
-  TARGET: while (my $target = shift @{ $opts{targets} }) {
-    confess "Expected an IRC::User, IRC::Peer, or IRC::Channel"
-      unless blessed $target;
+  TARGET: for my $target (@{ $opts{targets} }) {
+    confess "Expected an IRC::User or IRC::Peer"
+      unless blessed $target
+      and $target->can('has_conn');
 
-    if        ($target->isa('IRC::Server::Pluggable::IRC::Channel')) {
-      ## FIXME Relaying to channel.
-
-      ## FIXME import existing relay bits to method we can dispatch to?
-      ##  or dispatch out to a new Channels role managing rules?
-
-      next TARGET
-    }
-
-    ## Otherwise we should have a Peer or User.
     if ($target->has_conn) {
       ## Local connect.
 

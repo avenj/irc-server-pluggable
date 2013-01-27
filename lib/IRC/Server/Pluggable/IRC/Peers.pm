@@ -72,19 +72,22 @@ sub as_array {
 
 sub by_id {
   my ($self, $id) = @_;
-
   confess "by_id() called with no ID specified"
     unless defined $id;
-
   $self->_peers_by_wheelid->{$id}
+}
+
+sub by_sid {
+  my ($self, $id) = @_;
+  confess "by_sid() called with no ID specified"
+    unless defined $id;
+  $self->peers_by_sid->{$id}
 }
 
 sub by_name {
   my ($self, $s_name) = @_;
-
   confess "by_name() called with no server specified"
     unless defined $s_name;
-
   $self->_peers->{ lc($s_name) }
 }
 

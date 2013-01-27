@@ -24,15 +24,11 @@ use MooX::Role::Pluggable::Constants;
 
 use IRC::Server::Pluggable qw/
   Client::Heavy::State
-
   IRC::Event
-  
-  Utils
-  Utils::Parse::CTCP
-
   Types
 /;
 
+use IRC::Toolkit;
 
 with 'IRC::Server::Pluggable::Role::Interface::Client';
 

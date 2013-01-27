@@ -7,8 +7,9 @@ use Scalar::Util 'weaken';
 
 use IRC::Server::Pluggable qw/
   Types
-  Utils
 /;
+
+use IRC::Toolkit;
 
 use MooX::Struct -rw,
   Channel => [ qw/

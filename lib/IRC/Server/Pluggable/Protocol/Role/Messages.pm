@@ -10,8 +10,6 @@ use IRC::Server::Pluggable qw/
   Constants
 
   IRC::EventSet
-
-  Utils
 /;
 
 use Scalar::Util 'blessed';

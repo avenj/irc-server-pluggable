@@ -10,13 +10,14 @@ use Moo;
 
 use IRC::Server::Pluggable qw/
   Types
-  Utils
 /;
 
 use Scalar::Util qw/
   blessed
   weaken
 /;
+
+use IRC::Toolkit::Modes;
 
 use Exporter 'import';
 our @EXPORT = 'irc_user';

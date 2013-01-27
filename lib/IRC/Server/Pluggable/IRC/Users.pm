@@ -12,10 +12,10 @@ use Scalar::Util 'weaken';
 
 use IRC::Server::Pluggable qw/
   Types
-  Utils
   Utils::TS::ID
 /;
 
+use IRC::Toolkit::Masks;
 
 use namespace::clean;
 

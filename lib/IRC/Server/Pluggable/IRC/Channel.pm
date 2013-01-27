@@ -10,7 +10,6 @@ use Moo;
 
 use IRC::Server::Pluggable qw/
   Types
-  Utils
 /;
 
 

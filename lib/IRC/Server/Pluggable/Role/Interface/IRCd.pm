@@ -6,17 +6,20 @@ use Moo::Role;
 with 'IRC::Server::Pluggable::Role::Interface::Emitter';
 
 requires qw/
-  channels
   config
+
   disconnect
+
   equal
   lower
-  numeric
-  peers
-  send_numeric
-  send_to_routes
   upper
+
+  channels
+  peers
   users
+
+  send_numeric
+  send_to_targets
 /;
 
 1;

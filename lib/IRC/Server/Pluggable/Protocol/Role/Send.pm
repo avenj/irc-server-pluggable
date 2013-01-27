@@ -10,7 +10,10 @@ IRC::Server::Pluggable::Protocol::Role::Send
 
 Provides:
 
-  FIXME
+  send_to_targets
+  send_numeric
+  send_to_local_peers
+  send_to_routes
 
 =head1 DESCRIPTION
 
@@ -39,6 +42,11 @@ requires qw/
   config
   dispatcher
   numeric
+  peers
+  users
+
+  uid_or_nick
+  uid_or_full
 /;
 
 
@@ -68,80 +76,84 @@ sub __send_parse_identifiers {
   my ($self, %opts) = @_;
   ## Look for $user or $peer objects in an Event.
   ## Translate depending on Peer type.
-  ## FIXME make public, document?
 
   my $as_hash  = %{ $opts{event}  || confess "Expected an 'event =>'" };
 
-  ## FIXME document, rework existing _local_peers iface/POD
-  ##  wrt prefix/params replacement opts
+  ## FIXME these opts need to be documented somewheres
+  ## rework existing _local_peers iface/POD
+  ##  wrt prefix/params replacement opts?
 
   my $peer = $opts{peer};
   unless (blessed $peer) {
     confess "Expected either a 'peer =>' obj or 'local => 1'"
       unless $opts{local};
+    ## FIXME is this correct?
     $opts{prefix_nick_only} //= 0;
   }
   $opts{prefix_nick_only} //= 1;
   $opts{params_nick_only} //= 1;
 
   ## Automagic $self / IRC::User / IRC::Peer prefix translation:
-  if (blessed $as_hash{prefix}) {
-      CASE_FROM: { 
-        my $pfix = $as_hash{prefix};
 
-        if  ($pfix eq $self || $pfix eq 'localserver') {
-        ## Self talking to local or peer.
-          $as_hash{prefix} = $opts{local} ?
-            $self->config->server_name
-            : $self->__send_peer_correct_self_prefix($peer);
+  CASE_FROM: { 
+    my $pfix = $as_hash{prefix} || $self;
+    last CASE_FROM unless blessed $pfix;
 
-          last CASE_FROM
-        }
+    if  ($pfix == $self) {
+    ## Self talking to local or peer.
+      $as_hash{prefix} = $opts{local} ?
+        $self->config->server_name
+        : $self->__send_peer_correct_self_prefix($peer);
 
-        if ($pfix->isa('IRC::Server::Pluggable::IRC::User')) {
-        ## User talking to local or peer.
-          if ($opts{local}) {
-            $as_hash{prefix} = $opts{prefix_nick_only} ?
-              $pfix->nick 
-              : $pfix->full
-          } else {
-            $as_hash{prefix} = $opts{prefix_nick_only} ?
-              $self->uid_or_nick($pfix, $peer) 
-              : $self->uid_or_full($pfix, $peer)
-          }
+      last CASE_FROM
+    }
 
-          last CASE_FROM
-        }
+    if ($pfix->isa('IRC::Server::Pluggable::IRC::User')) {
+    ## User talking to local or peer.
+      if ($opts{local}) {
+        $as_hash{prefix} = $opts{prefix_nick_only} ?
+          $pfix->nick 
+          : $pfix->full
+      } else {
+        $as_hash{prefix} = $opts{prefix_nick_only} ?
+          $self->uid_or_nick($pfix, $peer) 
+          : $self->uid_or_full($pfix, $peer)
+      }
 
-        if ($pfix->isa('IRC::Server::Pluggable::IRC::Peer')) {
-        ## Peer relaying to local or peer.
-          if ($opts{local}) {
-            $as_hash{prefix} = $pfix->name
-          } else {
-            $as_hash{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name
-          }
+      last CASE_FROM
+    }
 
-          last CASE_FROM
-        }
+    if ($pfix->isa('IRC::Server::Pluggable::IRC::Peer')) {
+    ## Peer relaying to local or peer.
+      if ($opts{local}) {
+        $as_hash{prefix} = $pfix->name
+      } else {
+        $as_hash{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name
+      }
 
-        confess "Do not know how to handle blessed prefix $pfix"
-      } # CASE_FROM
-  }
+      last CASE_FROM
+    }
+
+    confess "Do not know how to handle blessed prefix $pfix"
+  } # CASE_FROM
 
   ## Automagically uid_or_nick/uid_or_full any User/Peer objs in params:
-  ## FIXME needs to handle params_nick_only
-  ## FIXME needs to be well-documented; consumers should be explicit if
-  ##  necessary
   $as_hash{params} = [
     map {;
         my $param = $_;
 
         if (blessed $param) {
-          ( $param = $self->uid_or_nick($param, $peer) )
-            if $param->isa('IRC::Server::Pluggable::IRC::User');
 
-          ( $param = $param->has_sid ? $param->sid : $param->name )
-            if $param->isa('IRC::Server::Pluggable::IRC::Peer');
+          if      ($param->isa('IRC::Server::Pluggable::IRC::User')) {
+            $param = $opts{params_nick_only} ?
+              $self->uid_or_nick($param, $peer) 
+              : $self->uid_or_full($param, $peer)
+          } elsif ($param->isa('IRC::Server::Pluggable::IRC::Peer')) {
+            $param = $param->has_sid ? 
+              $param->sid 
+              : $param->name 
+          }
+
         }
 
         $param
@@ -150,7 +162,6 @@ sub __send_parse_identifiers {
 
   ev(%$as_hash)
 }
-
 
 
 
@@ -170,7 +181,6 @@ sub __send_parse_identifiers {
 ## FIXME
  ... handle eventsets (build new evset from parsed events)?
      -> or just deprecate eventsets
- ... move up and document as primary send API
 
 =cut
 
@@ -180,6 +190,9 @@ sub send_to_targets {
   ## See send_to_local_peers
   my ($self, %opts) = @_;
   my $event = $opts{event};
+
+  push @{ $opts{targets} }, delete $opts{target}
+    if defined $opts{target};
 
   confess "Expected at least 'event =>' and 'targets =>' params"
     unless Scalar::Util::reftype $event eq 'HASH'
@@ -237,6 +250,95 @@ sub send_to_targets {
 }
 
 
+=pod
+
+=head2 send_numeric
+
+  $proto->send_numeric( $numeric =>
+    target => $user_obj,
+    routes => [ @routes ],
+    params => [ @extra_params ],
+  );
+
+Create and send a predefined numeric-type error response; see
+L<IRC::Server::Pluggable::IRC::Numerics>.
+
+=cut
+
+sub send_numeric {
+  my ($self, $numeric, %params) = @_;
+  my $target = $params{target};
+  confess "Expected a numeric and an IRC::User 'target =>'"
+    unless blessed $target
+    and $target->isa('IRC::Server::Pluggable::IRC::User');
+
+  if ($target->has_conn) {
+    ## Local user. Do prefix conversion.
+    my $prefix;
+    if (defined $params{prefix}) {
+      if (blessed $params{prefix}) {
+        $prefix = $params{prefix} == $self ?
+          $self->config->server_name : $params{prefix}->name;
+      } else {
+        $prefix = $params{prefix}
+      }
+    } else {
+      $prefix = $self->config->server_name
+    }
+
+    $self->send_to_routes(
+      $self->numeric->to_hash(
+        target => $target,
+        prefix => $prefix,
+        params => ( 
+          ref $params{params} eq 'ARRAY' ?
+            $params{params} : [ $params{params}||() ]
+        ),
+      ), 
+      $target
+    );
+  } else {
+    ## Remote user.
+    ## We want name/SID of self or 'prefix =>' peer
+    ## + numeric + target UID or nick
+    my $next_hop  = $target->route;
+    my $peer      = $self->peers->by_id($next_hop);
+    my $prefix;
+    NPREFIX: {
+      unless (defined $params{prefix}) {
+        ## Assume from local.
+        $prefix = $self->__send_peer_correct_self_prefix($peer);
+        last NPREFIX
+      }
+
+      if (blessed $params{prefix}) {
+        if ($peer->has_sid && $params{prefix}->has_sid) {
+          $params{prefix}->sid
+        } else {
+          $prefix = $params{prefix}->name
+        }
+        last NPREFIX
+      }
+
+      $prefix = $params{prefix}
+    }
+
+    my $params = ref $params{params} eq 'ARRAY' ?
+      $params{params} : [ $params{params} || () ];
+    my $endpoint = $self->uid_or_nick($target, $peer);
+
+    $self->send_to_routes(
+      +{
+        command => $numeric,
+        prefix  => $prefix,
+        params  => [ $endpoint, @$params ],
+      },
+      $target
+    );
+  }
+
+  1
+}
 
 
 =pod
@@ -263,6 +365,7 @@ sub send_to_local_peer {
     %opts
   )
 }
+
 
 =pod
 
@@ -343,116 +446,11 @@ sub send_to_local_peers {
 }
 
 
-
-
-=pod
-
-=head2 send_numeric
-
-  $proto->send_numeric( $numeric =>
-    target => $user_obj,
-    routes => [ @routes ],
-    params => [ @extra_params ],
-  );
-
-Create and send a predefined numeric-type error response; see
-L<IRC::Server::Pluggable::IRC::Numerics>.
-
-=cut
-
-## FIXME
-##  Needs to send TS6 prefix & targets appropriately
-##  see rb/send.c sendto_one_numeric
-##   - needs to take objects, not routes
-##       target => $params{target},          ## User
-##       prefix => $optional_specified_pfix, ## Convert Peer or $self objs
-##       params => [ ],  ## Stays the same
-##   - needs to check remote types
-##     peers get self name/ID, numeric, target name/ID
-##     local gets numeric->to_hash()
-##   - consumers should always call send_numeric
-##     for automagic TS translation
-
-sub send_numeric {
-  my ($self, $numeric, %params) = @_;
-  my $target = $params{target};
-  confess "Expected a numeric and an IRC::User 'target =>'"
-    unless blessed $target
-    and $target->isa('IRC::Server::Pluggable::IRC::User');
-
-  if ($target->has_conn) {
-    ## Local user. Do prefix conversion.
-    my $prefix;
-    if (defined $params{prefix}) {
-      if (blessed $params{prefix}) {
-        $prefix = $params{prefix} == $self ?
-          $self->config->server_name : $params{prefix}->name;
-      } else {
-        $prefix = $params{prefix}
-      }
-    } else {
-      $prefix = $self->config->server_name
-    }
-
-    $self->send_to_routes(
-      $self->numeric->to_hash(
-        target => $target,
-        prefix => $prefix,
-        params => ( 
-          ref $params{params} eq 'ARRAY' ?
-            $params{params} : [ $params{params}||() ]
-        ),
-      ), 
-      $target
-    );
-  } else {
-    ## Remote user.
-    ## We want name/SID of self or 'prefix =>' peer
-    ## + numeric + target UID or nick
-    my $next_hop  = $target->route;
-    my $peer      = $self->peers->by_id($next_hop);
-    my $prefix;
-    NPREFIX: {
-      unless (defined $params{prefix}) {
-        ## Assume from local.
-        $prefix = $self->__send_peer_correct_self_prefix($peer);
-        last NPREFIX
-      }
-
-      if (blessed $params{prefix}) {
-        if ($peer->has_sid && $params{prefix}->has_sid) {
-          $params{prefix}->sid
-        } else {
-          $prefix = $params{prefix}->name
-        }
-        last NPREFIX
-      }
-
-      $prefix = $params{prefix}
-    }
-
-    my $params = ref $params{params} eq 'ARRAY' ?
-      $params{params} : [ $params{params} || () ];
-    my $endpoint = $self->uid_or_nick($target, $peer);
-
-    $self->send_to_routes(
-      +{
-        command => $numeric,
-        prefix  => $prefix,
-        params  => [ $endpoint, @$params ],
-      },
-      $target
-    );
-  }
-
-  1
-}
-
-
-
 =pod
 
 =head2 send_to_routes
+
+  $proto->send_to_routes( $event, @routes );
 
 B<send_to_routes> / B<send_to_route> are low-level Protocol message
 dispatchers; these bridge the Dispatcher layer and are used by the 

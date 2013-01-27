@@ -7,7 +7,7 @@ use strictures 1;
 
 use Moo::Role;
 use IRC::Server::Pluggable qw/
-  IRC::EventSet
+  IRC::Event
 /;
 
 

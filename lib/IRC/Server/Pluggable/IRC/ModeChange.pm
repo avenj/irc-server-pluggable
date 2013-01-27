@@ -9,8 +9,9 @@ use Moo;
 use IRC::Server::Pluggable qw/
   IRC::Mode
   Types
-  Utils
 /;
+
+use IRC::Toolkit::Modes;
 
 use Scalar::Util 'blessed';
 

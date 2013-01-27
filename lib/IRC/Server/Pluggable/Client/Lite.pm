@@ -1,18 +1,20 @@
 package IRC::Server::Pluggable::Client::Lite;
+use Carp 'confess';
+use strictures 1;
 
-use 5.12.1;
 use Moo;
 use POE;
-use Carp 'confess';
-
 
 use IRC::Server::Pluggable qw/
   Backend
   IRC::Event
-  Utils
-  Utils::Parse::CTCP
   Types
 /;
+
+use IRC::Toolkit::Case;
+use IRC::Toolkit::CTCP;
+
+use POE::Filter::IRCv3;
 
 
 ### Required:
@@ -119,10 +121,7 @@ has backend => (
 
 sub _build_backend {
   my ($self) = @_;
-  my $filter = prefixed_new( 'IRC::Filter' => 
-    colonify => 0,
-  );
-
+  my $filter = POE::Filter::IRCv3->new(colonify => 0);
   prefixed_new( 'Backend' =>
     filter_irc => $filter,
   )
@@ -584,7 +583,7 @@ Sends a NOTICE to the specified target.
 
 Encodes and sends a CTCP B<request> to the target.
 (To send a CTCP B<reply>, send a L</notice> that has been quoted via
-L<IRC::Server::Pluggable::Utils::Parse::CTCP/"ctcp_quote">.)
+L<IRC::Toolkit::CTCP/"ctcp_quote">.)
 
 =head3 mode
 
@@ -630,7 +629,7 @@ L<IRC::Server::Pluggable::Backend>
 
 L<IRC::Server::Pluggable::IRC::Event>
 
-L<IRC::Server::Pluggable::IRC::Filter>
+L<POE::Filter::IRCv3>
 
 L<MooX::Role::POE::Emitter>
 

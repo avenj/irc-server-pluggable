@@ -87,6 +87,8 @@ my $build = $class->new(
     'strictures'                => 1,
     'namespace::clean'          => '0.23',
 
+    'IRC::Toolkit'              => 0,
+
     'Module::Runtime'           => 0,
     'Moo'                       => '1.000003',
     'MooX::Types::MooseLike'    => '0.15',
@@ -100,7 +102,7 @@ my $build = $class->new(
     'POE::Component::Client::DNS'          => 0,
     'POE::Component::Client::Ident::Agent' => 0,
     'POE::Component::SSLify'    => '1.006',
-    'POE::Filter::IRCD'         => 0,
+    'POE::Filter::IRCv3'        => 0,
     'POE::Filter::Zlib'         => 0,
 
     'Try::Tiny'                 => 0,

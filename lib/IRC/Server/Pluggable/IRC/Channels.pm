@@ -16,7 +16,6 @@ use Scalar::Util 'blessed';
 
 use IRC::Server::Pluggable qw/
   Types
-  Utils
 /;
 
 
@@ -208,8 +207,8 @@ sub status_char_for_user_multiprefix {
   ## A CAP multi-prefix implementation would allow for @%+, @+ etc..
   my $str;
   for my $modechar ($self->available_status_modes) {
-    $str .= $self->status_prefix_for_mode($modechr)
-      if $self->user_has_status($user_obj, $chan_name, $modechr)
+    $str .= $self->status_prefix_for_mode($modechar)
+      if $self->user_has_status($user_obj, $chan_name, $modechar)
   }
 
   $str // ()

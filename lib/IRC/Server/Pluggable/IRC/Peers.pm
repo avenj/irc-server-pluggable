@@ -8,8 +8,9 @@ use Moo;
 
 use IRC::Server::Pluggable qw/
   Types
-  Utils
 /;
+
+use IRC::Toolkit::Masks;
 
 use Scalar::Util 'weaken';
 

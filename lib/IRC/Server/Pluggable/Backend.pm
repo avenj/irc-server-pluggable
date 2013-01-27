@@ -14,7 +14,6 @@ use IRC::Server::Pluggable qw/
   Backend::Utils
 
   IRC::Event
-  IRC::Filter
 
   Types
 /;
@@ -32,8 +31,9 @@ use POE qw/
   Component::SSLify
 
   Filter::Stackable
-  Filter::Line
 
+  Filter::IRCv3
+  Filter::Line
   Filter::Zlib::Stream
 /;
 
@@ -74,9 +74,7 @@ has 'filter_irc' => (
   isa     => InstanceOf['POE::Filter'],
   is      => 'rwp',
   default => sub {
-    prefixed_new( 'IRC::Filter', 
-      colonify => 1,
-    )
+    POE::Filter::IRCv3->new(colonify => 1)
   },
 );
 
@@ -1010,7 +1008,7 @@ disconnection.
     $conn_id,
   );
 
-Feeds L<IRC::Server::Pluggable:IRC::Filter> and sends the resultant raw IRC 
+Feeds L<POE::Filter::IRCv3> and sends the resultant raw IRC 
 line to the specified connection wheel ID.
 
 =head3 session_id

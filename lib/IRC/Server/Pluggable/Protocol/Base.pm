@@ -459,8 +459,16 @@ sub irc_ev_peer_numeric {
   my $target_nick = $event->params->[0];
   my $target_user = $self->users->by_name($target_nick) || return;
 
-  ## FIXME TS translation?
-  $self->send_to_routes( $event, $target_user->route );
+  ## If this came off a TS6 peer, it should've carried a TS6 prefix:
+  my $prefix_peer = $self->peers->by_id($conn->wheel_id)->has_sid ?
+    $self->peers->by_sid($event->prefix)
+    : $self->peers->by_name($event->prefix);
+
+  $self->send_numeric( $event->command,
+    target => $target_user,
+    prefix => $prefix_peer,
+    params => $event->params,
+  );
 }
 
 sub irc_ev_client_cmd {
@@ -517,7 +525,7 @@ sub uid_or_full {
       and $peer->isa('IRC::Server::Pluggable::IRC::Peer');
 
   if ($peer->type eq 'TS' && $peer->type_version == 6) {
-    return $user->uid
+    return $user->uid if $user->has_uid
   }
   $user->full
 }
@@ -531,7 +539,7 @@ sub uid_or_nick {
       and $peer->isa('IRC::Server::Pluggable::IRC::Peer');
 
   if ($peer->type eq 'TS' && $peer->type_version == 6) {
-    return $user->uid
+    return $user->uid if $user->has_uid
   }
   $user->nick
 }

@@ -3,6 +3,10 @@ package IRC::Server::Pluggable::Protocol::Role::Motd;
 use Moo::Role;
 use strictures 1;
 
+use IRC::Server::Pluggable qw/
+  IRC::Event
+/;
+
 use namespace::clean;
 
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
@@ -26,72 +30,57 @@ sub cmd_from_client_motd {
       my $peer;
       unless ($peer = $self->peers->by_name($request_peer) ) {
         ## Don't know this peer. Send 402
-        my $output = $self->numeric->to_hash( 402,
-          prefix => $server,
-          target => $nickname,
+        $self->send_numeric( 402 => 
+          prefix => $self,
+          target => $user,
+          params => [ $peer->name ],
         );
-        $self->send_to_routes( $output, $peer->route );
         return
       }
 
       ## Relayed elsewhere.
-      $self->send_to_routes(
-        {
-            prefix  => $nickname,
-            command => 'MOTD',
-            params  => $peer->name,
-        },
-        $peer->route
+      $self->send_to_targets(
+        event => ev(
+          prefix  => $user,
+          command => 'MOTD',
+          params  => [ $peer->name ],
+        ),
+        targets => [ $peer ],
       );
-
-      ## Handled.
       return 1
     }
   }  ## REMOTE
 
-  ## 422 if no MOTD
   unless ($self->config->has_motd) {
-    my $output = $self->numeric->to_hash( 422,
-      prefix => $server,
-      target => $nickname,
+    $self->send_numeric( 422 =>
+      prefix => $self,
+      target => $user,
     );
-
-    $self->send_to_routes( $output, $user->route );
-
     return 1
   }
 
-  $self->send_to_routes(
-    {
-      prefix  => $server,
-      command => '375',
-      params  => [ $nickname, "- $server Message of the day - "],
-    },
-    $user->route
+  my @outgoing = ev(
+    prefix  => $self,
+    command => '375',
+    params  => [ $user, "- $server Message of the day - "],
   );
 
   my @motd = @{ $self->config->motd };
+  push @outgoing, ev(
+      prefix  => $self,
+      command => '372',
+      params  => [ $user, "- ".$_ ],
+  ) for @{ $self->config->motd };
 
-  for my $line (@motd) {
-    $self->send_to_routes(
-      {
-        prefix  => $server,
-        command => '372',
-        params  => [ $nickname, "- $line" ],
-      },
-      $user->route
-    );
-  }
-
-  $self->send_to_routes(
-    {
-      prefix  => $server,
-      command => '376',
-      params  => [ $nickname, "End of MOTD command" ],
-    },
-    $user->route
+  $self->send_to_targets(
+    event  => $_,
+    target => $user,
+  ) for @outgoing, ev(
+    prefix => $self,
+    command => '376',
+    params  => [ $user, "End of MOTD command" ],
   );
-
+ 
   1
 }
 

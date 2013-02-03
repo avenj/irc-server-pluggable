@@ -312,9 +312,11 @@ sub handle_message_relay {
   $params{type} = lc $params{type};
 
   unless (blessed $params{src_conn} &&
-      $params{src_conn}->isa('IRC::Server::Pluggable::Backend::Connect')) {
-    confess "Cannot handle_message_relay;",
-      "Expected 'src_conn' to be an IRC::Server::Pluggable::Backend::Connect"
+      $params{src_conn}->isa('POEx::IRC::Backend::Connect')) {
+    confess 
+      "Cannot handle_message_relay; ",
+      "Expected 'src_conn' to be a POEx::IRC::Backend::Connect; ", 
+      "got $params{src_conn}"
     ## FIXME handle src eq spoofed? these should still have a user obj
   }
 

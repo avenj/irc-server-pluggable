@@ -41,7 +41,7 @@ has '_backend_class' => (
   builder => '_build_backend_class',
 );
 
-sub _build_backend_class { 'IRC::Server::Pluggable::Backend' }
+sub _build_backend_class { 'POEx::IRC::Backend' }
 
 
 has 'backend' => (

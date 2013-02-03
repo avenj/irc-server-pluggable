@@ -213,7 +213,7 @@ sub disconnect {
       ## We can't disconnect remotes with an ERROR; someone is an idiot:
       confess "error type disconnect called but no Backend::Connect"
         unless blessed $conn
-        and $conn->isa('IRC::Server::Pluggable::Backend::Connect');
+        and $conn->isa('POEx::IRC::Backend::Connect');
 
       ## Send ERROR and call for a backend disconnect:
       $self->_r_disconnect_with_error( $target_type, $conn,
@@ -313,7 +313,7 @@ sub _r_disconnect_get_target_type {
     }
 
     if (blessed $target
-      && $target->isa('IRC::Server::Pluggable::Backend::Connect') ) {
+      && $target->isa('POEx::IRC::Backend::Connect') ) {
 
       $target_type = $target->is_client ? LOCAL_USER_CONN
                      : $target->is_peer ? LOCAL_PEER_CONN

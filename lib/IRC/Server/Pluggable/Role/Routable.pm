@@ -14,7 +14,7 @@ has 'conn' => (
   writer    => 'set_conn',
   clearer   => 'clear_conn',
   isa       => sub {
-    my $wantclass = "IRC::Server::Pluggable::Backend::Connect";
+    my $wantclass = "POEx::IRC::Backend::Connect";
     blessed($_[0]) and $_[0]->isa($wantclass)
       or confess "$_[0] is not a $wantclass"
   },
@@ -54,7 +54,7 @@ FIXME
 =head1 DESCRIPTION
 
 A Role whose consumer receives attributes defining a route and potentially a
-directly-attached L<IRC::Server::Pluggable::Backend::Connect> object.
+directly-attached L<POEx::IRC::Backend::Connect> object.
 
 =head2 conn
 

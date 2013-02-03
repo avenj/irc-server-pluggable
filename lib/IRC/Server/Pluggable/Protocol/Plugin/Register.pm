@@ -384,7 +384,7 @@ Listens for connection events and issues asynchronous DNS/identd lookups.
 
 Emits B<register_complete> when DNS and identd lookups have finished
 (with either success or failure); carries the
-L<IRC::Server::Pluggable::Backend::Connect> object and a hash containing
+L<POEx::IRC::Backend::Connect> object and a hash containing
 resolved C<host> / C<ident> keys (whose values are undefined if
 lookups were unsuccessful):
 

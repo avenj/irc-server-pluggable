@@ -83,11 +83,15 @@ my $build = $class->new(
     'Carp'     => 0,
     'Exporter' => 0,
     'Socket'   => 2,
+    'Scalar::Util' => 0,
+    'Task::Weaken' => 0,
+
+    'Const::Fast'  => 0,
 
     'strictures'                => 1,
     'namespace::clean'          => '0.23',
 
-    'IRC::Toolkit'              => 0,
+    'IRC::Toolkit'              => '0.070001',
 
     'Module::Runtime'           => 0,
     'Moo'                       => '1.000003',
@@ -96,14 +100,13 @@ my $build = $class->new(
     'MooX::Role::Pluggable'     => '0.02',
     'MooX::Struct'              => '0.010',
 
-    'Net::IP::Minimal'          => '0.04',
-
     'POE'                       => '1.3',
     'POE::Component::Client::DNS'          => 0,
     'POE::Component::Client::Ident::Agent' => 0,
     'POE::Component::SSLify'    => '1.006',
     'POE::Filter::IRCv3'        => 0,
     'POE::Filter::Zlib'         => 0,
+    'POEx::IRC::Backend'        => 0,
 
     'Try::Tiny'                 => 0,
   },

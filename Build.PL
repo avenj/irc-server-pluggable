@@ -91,7 +91,7 @@ my $build = $class->new(
     'strictures'                => 1,
     'namespace::clean'          => '0.23',
 
-    'IRC::Toolkit'              => '0.070001',
+    'IRC::Toolkit'              => '0.081000',
 
     'Module::Runtime'           => 0,
     'Moo'                       => '1.000003',

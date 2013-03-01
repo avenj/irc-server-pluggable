@@ -68,9 +68,6 @@ use namespace::clean;
 
 with 'MooX::Role::POE::Emitter';
 
-with 'IRC::Server::Pluggable::Role::CaseMap';
-
-
 ### Core attribs
 
 has 'autoloaded_plugins' => (
@@ -139,8 +136,9 @@ has 'casemap' => (
   predicate => 'has_casemap',
   builder   => '_build_casemap',
 );
-
 sub _build_casemap {  'rfc1459'  }
+
+with 'IRC::Toolkit::Role::CaseMap';
 
 
 has 'channel_types' => (

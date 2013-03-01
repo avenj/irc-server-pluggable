@@ -45,7 +45,7 @@ has 'casemap' => (
   is      => 'ro',
   default => sub { 'ascii' },
 );
-with 'IRC::Server::Pluggable::Role::CaseMap';
+with 'IRC::Toolkit::Role::CaseMap';
 
 has 'is_bursting' => (
   lazy    => 1,

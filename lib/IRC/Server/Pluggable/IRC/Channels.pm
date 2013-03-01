@@ -31,7 +31,7 @@ has 'casemap' => (
   predicate => 'has_casemap',
 );
 
-with 'IRC::Server::Pluggable::Role::CaseMap';
+with 'IRC::Toolkit::Role::CaseMap';
 
 
 has '_channels' => (

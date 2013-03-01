@@ -26,7 +26,7 @@ has casemap => (
   isa      => CaseMap,
 );
 
-with 'IRC::Server::Pluggable::Role::CaseMap';
+with 'IRC::Toolkit::Role::CaseMap';
 
 has _users => (
   ## Map (lowercased) nicknames to User objects.

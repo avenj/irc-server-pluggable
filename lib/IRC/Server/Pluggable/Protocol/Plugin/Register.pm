@@ -1,12 +1,7 @@
 package IRC::Server::Pluggable::Protocol::Plugin::Register;
+use Defaults::Modern;
 
 ## Conceptually based on POE::Component::Server::IRC::Plugin::Auth
-
-use 5.12.1;
-use strictures 1;
-
-use Carp;
-use Moo;
 
 use IRC::Server::Pluggable qw/
   Constants
@@ -18,6 +13,8 @@ use POE qw/
   Component::Client::Ident::Agent
 /;
 
+
+use Moo;
 use namespace::clean;
 
 has 'session_id' => (

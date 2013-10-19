@@ -50,7 +50,6 @@ my @base_roles = map { $base_role_prefix . $_ } qw/
 /;
 
 use Carp;
-use Moo;
 use POE;
 
 use IRC::Server::Pluggable qw/
@@ -61,10 +60,11 @@ use IRC::Server::Pluggable qw/
 /;
 
 
+use Moo;
 use namespace::clean;
 
-
 with 'MooX::Role::POE::Emitter';
+
 
 ### Core attribs
 
@@ -171,8 +171,7 @@ has 'version_string' => (
 );
 
 sub _build_version_string {
-  my ($self) = @_;
-  'irc-server-pluggable-'. $VERSION
+  'irc-server-pluggable-'. __PACKAGE__->VERSION
 }
 
 
@@ -262,9 +261,7 @@ sub _build_numeric {
 with @base_roles;
 
 
-sub BUILD {
-  my ($self) = @_;
-
+method BUILD {
   ## FIXME set a DIE handler?
   ##  or turn off exception-catching globally somewheres?
 
@@ -310,15 +307,12 @@ sub BUILD {
   $self->_start_emitter;
 }
 
-sub DEMOLISH {
-  my ($self, $in_gd) = @_;
+method DEMOLISH ($in_gd) {
   return if $in_gd;
   $self->_shutdown_emitter;
 }
 
-sub _load_core_plugins {
-  my ($self) = @_;
-
+method _load_core_plugins {
   ## Array-of-arrays:
   ##  [ [ $alias, $class, @args ], [ $alias, $class, @args ] ]
   ## See autoloaded_plugins attrib
@@ -356,9 +350,7 @@ sub _emitter_started {
 }
 
 
-sub protocol_dispatch {
-  my ($self, $event_name, @args) = @_;
-
+method protocol_dispatch ($event_name, @args) {
   ## This is a cheap implementation of internal dispatch,
   ## aimed at flexibly dispatching events synchronously
   ## within a Protocol and making it possible to return unknown cmd
@@ -515,28 +507,14 @@ sub irc_ev_unknown_cmd {
 }
 
 
-sub uid_or_full {
-  my ($self, $user, $peer) = @_;
-  
-  confess "Expected an IRC::User and IRC::Peer respectively"
-    unless blessed $user and blessed $peer
-      and $user->isa('IRC::Server::Pluggable::IRC::User')
-      and $peer->isa('IRC::Server::Pluggable::IRC::Peer');
-
+method uid_or_full (UserObj $user, PeerObj $peer) {
   if ($peer->type eq 'TS' && $peer->type_version == 6) {
     return $user->uid if $user->has_uid
   }
   $user->full
 }
 
-sub uid_or_nick {
-  my ($self, $user, $peer) = @_;
-
-  confess "Expected an IRC::User and IRC::Peer respectively"
-    unless blessed $user and blessed $peer
-      and $user->isa('IRC::Server::Pluggable::IRC::User');
-      and $peer->isa('IRC::Server::Pluggable::IRC::Peer');
-
+method uid_or_nick (UserObj $user, PeerObj $peer) {
   if ($peer->type eq 'TS' && $peer->type_version == 6) {
     return $user->uid if $user->has_uid
   }

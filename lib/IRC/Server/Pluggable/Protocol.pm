@@ -1,33 +1,22 @@
 package IRC::Server::Pluggable::Protocol;
+use Defaults::Modern;
 
 ## Extends Protocol::Base by consuming various Protocol::Roles.
 ## (Consuming the base set of Roles should form a workable IRCD.)
 
-use 5.12.1;
-use strictures 1;
+define PROTO_ROLE_PREFIX = 'IRC::Server::Pluggable::Protocol::Role::TS::';
 
-sub PROTO_ROLE_PREFIX () {
-  'IRC::Server::Pluggable::Protocol::Role::TS::'
-}
+use Moo;
+use namespace::clean;
 
 my @base_roles = map { PROTO_ROLE_PREFIX . $_ } qw/
  ## FIXME
 /;
 
-
-use Moo;
-use namespace::clean;
-
-
 extends 'IRC::Server::Pluggable::Protocol::Base';
 with @base_roles;
 
-
-no warnings 'void';
-q{
-<Gilded> I'm only level 24 myself so I try to avoid the hard quests
- like "Job" or "Sex"
-};
+1
 
 =pod
 

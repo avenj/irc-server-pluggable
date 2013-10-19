@@ -1,111 +1,92 @@
 package IRC::Server::Pluggable::Types;
-
 use strictures 1;
 
-use Exporter 'import';
-use MooX::Types::MooseLike;
-use MooX::Types::MooseLike::Base qw/:all/;
+use Type::Library -base;
 
-our @EXPORT_OK;
+use Type::Utils   -all;
+use Types::Standard -types;
+use Types::TypeTiny ();
 
-use Scalar::Util 'blessed';
 
-my $type_definitions = [
-  ## IRC bits
-  {
-    name => 'CaseMap',
-    test => sub {
-      is_Str($_[0]) &&
-      (
-       $_[0] eq 'rfc1459'
-       || $_[0] eq 'ascii'
-       || $_[0] eq 'strict-rfc1459'
-      )
-    },
-    message => sub {
-     "$_[0] is not a valid IRC casemap, "
-     ."should be one of: rfc1459, ascii, strict-rfc1459"
-    },
+declare CaseMap =>
+  as Str(),
+  where {
+    $_ eq 'rfc1459' || $_ eq 'ascii' || $_ eq 'strict-rfc1459'
   },
+  inline_as {
+    my ($constraint, $cmap) = @_;
+    $constraint->parent->inline_check($cmap) . qq{
+      && ($cmap eq 'rfc1459' || $cmap eq 'ascii' || $cmap eq 'strict-rfc1459')
+    }
+  };
 
-  {
-    name => 'IRC_Nickname',
-    test => \&test_valid_nickname,
-    message => sub { "$_[0] is not a valid IRC nickname" },
+declare IRC_Nickname =>
+  as Str(),
+  where {
+    $_ =~ /^[A-Za-z_`\-^\|\\\{}\[\]][A-Za-z_0-9`\-^\|\\\{}\[\]]*$/
   },
+  inline_as {
+    my ($constraint, $var) = @_;
+    my $re = '^[A-Za-z_`\-^\|\\\{}\[\]][A-Za-z_0-9`\-^\|\\\{}\[\]]*$';
+    $constraint->parent->inline_check($var) . qq{
+      && ($var =~ /$re/)
+    }
+  };
 
-  {
-    name => 'IRC_Username',
-    test => \&test_valid_name,
-    message => sub { "$_[0] is not a valid IRC username" },
+declare IRC_Username =>
+  as Str(),
+  where {
+    ## Must start with alphanumeric
+    ## Valid: A-Z 0-9 . - $ [ ] \ ^ _ ` { } ~ |
+    ## This is a pretty loose definition matching oftc-hybrid-1.6.7
+    $_ =~ /^~?[A-Za-z0-9][A-Za-z0-9.\-\$\[\]\\^_`\|\{}~]+$/
   },
+  inline_as {
+    my ($constraint, $var) = @_;
+    my $re = '^~?[A-Za-z0-9][A-Za-z0-9.\-\$\[\]\\^_`\|\{}~]+$';
+    $constraint->parent->inline_check($var) . qq{
+      && ($var =~ /$re/)
+    }
+  };
 
-  {
-    name => 'IRC_Hostname',
-    test => \&test_valid_hostname,
-    message => sub { "$_[0] is not a valid IRC hostname" },
+declare IRC_Hostname =>
+  as Str(),
+  where {
+    $_ =~ /^[A-Za-z0-9\|\-.\/:]+$/
   },
-  {
-    name => 'TS_ID',
-    test => sub {
-      is_Str($_[0]) && $_[0] =~ /^[A-Z][A-Z0-9]+$/
-    },
-    message => sub { "$_[0] is not a valid TS6 ID" },
+  inline_as {
+    my ($constraint, $var) = @_;
+    my $re = '^[A-Za-z0-9\|\-.\/:]+$';
+    $constraint->parent->inline_check($var) . qq{
+      && ($var =~ /$re/)
+    }
+  };
+
+declare TS_ID =>
+  as Str(),
+  where {
+    $_ =~ /^[A-Z][A-Z0-9]+$/
   },
+  inline_as {
+    my ($constraint, $var) = @_;
+    my $re = '^[A-Z][A-Z0-9]+$';
+    $constraint->parent->inline_check($var) . qq{ 
+      && ($var =~ /$re/)
+    }
+  };
 
-  ## Misc
-  {
-    name => 'InetProtocol',
-    test => sub { $_[0] && $_[0] == 4 || $_[0] == 6 },
-    message => sub { "$_[0] is not inet protocol 4 or 6" },
+declare InetProtocol =>
+  as Int(),
+  where {
+    $_ == 4 || $_ == 6
   },
-];
+  inline_as {
+    my ($constraint, $var) = @_;
+    $constraint->parent->inline_check($var) . qq{
+      && ($var == 4 || $var == 6)
+    }
+  };
 
-sub test_valid_nickname {
-  my ($str) = @_;
-
-  return unless defined $str and length $str;
-
-  return unless
-    $str =~ /^[A-Za-z_`\-^\|\\\{}\[\]][A-Za-z_0-9`\-^\|\\\{}\[\]]*$/;
-
-  1
-}
-
-sub test_valid_username {
-  my ($str) = @_;
-
-  return unless defined $str and length $str;
-
-  ## Skip leading ~
-  substr($str, 0, 1, '') if index($str, '~') == 0;
-
-  ## Must start with alphanumeric
-  ## Valid: A-Z 0-9 . - $ [ ] \ ^ _ ` { } ~ |
-  ## This is a pretty loose definition matching oftc-hybrid-1.6.7
-  return unless $str =~ /^[A-Za-z0-9][A-Za-z0-9.\-\$\[\]\\^_`\|\{}~]+$/;
-
-  1
-}
-
-sub test_valid_hostname {
-  my ($str) = @_;
-
-  return unless defined $str and length $str;
-
-  return unless $str =~ /^[A-Za-z0-9\|\-.\/:]+$/;
-
-  1
-}
-
-MooX::Types::MooseLike::register_types(
-  $type_definitions, __PACKAGE__
-);
-
-our @EXPORT = (
-  @EXPORT_OK,
-  @MooX::Types::MooseLike::Base::EXPORT_OK
-);
 
 no warnings 'void';
 q{
@@ -120,7 +101,7 @@ q{
 
 =head1 NAME
 
-IRC::Server::Pluggable::Types - MooX::Types::MooseLike and extras
+IRC::Server::Pluggable::Types - Type::Tiny types for IRC servers
 
 =head1 SYNOPSIS
 
@@ -138,26 +119,11 @@ IRC::Server::Pluggable::Types - MooX::Types::MooseLike and extras
 
 =head1 DESCRIPTION
 
-This module exports all types from L<MooX::Types::MooseLike>, plus the
-following additional types:
-
-=head2 Misc
-
-=head3 InstanceOf
-
-  isa => InstanceOf['IRC::Server::Pluggable::Protocol::Base'];
-
-Parameterized type that checks L<UNIVERSAL/isa>.
-
-Expects an object whose inheritance tree contains the specified class.
-
 =head3 InetProtocol
 
   isa => InetProtocol,
 
 Expects an integer representing Internet protocol '4' or '6'
-
-=head2 IRC
 
 =head3 CaseMap
 

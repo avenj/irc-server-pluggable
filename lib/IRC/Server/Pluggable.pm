@@ -24,6 +24,7 @@ sub import {
   my @failed;
 
   for my $module (@modules) {
+    $module = "$module -all" if $module eq 'Types';
     my $c =
       "package $pkg; use IRC::Server::Pluggable::$module;" ;
 

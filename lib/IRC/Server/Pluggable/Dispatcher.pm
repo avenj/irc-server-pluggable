@@ -1,16 +1,8 @@
 package IRC::Server::Pluggable::Dispatcher;
-use 5.12.1;
-use strictures 1;
-
-use Carp qw/
-  carp 
-  cluck 
-  confess
-/;
+use Defaults::Modern;
 
 use Moo;
 use POE;
-use Scalar::Util 'blessed';
 
 use IRC::Server::Pluggable qw/
   Constants

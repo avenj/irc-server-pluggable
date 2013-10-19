@@ -87,6 +87,11 @@ declare InetProtocol =>
     }
   };
 
+declare UserObj =>
+  as InstanceOf['IRC::Server::Pluggable::IRC::User'];
+
+declare PeerObj =>
+  as InstanceOf['IRC::Server::Pluggable::IRC::Peer'];
 
 no warnings 'void';
 q{

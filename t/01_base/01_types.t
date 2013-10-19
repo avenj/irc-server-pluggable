@@ -3,7 +3,8 @@ use strict; use warnings FATAL => 'all';
 
 use IRC::Server::Pluggable 'Types';
 
-# FIXME nickname/user/host
+# FIXME nickname/user/host need thorough testing,
+#  these regexen aren't very well-vetted
 
 ok( !is_InetProtocol(1), 'InetProtocol reject' );
 ok( is_InetProtocol(4), 'InetProtocol(4)' );

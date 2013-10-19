@@ -1,6 +1,4 @@
 package IRC::Server::Pluggable::Constants;
-our $VERSION = '0.000_01';
-
 use strictures 1;
 
 use constant {

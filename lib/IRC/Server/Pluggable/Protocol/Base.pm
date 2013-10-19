@@ -1,7 +1,5 @@
 package IRC::Server::Pluggable::Protocol::Base;
-use 5.12.1;
-use strictures 1;
-our $VERSION = '0.000_01';
+use Defaults::Modern;
 
 ## Base class for Protocol sessions.
 ## Should primarily define attributes and start an Emitter.

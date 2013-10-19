@@ -1,9 +1,8 @@
 package IRC::Server::Pluggable::Role::Routable;
+use Defaults::Modern;
+
 
 use Moo::Role;
-use strictures 1;
-use Carp 'confess';
-use Scalar::Util 'blessed';
 
 has 'conn' => (
   lazy      => 1,
@@ -13,11 +12,7 @@ has 'conn' => (
   predicate => 'has_conn',
   writer    => 'set_conn',
   clearer   => 'clear_conn',
-  isa       => sub {
-    my $wantclass = "POEx::IRC::Backend::Connect";
-    blessed($_[0]) and $_[0]->isa($wantclass)
-      or confess "$_[0] is not a $wantclass"
-  },
+  isa       => InstanceOf['POEx::IRC::Backend::Connect'],
 );
 
 has 'route' => (
@@ -26,10 +21,7 @@ has 'route' => (
   predicate => 'has_route',
   writer    => 'set_route',
   clearer   => 'clear_route',
-  isa       => sub {
-    defined $_[0] and length "$_[0]"
-      or confess "Expected a route ID string, got $_[0]"
-  },
+  isa       => Str,
   default   => sub {
     my ($self) = @_;
     ## A local connect should have a wheel_id

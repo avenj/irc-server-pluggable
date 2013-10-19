@@ -267,6 +267,9 @@ with @base_roles;
 sub BUILD {
   my ($self) = @_;
 
+  ## FIXME set a DIE handler?
+  ##  or turn off exception-catching globally somewheres?
+
   $self->set_object_states(
     [
       $self => {

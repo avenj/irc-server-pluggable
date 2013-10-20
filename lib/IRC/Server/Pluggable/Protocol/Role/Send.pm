@@ -1,4 +1,5 @@
 package IRC::Server::Pluggable::Protocol::Role::Send;
+use Defaults::Modern;
 
 =pod
 
@@ -24,18 +25,13 @@ See L<IRC::Server::Pluggable::Protocol>.
 =cut
 
 
-use 5.12.1;
-use Carp;
-use Moo::Role;
-use strictures 1;
-
-use Scalar::Util 'blessed';
-
 use IRC::Server::Pluggable qw/
   IRC::Event
   Types
 /;
 
+
+use Moo::Role;
 use namespace::clean;
 
 requires qw/
@@ -54,17 +50,15 @@ requires qw/
 
 
 
-sub __send_retrieve_route {
-  my ($self, $peer_name_or_obj) = @_;
-  if ( blessed($peer_name_or_obj) ) {
+method __send_retrieve_route ($peer_name_or_obj) {
+  if (blessed $peer_name_or_obj) {
     ## Peer obj.
     return $peer_name_or_obj->route
   }
-  $self->peers->by_name($peer_name_or_obj) || $peer_name_or_obj    
+  $self->peers->by_name($peer_name_or_obj) || $peer_name_or_obj 
 }
 
-sub __send_peer_correct_self_prefix {
-  my ($self, $peer) = @_;
+method __send_peer_correct_self_prefix ($peer) {
   ## Get correct prefix for messages we are sending to a local peer.
   return $self->config->sid 
     if  $peer->type eq 'TS' 
@@ -72,60 +66,60 @@ sub __send_peer_correct_self_prefix {
   $self->config->server_name
 }
 
-sub __send_parse_identifiers {
-  my ($self, %opts) = @_;
+method __send_parse_identifiers (
+  :$event,
+  (PeerObj | Undef) :$peer  = undef,
+  :$local = 0,
+  :$prefix_nick_only = undef,
+  :$params_nick_only = undef
+) {
   ## Look for $user or $peer objects in an Event.
   ## Translate depending on Peer type.
-
-  my $as_hash  = %{ $opts{event}  || confess "Expected an 'event =>'" };
 
   ## FIXME these opts need to be documented somewheres
   ## rework existing _local_peers iface/POD
   ##  wrt prefix/params replacement opts?
 
-  my $peer = $opts{peer};
-  unless (blessed $peer) {
+  unless ($peer) {
     confess "Expected either a 'peer =>' obj or 'local => 1'"
-      unless $opts{local};
+      unless $local;
     ## FIXME is this correct?
-    $opts{prefix_nick_only} //= 0;
+    $prefix_nick_only //= 0;
   }
-  $opts{prefix_nick_only} //= 1;
-  $opts{params_nick_only} //= 1;
+  $prefix_nick_only //= 1;
+  $params_nick_only //= 1;
 
   ## Automagic $self / IRC::User / IRC::Peer prefix translation:
 
+  my %as_hash = %$event;
   CASE_FROM: { 
     my $pfix = $as_hash{prefix} || $self;
     last CASE_FROM unless blessed $pfix;
 
     if  ($pfix == $self) {
     ## Self talking to local or peer.
-      $as_hash{prefix} = $opts{local} ?
+      $as_hash{prefix} = $local ? 
         $self->config->server_name
         : $self->__send_peer_correct_self_prefix($peer);
 
       last CASE_FROM
     }
 
-    if ($pfix->isa('IRC::Server::Pluggable::IRC::User')) {
+    if (is_UserObj $pfix) {
     ## User talking to local or peer.
-      if ($opts{local}) {
-        $as_hash{prefix} = $opts{prefix_nick_only} ?
-          $pfix->nick 
-          : $pfix->full
+      if ($local) {
+        $as_hash{prefix} = $prefix_nick_only ? $pfix->nick : $pfix->full
       } else {
-        $as_hash{prefix} = $opts{prefix_nick_only} ?
-          $self->uid_or_nick($pfix, $peer) 
-          : $self->uid_or_full($pfix, $peer)
+        $as_hash{prefix} = $prefix_nick_only ? 
+          $self->uid_or_nick($pfix, $peer) : $self->uid_or_full($pfix, $peer)
       }
 
       last CASE_FROM
     }
 
-    if ($pfix->isa('IRC::Server::Pluggable::IRC::Peer')) {
+    if (is_PeerObj $pfix) {
     ## Peer relaying to local or peer.
-      if ($opts{local}) {
+      if ($local) {
         $as_hash{prefix} = $pfix->name
       } else {
         $as_hash{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name
@@ -141,26 +135,18 @@ sub __send_parse_identifiers {
   $as_hash{params} = [
     map {;
         my $param = $_;
-
-        if (blessed $param) {
-
-          if      ($param->isa('IRC::Server::Pluggable::IRC::User')) {
-            $param = $opts{params_nick_only} ?
-              $self->uid_or_nick($param, $peer) 
-              : $self->uid_or_full($param, $peer)
-          } elsif ($param->isa('IRC::Server::Pluggable::IRC::Peer')) {
-            $param = $param->has_sid ? 
-              $param->sid 
-              : $param->name 
-          }
-
+        if (is_UserObj $param) {
+          $param = $params_nick_only ?
+            $self->uid_or_nick($param, $peer) 
+            : $self->uid_or_full($param, $peer)
+        } elsif (is_PeerObj $param) {
+          $param = $param->has_sid ? $param->sid : $param->name
         }
-
         $param
       } @{ $as_hash{params} || [] }
   ];
 
-  ev(%$as_hash)
+  ev(%as_hash)
 }
 
 
@@ -184,13 +170,10 @@ sub __send_parse_identifiers {
 
 =cut
 
-sub send_to_targets {
+method send_to_targets (Ref :$event, %opts) {
   ## Handle relaying to arbitrary targets.
   ## $event should have a translatable prefix
   ## See send_to_local_peers
-  my ($self, %opts) = @_;
-  my $event = $opts{event};
-
   push @{ $opts{targets} }, delete $opts{target}
     if defined $opts{target};
 
@@ -208,7 +191,7 @@ sub send_to_targets {
     if ($target->has_conn) {
       ## Local connect.
 
-      if      ($target->isa('IRC::Server::Pluggable::IRC::User')) {
+      if (is_UserObj $target) {
         ## Local user.
         $self->send_to_routes( 
           $self->__send_parse_identifiers(
@@ -218,7 +201,7 @@ sub send_to_targets {
           ),
           $target->route
         );
-      } elsif ($target->isa('IRC::Server::Pluggable::IRC::Peer')) {
+      } elsif (is_PeerObj $target) {
         ## Local peer.
         $self->send_to_local_peer(
           event => $event,
@@ -265,22 +248,19 @@ L<IRC::Server::Pluggable::IRC::Numerics>.
 
 =cut
 
-sub send_numeric {
-  my ($self, $numeric, %params) = @_;
-  my $target = $params{target};
-  confess "Expected a numeric and an IRC::User 'target =>'"
-    unless blessed $target
-    and $target->isa('IRC::Server::Pluggable::IRC::User');
+method send_numeric (
+  Int     :$numeric,
+  UserObj :$target,
+  :$prefix = undef,
+  :$params = undef,
+) {
 
   if ($target->has_conn) {
     ## Local user. Do prefix conversion.
-    my $prefix;
-    if (defined $params{prefix}) {
-      if (blessed $params{prefix}) {
-        $prefix = $params{prefix} == $self ?
-          $self->config->server_name : $params{prefix}->name;
-      } else {
-        $prefix = $params{prefix}
+    if (defined $prefix) {
+      if (blessed $prefix) {
+        $prefix = $prefix == $self ? 
+          $self->config->server_name : $prefix->name;
       }
     } else {
       $prefix = $self->config->server_name
@@ -291,8 +271,8 @@ sub send_numeric {
         target => $target,
         prefix => $prefix,
         params => ( 
-          ref $params{params} eq 'ARRAY' ?
-            $params{params} : [ $params{params}||() ]
+          ref $params eq 'ARRAY' ?
+            $params : [ $params // () ]
         ),
       ), 
       $target
@@ -303,30 +283,25 @@ sub send_numeric {
     ## + numeric + target UID or nick
     my $next_hop  = $target->route;
     my $peer      = $self->peers->by_id($next_hop);
-    my $prefix;
     NPREFIX: {
-      unless (defined $params{prefix}) {
+      unless (defined $prefix) {
         ## Assume from local.
         $prefix = $self->__send_peer_correct_self_prefix($peer);
         last NPREFIX
       }
 
-      if (blessed $params{prefix}) {
-        if ($peer->has_sid && $params{prefix}->has_sid) {
-          $params{prefix}->sid
+      if (blessed $prefix) {
+        if ($peer->has_sid && $prefix->has_sid) {
+          $prefix->sid
         } else {
-          $prefix = $params{prefix}->name
+          $prefix = $prefix->name
         }
         last NPREFIX
       }
-
-      $prefix = $params{prefix}
     }
 
-    my $params = ref $params{params} eq 'ARRAY' ?
-      $params{params} : [ $params{params} || () ];
+    $params = [ $params // () ] unless ref $params eq 'ARRAY';
     my $endpoint = $self->uid_or_nick($target, $peer);
-
     $self->send_to_routes(
       +{
         command => $numeric,
@@ -351,17 +326,18 @@ sub send_numeric {
     except => $origin_peer,
   );
 
-Relay to a single next-hop peer. Sugar for L</send_to_local_peers>; parameters
-documented there also apply here.
+Relay to a single next-hop peer. Sugar for L</send_to_local_peers>; options
+documented there also apply to this method.
 
 =cut
 
-sub send_to_local_peer {
-  my ($self, %opts) = @_;
-  confess "Expected 'peer =>'" unless $opts{peer};
-  my $peer = delete $opts{peer};
+method send_to_local_peer (
+  :$peer,
+  :$peers = undef,
+  %opts
+) {
   $self->send_to_local_peers(
-    peers => [ $peer, ($opts{peers} ? @{ $opts{peers} } : ())  ],
+    peers => [ $peer, ($peers ? @$peers : ()) ],
     %opts
   )
 }
@@ -448,6 +424,8 @@ sub send_to_local_peers {
 
 =pod
 
+=for Pod::Coverage send_to_route
+
 =head2 send_to_routes
 
   $proto->send_to_routes( $event, @routes );
@@ -458,14 +436,12 @@ higher-level methods detailed above.
 
 =cut
 
-sub send_to_route  { shift->send_to_routes(@_) }
-sub send_to_routes {
-  my ($self, $output, @ids) = @_;
-  unless (ref $output && @ids) {
+method send_to_routes ( Ref $output, @ids ) {
   confess "send_to_routes() received insufficient params"
     unless @ids;
   $self->dispatcher->to_irc( $output, @ids )
 }
+{ no warnings 'once'; *send_to_route = *send_to_routes }
 
 
 1;

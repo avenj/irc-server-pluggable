@@ -1,31 +1,31 @@
 package IRC::Server::Pluggable::Dispatcher;
 use Defaults::Modern;
 
-use Moo;
-use POE;
-
 use IRC::Server::Pluggable qw/
   Constants
   Types
 /;
 
+use POE;
 
+use Moo;
+use MooX::late;
 use namespace::clean;
-
 
 with 'MooX::Role::POE::Emitter';
 
 
-has 'backend_opts' => (
+has backend_opts => (
   required  => 1,
   is        => 'ro',
-  isa       => HashRef,
+  isa       => HashObj,
+  coerce    => 1,
   writer    => 'set_backend_opts',
   predicate => 'has_backend_opts',
   clearer   => 'clear_backend_opts',
 );
 
-has '_backend_class' => (
+has _backend_class => (
   lazy    => 1,
   is      => 'ro',
   isa     => Str,
@@ -33,10 +33,10 @@ has '_backend_class' => (
   builder => '_build_backend_class',
 );
 
-sub _build_backend_class { 'POEx::IRC::Backend' }
+method _build_backend_class { 'POEx::IRC::Backend' }
 
 
-has 'backend' => (
+has backend => (
   lazy      => 1,
   is        => 'ro',
   isa       => HasMethods[qw/ send session_id /],
@@ -45,32 +45,27 @@ has 'backend' => (
   builder   => '_build_backend',
 );
 
-sub _build_backend {
-  my ($self) = @_;
-
+method _build_backend {
   my $b_class = $self->_backend_class;
 
   { local $@;
-      eval "require $b_class";
-      confess "Could not load $b_class : $@" if $@;
+    eval "require $b_class";
+    confess "Could not load $b_class : $@" if $@;
   }
 
-  my $obj = $b_class->spawn( %{ $self->backend_opts } );
+  my $obj = $b_class->spawn( $self->backend_opts->export );
   $self->clear_backend_opts;
 
   $obj
 }
 
 
-sub BUILD {
-  my ($self) = @_;
-
-  $self->set_event_prefix( "irc_ev_" )
-    unless $self->has_event_prefix;
+method BUILD {
+  $self->set_event_prefix( 'irc_ev_' ) unless $self->has_event_prefix;
 
   $self->set_object_states(
     [
-      $self => {
+      $self => +{
         'to_irc'   => '_to_irc',
         'shutdown' => '_shutdown',
       },
@@ -100,7 +95,7 @@ sub BUILD {
   );
 
   $self->set_pluggable_type_prefixes(
-    {
+    +{
       PROCESS => 'D_Proc',
       NOTIFY  => 'D_Notify',
     }
@@ -112,22 +107,15 @@ sub BUILD {
 
 ## Methods (and backing handlers)
 
-sub shutdown {
-  my $self = shift;
-
-  $poe_kernel->post( $self->session_id,
-    'shutdown',
-    @_
-  );
-
-  1
+method shutdown (@params) {
+  $poe_kernel->post( $self->session_id => shutdown => @params );
+  $self
 }
 
 sub _shutdown {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  $kernel->post( $self->backend->session_id,
-    'shutdown',
+  $kernel->post( $self->backend->session_id => shutdown => 
     @_[ARG0 .. $#_]
   );
 
@@ -136,10 +124,8 @@ sub _shutdown {
   $self->_yield( '_emitter_shutdown' );
 }
 
-sub to_irc {
-  my $self = shift;
-
-  $self->call( 'to_irc', @_ )
+method to_irc (@params) {
+  $self->call( to_irc => @params )
 }
 
 sub _to_irc {
@@ -150,7 +136,7 @@ sub _to_irc {
   ##   or objs that can give us one
   my ($out, @conns) = @_[ARG0 .. $#_];
   unless (@conns) {
-    cluck "to_irc() dispatched without any routes! Nothing to do.";
+    carp "to_irc() dispatched without any routes! Nothing to do.";
     return
   }
 
@@ -163,7 +149,7 @@ sub _to_irc {
          : () ;
 
       unless (defined $id) {
-        cluck "Unknown target type $item, ID undefined";
+        carp "Unknown target type $item, ID undefined";
         next TARGET
       }
       $routes{$id}++
@@ -190,7 +176,7 @@ sub ircsock_compressed {
 
   my $event_name = 'peer_compressed';
 
-  $self->emit( $event_name, $conn );
+  $self->emit( $event_name => $conn );
 }
 
 sub ircsock_connector_failure {
@@ -202,7 +188,7 @@ sub ircsock_connector_failure {
 
   ## Not much a plugin can do here, particularly ...
   ## emit() only:
-  $self->emit( 'connector_failure', @_[ARG0 .. ARG3] )
+  $self->emit( connector_failure => @_[ARG0 .. ARG3] )
 }
 
 sub ircsock_connector_open {
@@ -212,7 +198,7 @@ sub ircsock_connector_open {
 
   my $event_name = 'peer_connected';
 
-  $self->emit( $event_name, $conn );
+  $self->emit( $event_name => $conn );
 }
 
 sub ircsock_disconnect {
@@ -229,13 +215,13 @@ sub ircsock_disconnect {
     $event_name = 'unknown_disconnected'
   }
 
-  $self->emit( $event_name, $conn )
+  $self->emit( $event_name => $conn )
 }
 
 sub ircsock_connection_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
 
-  $self->emit( 'connection_idle', @_[ARG0 .. $#_] );
+  $self->emit( connection_idle => @_[ARG0 .. $#_] );
 }
 
 sub ircsock_input {
@@ -253,7 +239,7 @@ sub ircsock_input {
     ## P_peer_numeric
     ## irc_ev_peer_numeric / N_peer_numeric
 
-    $self->emit( 'peer_numeric', $conn, $ev );
+    $self->emit( peer_numeric => $conn, $ev );
 
     return
   }
@@ -265,7 +251,7 @@ sub ircsock_input {
   ## _unknown_cmd
   my $event_name = join '_', $from_type, 'cmd' ;
 
-  $self->emit( $event_name, $conn, $ev );
+  $self->emit( $event_name => $conn, $ev );
 }
 
 sub ircsock_listener_created {
@@ -274,7 +260,7 @@ sub ircsock_listener_created {
 
   my $event_name = 'listener_created';
 
-  $self->emit( $event_name, $listener );
+  $self->emit( $event_name => $listener );
 }
 
 sub ircsock_listener_failure {
@@ -290,7 +276,7 @@ sub ircsock_listener_failure {
   ## ... haven't quite worked out logging yet.
   my $event_name = 'listener_failure';
 
-  $self->emit( $event_name,
+  $self->emit( $event_name =>
     $listener,
     $op,
     $errno,
@@ -306,7 +292,7 @@ sub ircsock_listener_open {
 
   my $event_name = 'listener_accepted';
 
-  $self->emit( $event_name, $conn );
+  $self->emit( $event_name => $conn );
 }
 
 sub ircsock_listener_removed {
@@ -315,7 +301,7 @@ sub ircsock_listener_removed {
   ## This listener is no longer active (wheel is cleared)
   my $listener = $_[ARG0];
 
-  $self->emit( 'listener_removed', $listener )
+  $self->emit( listener_removed => $listener )
 }
 
 sub ircsock_registered {

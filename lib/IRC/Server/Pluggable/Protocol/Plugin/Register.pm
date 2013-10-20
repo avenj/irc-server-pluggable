@@ -38,7 +38,7 @@ has pending => (
   lazy    => 1,
   is      => 'ro',
   isa     => HashRef,
-  default => sub { {} },
+  default => sub { +{} },
 );
 
 has resolver => (
@@ -81,7 +81,7 @@ method N_connection ($proto, $connref) {
   my $conn = $$connref;
 
   $proto->send_to_routes(
-    {
+    +{
       command => 'NOTICE',
       params  => [ 'AUTH', '*** Checking Ident' ],
     },
@@ -89,7 +89,7 @@ method N_connection ($proto, $connref) {
   );
 
   $proto->send_to_routes(
-    {
+    +{
       command => 'NOTICE',
       params  => [ 'AUTH', '*** Looking up your hostname...' ],
     },
@@ -101,7 +101,7 @@ method N_connection ($proto, $connref) {
   if (index($peeraddr, '127.') == 0 || $peeraddr eq '::1') {
     ## Connection from localhost.
     $proto->send_to_routes(
-      {
+      +{
         command => 'NOTICE',
         params  => [ 'AUTH', '*** Found your hostname' ],
       },
@@ -132,7 +132,7 @@ method _maybe_finished ($conn) {
   my $ident = $ref->{ident} eq '' ? undef : $ref->{ident};
   $self->proto->emit( 'register_complete',
     $conn,
-    { host => $host, ident => $ident }
+    +{ host => $host, ident => $ident }
   )
 }
 
@@ -160,7 +160,7 @@ sub p_resolve_host {
     event => 'p_got_host',
     host  => $conn->peeraddr,
     type  => 'PTR',
-    context => {
+    context => +{
       conn => $conn,
       inet => $ipvers,
     },
@@ -182,7 +182,7 @@ sub p_got_host {
   my $fail = sub {
     ## No PTR.
     $self->proto->send_to_routes(
-      {
+      +{
         command => 'NOTICE',
         params  => [ 'AUTH', "*** Couldn't look up your hostname" ],
       },
@@ -210,7 +210,7 @@ sub p_got_host {
       event => 'p_got_ipaddr',
       host  => $ans->rdatastr(),
       type  => $type,
-      context => {
+      context => +{
         conn => $conn,
         host => $hostname,
       },
@@ -232,7 +232,7 @@ sub p_got_ipaddr {
 
   my $fail = sub {
     $self->proto->send_to_routes(
-      {
+      +{
         command => 'NOTICE',
         params  => [ 'AUTH', "*** Couldn't look up your hostname" ],
       },
@@ -252,7 +252,7 @@ sub p_got_ipaddr {
   for my $ans (@answers) {
     if ($ans->rdatastr() eq $peeraddr) {
       $self->proto->send_to_routes(
-        {
+        +{
           command => 'NOTICE',
           params  => [ 'AUTH', '*** Found your hostname' ],
         },
@@ -268,7 +268,7 @@ sub p_got_ipaddr {
 
   ## No matching answer.
   $self->proto->send_to_routes(
-    {
+    +{
       command => 'NOTICE',
       params  => [
         'AUTH',
@@ -308,7 +308,7 @@ sub ident_agent_reply {
   my $ident = uc $opsys eq 'OTHER' ? '' : $other ;
 
   $self->proto->send_to_routes(
-    {
+    +{
       command => 'NOTICE',
       params  => [ 'AUTH', "*** Got Ident response" ],
     },
@@ -328,7 +328,7 @@ sub ident_agent_error {
   return unless $conn->has_wheel and $conn->wheel;
 
   $self->proto->send_to_routes(
-    {
+    +{
       command => 'NOTICE',
       params  => [ 'AUTH', '*** No Ident response' ],
     },

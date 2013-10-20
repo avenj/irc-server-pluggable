@@ -61,6 +61,7 @@ use IRC::Server::Pluggable qw/
 
 
 use Moo;
+use MooX::late;
 use namespace::clean;
 
 with 'MooX::Role::POE::Emitter';
@@ -68,44 +69,38 @@ with 'MooX::Role::POE::Emitter';
 
 ### Core attribs
 
-has 'autoloaded_plugins' => (
+has autoloaded_plugins => (
   lazy    => 1,
   is      => 'ro',
-  isa     => ArrayRef,
+  isa     => TypedArray[ArrayRef],
+  coerce  => 1,
   writer  => 'set_autoloaded_plugins',
   builder => '_build_autoloaded_plugins',
 );
 
-sub _build_autoloaded_plugins {
+method _build_autoloaded_plugins {
   ## Build array-of-arrays specifiny
   my $prefix = 'IRC::Server::Pluggable::';
-  [
+  array_of ArrayRef() => (
     ## [ NAME, CLASS, CONSTRUCTOR OPTS ], . . .
-
     ## If you're handling clients, you at least want Register:
     [ 'Register', $prefix.'Protocol::Plugin::Register' ],
-
-  ],
+  )
 }
 
 
 ## A Dispatcher instance to register with.
 ## http://eris.cobaltirc.org/bug/1/14
-has 'dispatcher' => (
+has dispatcher => (
   lazy      => 1,
   is        => 'ro',
   writer    => 'set_dispatcher',
   predicate => 'has_dispatcher',
   builder   => '_build_dispatcher',
-  isa       => sub {
-    is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::Dispatcher')
-      or confess "$_[0] is not a IRC::Server::Pluggable::Dispatcher"
-  },
+  isa       => InstanceOf['IRC::Server::Pluggable::Dispatcher'],
 );
 
-sub _build_dispatcher {
-  my ($self) = @_;
+method _build_dispatcher {
   prefixed_new( Dispatcher =>
     ## FIXME construct backend_opts from $self->config
   );
@@ -113,20 +108,16 @@ sub _build_dispatcher {
 
 
 ## A IRC::Config object passed in.
-has 'config' => (
+has config => (
   required  => 1,
   is        => 'ro',
   writer    => 'set_config',
-  isa       => sub {
-    is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::IRC::Config')
-      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Config"
-  },
+  isa       => InstanceOf['IRC::Server::Pluggable::IRC::Config'],
 );
 
 
 ### IRCD-relevant attribs
-has 'casemap' => (
+has casemap => (
   lazy      => 1,
   is        => 'ro',
   isa       => CaseMap,
@@ -134,43 +125,44 @@ has 'casemap' => (
   predicate => 'has_casemap',
   builder   => '_build_casemap',
 );
-sub _build_casemap {  'rfc1459'  }
 
+method _build_casemap {  'rfc1459'  }
 with 'IRC::Toolkit::Role::CaseMap';
 
 
-has 'channel_types' => (
+has channel_types => (
   lazy      => 1,
   is        => 'ro',
-  isa       => HashRef,
+  isa       => HashObj,
+  coerce    => 1,
   writer    => 'set_channel_types',
   predicate => 'has_channel_types',
   builder   => '_build_channel_types',
 );
 
-sub _build_channel_types {
+method _build_channel_types {
   ## Map channel prefixes to a IRC::Channel subclass.
   ## These can control the behavior of specific channel types.
   ## FIXME Role should use these to determine what kind of
   ##  chan obj to construct
   my $prefix = 'IRC::Server::Pluggable::IRC::Channel::';
-  {
+  hash(
     '&' => $prefix . 'Local',
     '#' => $prefix . 'Global',
-  }
+  )
 }
 
 
-has 'version_string' => (
+has version_string => (
   lazy       => 1,
-  isa        => Str,
   is         => 'ro',
+  isa        => Str,
   predicate  => 'has_version_string',
   writer     => 'set_version_string',
   builder    => '_build_version_string',
 );
 
-sub _build_version_string {
+method _build_version_string {
   'irc-server-pluggable-'. __PACKAGE__->VERSION
 }
 
@@ -179,20 +171,15 @@ sub _build_version_string {
 ### Collections.
 
 ## IRC::Channels
-has 'channels' => (
+has channels => (
   lazy    => 1,
   is      => 'ro',
+  isa     => InstanceOf['IRC::Server::Pluggable::IRC::Channels'],
   writer  => 'set_channels',
   builder => '_build_channels',
-  isa     => sub {
-    is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::IRC::Channels')
-      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Channels"
-  },
 );
 
-sub _build_channels {
-  my ($self) = @_;
+method _build_channels {
   prefixed_new( 'IRC::Channels' =>
     casemap => $self->casemap,
   );
@@ -200,60 +187,46 @@ sub _build_channels {
 
 
 ## IRC::Peers
-has 'peers' => (
+has peers => (
   ## Map server names to Peer instances
   lazy    => 1,
   is      => 'ro',
+  isa     => InstanceOf['IRC::Server::Pluggable::IRC::Peers'],
   writer  => 'set_peers',
   builder => '_build_peers',
-  isa     => sub {
-    is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::IRC::Peers')
-      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Peers"
-  },
 );
 
-sub _build_peers {
+method _build_peers {
   prefixed_new( 'IRC::Peers' )
 }
 
 
 ## IRC::Users
-has 'users' => (
+has users => (
   ## Map nicknames to User instances
   lazy    => 1,
   is      => 'ro',
+  isa     => InstanceOf['IRC::Server::Pluggable::IRC::Users'],
   writer  => 'set_users',
   builder => '_build_users',
-  isa     => sub {
-    is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::IRC::Users')
-      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Users"
-  },
 );
 
-sub _build_users {
-  my ($self) = @_;
-
+method _build_users {
   prefixed_new( 'IRC::Users' =>
     casemap => $self->casemap
   )
 }
 
-has 'numeric' => (
+has numeric => (
   ## Numeric parser (IRC::Numerics)
   lazy    => 1,
   is      => 'ro',
+  isa     => InstanceOf['IRC::Server::Pluggable::IRC::Numerics'],
   writer  => 'set_numeric',
   builder => '_build_numeric',
-  isa     => sub {
-    is_Object($_[0])
-      and $_[0]->isa('IRC::Server::Pluggable::IRC::Numerics')
-      or confess "$_[0] is not a IRC::Server::Pluggable::IRC::Numerics"
-  },
 );
 
-sub _build_numeric {
+method _build_numeric {
   prefixed_new( 'IRC::Numerics' )
 }
 
@@ -316,21 +289,19 @@ method _load_core_plugins {
   ## Array-of-arrays:
   ##  [ [ $alias, $class, @args ], [ $alias, $class, @args ] ]
   ## See autoloaded_plugins attrib
-  for my $plugin_arr (@{ $self->autoloaded_plugins }) {
-    unless (ref $plugin_arr eq 'ARRAY') {
-      carp "autoloaded_plugins element not an ARRAY: $plugin_arr";
-      next
-    }
+  for my $plugin_arr ($self->autoloaded_plugins->all) {
     unless (@$plugin_arr >= 2) {
       carp "autoloaded_plugins elements should have at least 2 values";
       next
     }
 
     my ($alias, $class, @params) = @$plugin_arr;
-    require $class;
-    $self->plugin_add( $alias,
-      $class->new(@params)
-    );
+
+    try { require $class; 1 }
+    catch { warn "Failed to load plugin module ($alias): $_"; () } 
+      or next;
+
+    $self->plugin_add( $alias => $class->new(@params) );
   }
 }
 

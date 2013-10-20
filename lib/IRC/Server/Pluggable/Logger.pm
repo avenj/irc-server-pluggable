@@ -1,21 +1,17 @@
 package IRC::Server::Pluggable::Logger;
-use 5.12.1;
-use strictures 1;
+use Defaults::Modern;
 
-use Carp;
-use Moo;
-
-use Scalar::Util 'blessed';
 
 use IRC::Server::Pluggable qw/
   Logger::Output
   Types
 /;
 
+
+use Moo;
 use namespace::clean;
 
-
-has 'level' => (
+has level => (
   required  => 1,
   is        => 'ro',
   writer    => 'set_level',
@@ -28,7 +24,7 @@ has 'level' => (
 
 
 ## time_format / log_format are passed to ::Output
-has 'time_format' => (
+has time_format => (
   lazy      => 1,
   is        => 'ro',
   isa       => Str,
@@ -41,7 +37,7 @@ has 'time_format' => (
 );
 
 
-has 'log_format' => (
+has log_format => (
   lazy      => 1,
   is        => 'rw',
   isa       => Str,
@@ -54,31 +50,24 @@ has 'log_format' => (
 );
 
 
-has 'output' => (
+has output => (
   lazy      => 1,
   is        => 'ro',
-  isa       => sub {
-    confess "Not a IRC::Server::Pluggable::Logger::Output subclass"
-      unless blessed $_[0]
-      and $_[0]->isa('IRC::Server::Pluggable::Logger::Output')
-  },
+  isa       => InstanceOf['IRC::Server::Pluggable::Logger::Output'],
   predicate => 'has_output',
   writer    => '_set_output',
   builder   => '_build_output',
 );
 
-sub _build_output {
-  my ($self) = @_;
-
+method _build_output {
   my %opts;
   $opts{log_format}  = $self->log_format  if $self->has_log_format;
   $opts{time_format} = $self->time_format if $self->has_time_format;
-
   prefixed_new( 'Logger::Output' => %opts )
 }
 
 
-has '_levmap' => (
+has _levmap => (
   is      => 'ro',
   isa     => HashRef,
   default => sub {
@@ -88,27 +77,21 @@ has '_levmap' => (
 );
 
 
-sub _should_log {
-  my ($self, $level) = @_;
-
+method _should_log ($level) {
   $self->_levmap->{ $self->level } >= 
     ( $self->_levmap->{$level} // confess "unknown level $level" ) ? 
       1 : ()
 }
 
-
-sub log_to_level {
-  my ($self, $level) = splice @_, 0, 2;
-
+method log_to_level (Int $level, @data) {
   $self->output->_write(
     $level,
     [ caller(1) ],
-    @_
+    @data
   ) if $self->_should_log($level);
 
   1
 }
-
 
 sub debug { shift->log_to_level( 'debug', @_ ) }
 sub info  { shift->log_to_level( 'info',  @_ ) }

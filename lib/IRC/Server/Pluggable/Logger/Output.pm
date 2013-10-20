@@ -1,115 +1,90 @@
 package IRC::Server::Pluggable::Logger::Output;
-use 5.12.1;
-use strictures 1;
-
-## Torn wholesale from Bot::Cobalt::Logger::*
-
-use Carp;
-use Moo;
+use Defaults::Modern;
 
 use IRC::Server::Pluggable qw/
   Utils::Format
   Types
 /;
 
+use Module::Runtime 'use_module';
+
 use POSIX ();
-use Scalar::Util 'blessed';
-use Try::Tiny;
 
 
+use Moo;
 use namespace::clean;
 
-
-has 'time_format' => (
+has time_format => (
   ## Fed to POSIX::strftime()
   is      => 'ro',
   isa     => Str,
   writer  => 'set_time_format',
-  default => sub {
-    "%Y-%m-%d %H:%M:%S"
-  },
+  default => sub { "%Y-%m-%d %H:%M:%S" },
 );
 
-has 'log_format' => (
+has log_format => (
   ## Fed to Utils::Format::templatef()
   is      => 'ro',
   isa     => Str,
   writer  => 'set_log_format',
-  default => sub {
-    "%level %time (%pkg%) %msg"
-  },
+  default => sub { "%level %time (%pkg%) %msg" },
 );
 
-
-has '_outputs' => (
+has _outputs => (
   is      => 'rwp',
-  isa     => HashRef,  
-  default => sub { {} },
+  isa     => HashObj,
+  default => sub { hash },
 );
 
 
-sub add {
-  my ($self, @args) = @_;
-  
+method add (@args) {
   unless (@args && @args % 2 == 0) {
     confess "add() expects an even number of arguments, ",
          "mapping an Output class to constructor arguments"
   }
   
-  my $prefix = 'IRC::Server::Pluggable::Logger::Output::' ;
+  state $prefix = 'IRC::Server::Pluggable::Logger::Output::' ;
   
   while (my ($alias, $opts) = splice @args, 0, 2) {
     if ( blessed $opts && $opts->can('_write') ) {
       ## FIXME POD/tests for adding objects directly
-      $self->_outputs->{$alias} = $opts;
+      $self->_outputs->set($alias => $opts);
       next
     }
     
     confess "Can't add $alias, opts are not a HASH"
-      unless ref $opts eq 'HASH';
+      unless reftype $opts eq 'HASH';
 
     confess "Can't add $alias, no type specified"
       unless $opts->{type};
 
     my $target_pkg = $prefix . delete $opts->{type};
-
-    { local $@;
-      eval "require $target_pkg";
-      confess "Could not add logger $alias: require: $@" if $@;
-    }
-
-    my $new_obj = $target_pkg->new(%$opts);
+    my $new_obj = use_module($target_pkg)->new(%$opts);
     confess "Could not add logger $alias: no _write method"
       unless $new_obj->can('_write');
 
-    $self->_outputs->{$alias} = $new_obj;
+    $self->_outputs->set($alias => $new_obj);
   }
 
-  1
+  $self
 }
 
-sub del {
-  my ($self, @aliases) = @_;
+method del (@aliases) {
   my @deleted;
   for my $alias (@aliases) {
-    if (my $item = delete $self->_outputs->{$alias}) {
+    if (my $item = $self->_outputs->delete($alias)) {
       push @deleted, $item
     }
   }
-
   @deleted
 }
 
-sub get {
-  my ($self, $alias) = @_;
-  $self->_outputs->{$alias}
+method get (Str $alias) {
+  $self->_outputs->get($alias)
 }
 
 
-
-sub _format {
-  my ($self, $level, $caller, @strings) = @_;
-  
+method _format ($level, $caller, @strings) {
   templatef( $self->log_format, {
     level => $level,
 
@@ -126,18 +101,15 @@ sub _format {
   }) . "\n"
 }
 
-sub _write {
-  my $self = shift;
-
-  my $formatted = $self->_format(@_);
-  while (my ($alias, $output) = each %{ $self->_outputs }) {
+method _write (@args) {
+  my $formatted;
+  $self->_outputs->kv->map(sub {
+    my ($alias, $output) = @$_;
     $output->_write(
-      ## Output classes can provide their own _format
-      $output->can('_format') ?  $output->_format( @_ )
-        : $formatted
+      $output->can('_format') ? $output->_format(@args) 
+        : ( $formatted //= $self->_format(@args) )
     )
-  }
-
+  });
   1
 }
 

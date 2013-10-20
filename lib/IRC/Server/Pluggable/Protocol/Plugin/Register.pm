@@ -17,23 +17,23 @@ use POE qw/
 use Moo;
 use namespace::clean;
 
-has 'session_id' => (
+has session_id => (
   lazy      => 1,
   is        => 'ro',
   writer    => 'set_session_id',
   predicate => 'has_session_id',
 );
 
-has 'proto' => (
+has proto => (
   weak_ref  => 1,
   lazy      => 1,
   is        => 'ro',
   writer    => 'set_proto',
   predicate => 'has_proto',
-  isa       => HasMethods[ ('emit', 'send_to_routes') ],
+  isa       => HasMethods[qw/emit send_to_routes/],
 );
 
-has 'pending' => (
+has pending => (
   ## Keyed on $conn->wheel_id()
   lazy    => 1,
   is      => 'ro',
@@ -41,16 +41,14 @@ has 'pending' => (
   default => sub { {} },
 );
 
-has 'resolver' => (
+has resolver => (
   lazy      => 1,
   is        => 'ro',
   writer    => 'set_resolver',
   predicate => 'has_resolver',
 );
 
-sub Emitter_register {
-  my ($self, $proto) = @_;
-
+method Emitter_register ($proto) {
   $self->set_proto( $proto );
 
   POE::Session->create(
@@ -69,24 +67,18 @@ sub Emitter_register {
     ],
   );
 
-  $proto->subscribe( $self, 'NOTIFY', qw/
-    connection
-  / );
+  $proto->subscribe( $self, NOTIFY => 'connection' );
 
   EAT_NONE
 }
 
-sub Emitter_unregister {
-  my ($self, $proto) = splice @_, 0, 2;
-
+method Emitter_unregister {
   $self->resolver->shutdown if $self->has_resolver;
-
   EAT_NONE
 }
 
-sub N_connection {
-  my ($self, $proto) = @_;
-  my $conn = ${ $_[0] };
+method N_connection ($proto, $connref) {
+  my $conn = $$connref;
 
   $proto->send_to_routes(
     {
@@ -106,7 +98,7 @@ sub N_connection {
 
   my $peeraddr = $conn->peeraddr;
 
-  if ($peeraddr =~ /^127\./ || $peeraddr eq '::1') {
+  if (index($peeraddr, '127.') == 0 || $peeraddr eq '::1') {
     ## Connection from localhost.
     $proto->send_to_routes(
       {
@@ -120,22 +112,14 @@ sub N_connection {
     $self->_maybe_finished($conn);
   }
 
-  $poe_kernel->call( $self->session_id,
-    'p_resolve_host',
-    $conn
-  );
-
-  $poe_kernel->call( $self->session_id,
-    'p_fetch_ident',
-    $conn
-  );
+  $poe_kernel->call( $self->session_id => p_resolve_host => $conn );
+  $poe_kernel->call( $self->session_id => p_fetch_ident  => $conn );
 
   EAT_NONE
 }
 
-sub _maybe_finished {
-  my ($self, $conn) = @_;
 
+method _maybe_finished ($conn) {
   my $ref;
   return unless $ref = $self->pending->{ $conn->wheel_id };
 
@@ -182,7 +166,7 @@ sub p_resolve_host {
     },
   );
 
-  $kernel->call( 'p_got_host', $response) if $response;
+  $kernel->call( p_got_host => $response) if $response;
 }
 
 sub p_got_host {
@@ -232,8 +216,9 @@ sub p_got_host {
       },
     );
 
-    $kernel->call( $self->session_id, 'p_got_ipaddr', $h_resp)
-      if $h_resp;
+    if ($h_resp) {
+      $kernel->call( $self->session_id => p_got_ipaddr => $h_resp)
+    }
   }
 }
 

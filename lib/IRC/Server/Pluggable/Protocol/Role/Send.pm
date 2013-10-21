@@ -92,11 +92,11 @@ method __send_parse_identifiers (
   ## Automagic $self / IRC::User / IRC::Peer prefix translation:
 
   my %as_hash = %$event;
-  CASE_FROM: { 
-    my $pfix = $as_hash{prefix} || $self;
-    last CASE_FROM unless blessed $pfix;
 
-    if  ($pfix == $self) {
+  CASE_FROM: for ($as_hash{prefix} || $self) { 
+    last CASE_FROM unless blessed $_;
+
+    if  ($_ == $self) {
     ## Self talking to local or peer.
       $as_hash{prefix} = $local ? 
         $self->config->server_name
@@ -105,46 +105,44 @@ method __send_parse_identifiers (
       last CASE_FROM
     }
 
-    if (is_UserObj $pfix) {
+    if (is_UserObj $_) {
     ## User talking to local or peer.
       if ($local) {
-        $as_hash{prefix} = $prefix_nick_only ? $pfix->nick : $pfix->full
+        $as_hash{prefix} = $prefix_nick_only ? $_->nick : $_->full
       } else {
         $as_hash{prefix} = $prefix_nick_only ? 
-          $self->uid_or_nick($pfix, $peer) : $self->uid_or_full($pfix, $peer)
+          $self->uid_or_nick($_, $peer) : $self->uid_or_full($_, $peer)
       }
 
       last CASE_FROM
     }
 
-    if (is_PeerObj $pfix) {
+    if (is_PeerObj $_) {
     ## Peer relaying to local or peer.
       if ($local) {
-        $as_hash{prefix} = $pfix->name
+        $as_hash{prefix} = $_->name
       } else {
-        $as_hash{prefix} = $peer->has_sid ? $pfix->sid : $pfix->name
+        $as_hash{prefix} = $peer->has_sid ? $_->sid : $_->name
       }
 
       last CASE_FROM
     }
 
-    confess "Do not know how to handle blessed prefix $pfix"
+    confess "Do not know how to handle blessed prefix $_"
   } # CASE_FROM
 
   ## Automagically uid_or_nick/uid_or_full any User/Peer objs in params:
-  $as_hash{params} = [
-    map {;
-        my $param = $_;
-        if (is_UserObj $param) {
-          $param = $params_nick_only ?
-            $self->uid_or_nick($param, $peer) 
-            : $self->uid_or_full($param, $peer)
-        } elsif (is_PeerObj $param) {
-          $param = $param->has_sid ? $param->sid : $param->name
-        }
-        $param
-      } @{ $as_hash{params} || [] }
-  ];
+  IDTRANS: for (@{ $as_hash{params} ||= [] }) {
+    next IDTRANS unless blessed $_;
+    $_ = 
+      is_UserObj($_) ?
+        $params_nick_only ?
+          $self->uid_or_nick($_, $peer) : $self->uid_or_full($_, $peer)
+      : is_PeerObj($_) ? 
+          $_->has_sid ? 
+            $_->sid : $_->name
+      : $_
+  }
 
   ev(%as_hash)
 }
@@ -379,18 +377,18 @@ UID.
 
 =cut
 
-sub send_to_local_peers {
-  my ($self, %opts) = @_;
-  my $event;
-  confess "Expected at least an 'event =>' parameter"
-    unless ($event = delete $opts{event}) and ref $event;
+method send_to_local_peers (
+  Ref :$event,
+  :$except = undef,
+  (ArrayRef | Undef) :$peers = undef,
+  :$nick_only = 0,
+) {
 
   my %except_route;
-
-  if ($opts{except}) {
-    if (ref $opts{except} eq 'ARRAY') {
-      %except_route = map {; $self->__send_retrieve_route($_)  => 1 }
-                      @{ $opts{except} };
+  if ($except) {
+    if (ref $except eq 'ARRAY') {
+      %except_route = 
+        map {; $self->__send_retrieve_route($_)  => 1 } @$except;
     } else {
       $except_route{ $self->__send_retrieve_route($_) } = 1
     }
@@ -399,10 +397,7 @@ sub send_to_local_peers {
   ## FIXME option to send only to peers with a certain CAPAB
   ##  Needs IRC::Peer tweak
 
-
-  my @local_peers = $opts{peers} ? @{ $opts{peers} }
-    : $self->peers->list_local_peers;
-
+  my @local_peers = $peers ? @$peers : $self->peers->list_local_peers;
   my $sent; 
   LPEER: for my $peer (@local_peers) {
     my $route = $peer->route;
@@ -412,9 +407,10 @@ sub send_to_local_peers {
       peer  => $peer, 
       event => $event,
       ## FIXME needs to use newer iface
-      nick_only => $opts{nick_only},
+      nick_only => $nick_only,
     );
     $self->send_to_routes( $parsed_ev, $route );
+
     ++$sent
   } # LPEER
 

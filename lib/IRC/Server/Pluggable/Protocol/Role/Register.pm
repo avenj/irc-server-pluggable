@@ -1,31 +1,20 @@
 package IRC::Server::Pluggable::Protocol::Role::Register;
+use Defaults::Modern;
 
 ## A role defining user/server registration.
-
-use 5.12.1;
-use Carp;
-
-use Moo::Role;
-use strictures 1;
 
 use POE;
 
 use IRC::Server::Pluggable qw/
   Constants
-
   IRC::Event
-
   IRC::User
-
   Types
 /;
 
 
-use namespace::clean;
-
-
+use Moo::Role;
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
-
 
 has '_r_pending_reg' => (
   ## Keyed on $conn->wheel_id
@@ -38,22 +27,40 @@ has '_r_pending_reg' => (
 );
 
 
-sub _register_user_create_obj {
-  my $self = shift;
+method __register_user_create_obj {
   ## Define me in consuming (sub)class to change the class constructed
   ## for a User.
   prefixed_new('IRC::User' => @_)
 }
 
-sub _register_peer_create_obj {
-  my $self = shift;
+method __register_peer_create_obj {
   prefixed_new('IRC::Peer' => @_)
 }
 
+method __register_user_ready ($conn) {
+  ## Called if a local user may be ready to complete registration.
+  ## Returns the pending user hash if NICK, USER, and identd/hostname
+  ## have all been retrieved.
 
-sub register_user_local {
-  my ($self, $conn) = @_;
+  my $pending_ref = $self->_r_pending_reg->{ $conn->wheel_id } || return;
 
+  unless ( $conn->has_wheel ) {
+    ## Connection's wheel has disappeared; this user may have been 
+    ## disconnected, and its wheel cleared in Backend.
+    delete $self->_r_pending_reg->{ $conn->wheel_id };
+    return
+  }
+
+  return unless defined $pending_ref->{nick}
+         and    defined $pending_ref->{user}
+         ## ->{authinfo} has keys 'host' , 'ident'
+         ## Values are undef if these lookups were unsuccessful
+         and    $pending_ref->{authinfo};
+
+  $pending_ref
+}
+
+method _register_user_local (Object $conn) {
   ## Has this Backend::Connect finished registration?
   my $pending_ref = $self->__register_user_ready($conn);
   return unless $pending_ref;
@@ -79,7 +86,7 @@ sub register_user_local {
 
   my $server = $self->config->server_name;
 
-  my $user = $self->_register_user_create_obj(
+  my $user = $self->__register_user_create_obj(
     conn     => $conn,
     nick     => $nickname,
     user     => $username,
@@ -153,32 +160,8 @@ sub register_user_local {
   $user
 }
 
-sub __register_user_ready {
-  my ($self, $conn) = @_;
 
-  ## Called if a local user may be ready to complete registration.
-  ## Returns the pending user hash if NICK, USER, and identd/hostname
-  ## have all been retrieved.
-
-  my $pending_ref = $self->_r_pending_reg->{ $conn->wheel_id } || return;
-
-  unless ( $conn->has_wheel ) {
-    ## Connection's wheel has disappeared; this user may have been 
-    ## disconnected, and its wheel cleared in Backend.
-    delete $self->_r_pending_reg->{ $conn->wheel_id };
-    return
-  }
-
-  return unless defined $pending_ref->{nick}
-         and    defined $pending_ref->{user}
-         ## ->{authinfo} has keys 'host' , 'ident'
-         ## Values are undef if these lookups were unsuccessful
-         and    $pending_ref->{authinfo};
-
-  $pending_ref
-}
-
-sub register_user_remote {
+method _register_user_remote {
   ## FIXME figure out sane args for this; these are bursted users
 
   ## FIXME create a User obj
@@ -206,12 +189,10 @@ sub irc_ev_register_complete {
   ##  (values will be undef if not found)
   ## Save to _r_pending_reg and see if we can register a User.
   $self->_r_pending_reg->{ $conn->wheel_id }->{authinfo} = $hints;
-  $self->register_user_local($conn);
+  $self->_register_user_local($conn);
 }
 
-sub cmd_from_unknown_server {
-  my ($self, $conn, $event) = @_;
-
+method cmd_from_unknown_server ($conn, $event) {
   delete $self->_r_pending_reg->{ $conn->wheel_id };
 
   unless (@{$event->params}) {
@@ -244,7 +225,7 @@ sub cmd_from_unknown_server {
   $conn->is_peer(1);
 
   ## set up Peer obj, route() can default to conn->wheel_id
-  $peer = $self->_register_peer_create_obj(
+  $peer = $self->__register_peer_create_obj(
     conn => $conn,
     name => $intro_name,
   );
@@ -260,14 +241,12 @@ sub cmd_from_unknown_server {
 }
 
 
-sub cmd_from_unknown_error {
+method cmd_from_unknown_error {
   ## FIXME
   ## do nothing if this conn isn't registering as a peer
 }
 
-sub cmd_from_unknown_nick {
-  my ($self, $conn, $event) = @_;
-
+method cmd_from_unknown_nick ($conn, $event) {
   unless (@{$event->params}) {
     $self->send_to_routes(
       $self->numeric->to_hash( 461,
@@ -300,13 +279,11 @@ sub cmd_from_unknown_nick {
   ## Set up a $self->_r_pending_reg->{ $conn->wheel_id } hash entry.
   ## Call method to check current state.
   $self->_r_pending_reg->{ $conn->wheel_id }->{nick} = $nick;
-  $self->register_user_local($conn);
+  $self->_register_user_local($conn);
 }
 
 
-sub cmd_from_unknown_user {
-  my ($self, $conn, $event) = @_;
-
+method cmd_from_unknown_user ($conn, $event) {
   unless (@{$event->params} && @{$event->params} < 4) {
     $self->send_to_routes(
       $self->numeric->to_hash( 461,
@@ -335,12 +312,10 @@ sub cmd_from_unknown_user {
   ## FIXME methods to provide interface to pending_reg
   $self->_r_pending_reg->{ $conn->wheel_id }->{user}  = $username;
   $self->_r_pending_reg->{ $conn->wheel_id }->{gecos} = $gecos || '';
-  $self->register_user_local($conn);
+  $self->_register_user_local($conn);
 }
 
-sub cmd_from_unknown_pass {
-  my ($self, $conn, $event) = @_;
-
+method cmd_from_unknown_pass ($conn, $event) {
   unless (@{$event->params}) {
     $self->send_to_routes(
       $self->numeric->to_hash( 461,
@@ -358,7 +333,7 @@ sub cmd_from_unknown_pass {
   ##   connection to be registered, but it must precede the server
   ##   message or the latter of the NICK/USER combination.
   ##
-  ## Preserve PASS for later checking by register_user_local.
+  ## Preserve PASS for later checking by _register_user_local.
 
   my $pass = $event->params->[0];
   $self->_r_pending_reg->{ $conn->wheel_id }->{pass} = $pass;

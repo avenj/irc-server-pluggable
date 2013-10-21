@@ -8,6 +8,8 @@ use IRC::Server::Pluggable qw/
 
 use POE;
 
+use Module::Runtime 'use_module';
+
 use Moo;
 use MooX::late;
 use namespace::clean;
@@ -48,12 +50,7 @@ has backend => (
 method _build_backend {
   my $b_class = $self->_backend_class;
 
-  { local $@;
-    eval "require $b_class";
-    confess "Could not load $b_class : $@" if $@;
-  }
-
-  my $obj = $b_class->spawn( $self->backend_opts->export );
+  my $obj = use_module($b_class)->spawn( $self->backend_opts->export );
   $self->clear_backend_opts;
 
   $obj
@@ -160,7 +157,7 @@ sub _to_irc {
 
   my @route_ids = keys %routes;
 
-  return if $self->process( 'to_irc', $out, \@route_ids ) == EAT_ALL;
+  return if $self->process( to_irc => $out, \@route_ids ) == EAT_ALL;
 
   $self->backend->send( $out, @route_ids )
 }
@@ -171,12 +168,8 @@ sub _to_irc {
 sub ircsock_compressed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
-
   ## Link is probably burstable
-
-  my $event_name = 'peer_compressed';
-
-  $self->emit( $event_name => $conn );
+  $self->emit( peer_compressed => $conn );
 }
 
 sub ircsock_connector_failure {
@@ -195,10 +188,7 @@ sub ircsock_connector_open {
   ## Opened connection to remote.
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
-
-  my $event_name = 'peer_connected';
-
-  $self->emit( $event_name => $conn );
+  $self->emit( peer_connected => $conn );
 }
 
 sub ircsock_disconnect {
@@ -220,7 +210,6 @@ sub ircsock_disconnect {
 
 sub ircsock_connection_idle {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-
   $self->emit( connection_idle => @_[ARG0 .. $#_] );
 }
 
@@ -257,10 +246,7 @@ sub ircsock_input {
 sub ircsock_listener_created {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $listener = $_[ARG0];
-
-  my $event_name = 'listener_created';
-
-  $self->emit( $event_name => $listener );
+  $self->emit( listener_created => $listener );
 }
 
 sub ircsock_listener_failure {
@@ -274,9 +260,8 @@ sub ircsock_listener_failure {
   ## This should at least be logged...
   ## Possibly announced to IRC on a rehash, f.ex.
   ## ... haven't quite worked out logging yet.
-  my $event_name = 'listener_failure';
 
-  $self->emit( $event_name =>
+  $self->emit( listener_failure =>
     $listener,
     $op,
     $errno,
@@ -287,29 +272,19 @@ sub ircsock_listener_failure {
 sub ircsock_listener_open {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
   my $conn = $_[ARG0];
-
   ## Accepted connection.
-
-  my $event_name = 'listener_accepted';
-
-  $self->emit( $event_name => $conn );
+  $self->emit( listener_accepted => $conn );
 }
 
 sub ircsock_listener_removed {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-
   ## This listener is no longer active (wheel is cleared)
-  my $listener = $_[ARG0];
-
-  $self->emit( listener_removed => $listener )
+  $self->emit( listener_removed => $_[ARG0] )
 }
 
 sub ircsock_registered {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
-
-  my $backend = $_[ARG0];
-
-  $self->set_backend( $backend )
+  $self->set_backend( $_[ARG0] )
 }
 
 

@@ -93,13 +93,14 @@ declare UserObj =>
 declare PeerObj =>
   as InstanceOf['IRC::Server::Pluggable::IRC::Peer'];
 
+
 no warnings 'void';
-q{
- <Gilded> I've actually worked at an archeological dig for a while
+print
+q{ <Gilded> I've actually worked at an archeological dig for a while
  <Gilded> It was kind of, well, meh
  <Capn_Refsmmat> Gilded: What have you experienced that wasn't meh?
  <Gilded> Well this one time I critted someone for 32k damage in WoW
-};
+} unless caller;
 
 
 =pod

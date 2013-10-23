@@ -1,29 +1,6 @@
 package IRC::Server::Pluggable::Protocol::Role::Send;
 use Defaults::Modern;
 
-=pod
-
-=head1 NAME
-
-IRC::Server::Pluggable::Protocol::Role::Send
-
-=head1 SYNOPSIS
-
-Provides:
-
-  send_to_targets
-  send_numeric
-  send_to_local_peers
-  send_to_routes
-
-=head1 DESCRIPTION
-
-Send/relay methods consumed by a Protocol.
-
-See L<IRC::Server::Pluggable::Protocol>.
-
-=cut
-
 
 use IRC::Server::Pluggable qw/
   IRC::Event
@@ -49,16 +26,22 @@ requires qw/
 ### FIXME should sendq management live here... ?
 
 
-
-method __send_retrieve_route ($peer_name_or_obj) {
+method _send_retrieve_route ($peer_name_or_obj) {
+  ## Return a route ID for given peer name or object.
+  ## If we can't locate one, return whatever we were passed in --
+  ## the excepted route map should just not care.
   if (blessed $peer_name_or_obj) {
-    ## Peer obj.
+    # Assume we were passed a peer obj.
     return $peer_name_or_obj->route
   }
-  $self->peers->by_name($peer_name_or_obj) || $peer_name_or_obj 
+  if (my $peer_obj = $self->peers->by_name($peer_name_or_obj)) {
+    return $peer_obj->route
+  } else {
+    return $peer_name_or_obj
+  }
 }
 
-method __send_peer_correct_self_prefix ($peer) {
+method _send_peer_correct_self_prefix ($peer) {
   ## Get correct prefix for messages we are sending to a local peer.
   return $self->config->sid 
     if  $peer->type eq 'TS' 
@@ -66,7 +49,7 @@ method __send_peer_correct_self_prefix ($peer) {
   $self->config->server_name
 }
 
-method __send_parse_identifiers (
+method _send_parse_identifiers (
   :$event,
   (PeerObj | Undef) :$peer  = undef,
   :$local = 0,
@@ -74,7 +57,12 @@ method __send_parse_identifiers (
   :$params_nick_only = undef
 ) {
   ## Look for $user or $peer objects in an Event.
-  ## Translate depending on Peer type.
+  ## Translate depending on destination Peer type.
+  ## (speak TS6 to TS6 servers)
+  ## FIXME this should probably be optimized ...
+  ##   move all message construction bits out to their own methods,
+  ##   provide flexible methods to retrieve dest routes,
+  ##   provide simpler send methods?
 
   ## FIXME these opts need to be documented somewheres
   ## rework existing _local_peers iface/POD
@@ -100,7 +88,7 @@ method __send_parse_identifiers (
     ## Self talking to local or peer.
       $as_hash{prefix} = $local ? 
         $self->config->server_name
-        : $self->__send_peer_correct_self_prefix($peer);
+        : $self->_send_peer_correct_self_prefix($peer);
 
       last CASE_FROM
     }
@@ -147,26 +135,7 @@ method __send_parse_identifiers (
   ev(%as_hash)
 }
 
-
-
-=pod
-
-=head2 send_to_targets
-
-  $proto->send_to_targets(
-    event   => $ev,
-    targets => [ @objects ],
-    options => +{
-      ## Passed to appropriate handler for target type:
-      params_nick_only => 1,
-    },
-  );
-
-## FIXME
- ... handle eventsets (build new evset from parsed events)?
-     -> or just deprecate eventsets
-
-=cut
+## FIXME deprecate eventsets? else we need support here
 
 method send_to_targets (Ref :$event, %opts) {
   ## Handle relaying to arbitrary targets.
@@ -192,7 +161,7 @@ method send_to_targets (Ref :$event, %opts) {
       if (is_UserObj $target) {
         ## Local user.
         $self->send_to_routes( 
-          $self->__send_parse_identifiers(
+          $self->_send_parse_identifiers(
             event => $event,
             local => 1,
             %extra,
@@ -231,20 +200,6 @@ method send_to_targets (Ref :$event, %opts) {
 }
 
 
-=pod
-
-=head2 send_numeric
-
-  $proto->send_numeric( $numeric =>
-    target => $user_obj,
-    routes => [ @routes ],
-    params => [ @extra_params ],
-  );
-
-Create and send a predefined numeric-type error response; see
-L<IRC::Server::Pluggable::IRC::Numerics>.
-
-=cut
 
 method send_numeric (
   Int     :$numeric,
@@ -284,7 +239,7 @@ method send_numeric (
     NPREFIX: {
       unless (defined $prefix) {
         ## Assume from local.
-        $prefix = $self->__send_peer_correct_self_prefix($peer);
+        $prefix = $self->_send_peer_correct_self_prefix($peer);
         last NPREFIX
       }
 
@@ -313,22 +268,6 @@ method send_numeric (
   1
 }
 
-
-=pod
-
-=head2 send_to_local_peer
-
-  $proto->send_to_local_peer(
-    event => $event_obj,
-    peer  => $peer_obj,
-    except => $origin_peer,
-  );
-
-Relay to a single next-hop peer. Sugar for L</send_to_local_peers>; options
-documented there also apply to this method.
-
-=cut
-
 method send_to_local_peer (
   :$peer,
   :$peers = undef,
@@ -341,7 +280,79 @@ method send_to_local_peer (
 }
 
 
+method send_to_local_peers (
+  Ref :$event,
+  :$except = undef,
+  (ArrayRef | Undef) :$peers = undef,
+  :$nick_only = 0,
+) {
+
+  my %except_route;
+  if ($except) {
+    if (ref $except eq 'ARRAY') {
+      %except_route = 
+        map {; $self->_send_retrieve_route($_)  => 1 } @$except;
+    } else {
+      $except_route{ $self->_send_retrieve_route($_) } = 1
+    }
+  }
+
+  ## FIXME option to send only to peers with a certain CAPAB
+  ##  Needs IRC::Peer tweak
+
+  my @local_peers = $peers ? @$peers : $self->peers->list_local_peers;
+  my $sent; 
+  LPEER: for my $peer (@local_peers) {
+    my $route = $peer->route;
+    next LPEER if $except_route{$route};
+
+    my $parsed_ev = $self->_send_parse_identifiers(
+      peer  => $peer, 
+      event => $event,
+      ## FIXME needs to use newer iface
+      nick_only => $nick_only,
+    );
+    $self->send_to_routes( $parsed_ev, $route );
+
+    ++$sent
+  } # LPEER
+
+  $sent
+}
+
+
+method send_to_routes ( Ref $output, @ids ) {
+  confess "send_to_routes() received insufficient params"
+    unless @ids;
+  $self->dispatcher->to_irc( $output, @ids )
+}
+{ no warnings 'once'; *send_to_route = *send_to_routes }
+
+
+1;
+
 =pod
+
+=head1 NAME
+
+IRC::Server::Pluggable::Protocol::Role::Send
+
+=head1 SYNOPSIS
+
+Provides:
+
+  send_to_targets
+  send_numeric
+  send_to_local_peers
+  send_to_routes
+
+=head1 DESCRIPTION
+
+Send/relay methods consumed by a Protocol.
+
+See L<IRC::Server::Pluggable::Protocol>.
+
+
 
 =head2 send_to_local_peers
 
@@ -375,52 +386,16 @@ will be translated to either a nickname or UID (depending on the remote peer
 type); by default, they are translated to either a full C<nick!user@host> or
 UID.
 
-=cut
+=head2 send_numeric
 
-method send_to_local_peers (
-  Ref :$event,
-  :$except = undef,
-  (ArrayRef | Undef) :$peers = undef,
-  :$nick_only = 0,
-) {
+  $proto->send_numeric( $numeric =>
+    target => $user_obj,
+    routes => [ @routes ],
+    params => [ @extra_params ],
+  );
 
-  my %except_route;
-  if ($except) {
-    if (ref $except eq 'ARRAY') {
-      %except_route = 
-        map {; $self->__send_retrieve_route($_)  => 1 } @$except;
-    } else {
-      $except_route{ $self->__send_retrieve_route($_) } = 1
-    }
-  }
-
-  ## FIXME option to send only to peers with a certain CAPAB
-  ##  Needs IRC::Peer tweak
-
-  my @local_peers = $peers ? @$peers : $self->peers->list_local_peers;
-  my $sent; 
-  LPEER: for my $peer (@local_peers) {
-    my $route = $peer->route;
-    next LPEER if $except_route{$route};
-
-    my $parsed_ev = $self->__send_parse_identifiers(
-      peer  => $peer, 
-      event => $event,
-      ## FIXME needs to use newer iface
-      nick_only => $nick_only,
-    );
-    $self->send_to_routes( $parsed_ev, $route );
-
-    ++$sent
-  } # LPEER
-
-  $sent
-}
-
-
-=pod
-
-=for Pod::Coverage send_to_route
+Create and send a predefined numeric-type error response; see
+L<IRC::Server::Pluggable::IRC::Numerics>.
 
 =head2 send_to_routes
 
@@ -430,19 +405,6 @@ B<send_to_routes> / B<send_to_route> are low-level Protocol message
 dispatchers; these bridge the Dispatcher layer and are used by the 
 higher-level methods detailed above.
 
-=cut
-
-method send_to_routes ( Ref $output, @ids ) {
-  confess "send_to_routes() received insufficient params"
-    unless @ids;
-  $self->dispatcher->to_irc( $output, @ids )
-}
-{ no warnings 'once'; *send_to_route = *send_to_routes }
-
-
-1;
-
-=pod
 
 =head1 AUTHOR
 

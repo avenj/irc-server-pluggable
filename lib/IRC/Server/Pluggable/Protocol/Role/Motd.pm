@@ -1,20 +1,16 @@
 package IRC::Server::Pluggable::Protocol::Role::Motd;
+use Defaults::Modern;
 
-use Moo::Role;
-use strictures 1;
 
 use IRC::Server::Pluggable qw/
   IRC::Event
 /;
 
-use namespace::clean;
 
+use Moo::Role;
 with 'IRC::Server::Pluggable::Role::Interface::IRCd';
 
-
-sub cmd_from_client_motd {
-  my ($self, $conn, $event, $user) = @_;
-
+method cmd_from_client_motd ($conn, $event, $user) {
   my $nickname = $user->nick;
   my $server   = $self->config->server_name;
 
@@ -51,7 +47,7 @@ sub cmd_from_client_motd {
     }
   }  ## REMOTE
 
-  unless ($self->config->has_motd) {
+  unless ($self->config->motd->has_any) {
     $self->send_numeric( 422 =>
       prefix => $self,
       target => $user,
@@ -65,12 +61,11 @@ sub cmd_from_client_motd {
     params  => [ $user, "- $server Message of the day - "],
   );
 
-  my @motd = @{ $self->config->motd };
   push @outgoing, ev(
       prefix  => $self,
       command => '372',
       params  => [ $user, "- ".$_ ],
-  ) for @{ $self->config->motd };
+  ) for $self->config->motd->all;
 
   $self->send_to_targets(
     event  => $_,
@@ -84,13 +79,12 @@ sub cmd_from_client_motd {
   1
 }
 
-sub cmd_from_peer_motd {
-  my ($self, $conn, $event) = @_;
+method cmd_from_peer_motd ($conn, $event) {
   ## Remote user asked for MOTD.
   my $user = $self->users->by_name( $event->prefix ) || return;
 
-  $self->yield( 'protocol_dispatch' => 'cmd_from_client_motd',
-    $conn, $event, $user
+  $self->yield( protocol_dispatch => 
+    cmd_from_client_motd => $conn, $event, $user
   )
 }
 

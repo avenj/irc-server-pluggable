@@ -1,66 +1,66 @@
 package IRC::Server::Pluggable::IRC::Config;
+use Defaults::Modern;
 
-use Carp;
+use IRC::Server::Pluggable qw/
+  Types
+/;
+
 use Moo;
-
-use 5.12.1;
-use strictures 1;
-
-use IRC::Server::Pluggable::Types;
-
-
+use MooX::late;
 use namespace::clean;
 
 
 ## FIXME
 ##  - Config::Auth for users/opers/peers?
 
-has 'admin_info' => (
+has admin_info => (
   lazy      => 1,
-  isa       => ArrayRef,
   is        => 'ro',
+  isa       => ArrayObj,
+  coerce    => 1,
   predicate => 'has_admin_info',
   writer    => 'set_admin_info',
-  default   => sub { [ ] },
+  default   => sub { array },
 );
 
-has 'max_chan_length' => (
+has max_chan_length => (
   lazy      => 1,
-  isa       => Int,
   is        => 'ro',
+  isa       => Int,
   predicate => 'has_max_chan_length',
   writer    => 'set_max_chan_length',
   default   => sub { 30 },
 );
 
-has 'max_nick_length' => (
+has max_nick_length => (
   lazy      => 1,
-  isa       => Int,
   is        => 'ro',
+  isa       => Int,
   predicate => 'has_max_nick_length',
   writer    => 'set_max_nick_length',
   default   => sub { 9 },
 );
 
-has 'max_msg_targets' => (
+has max_msg_targets => (
   lazy      => 1,
-  isa       => Int,
   is        => 'ro',
+  isa       => Int,
   predicate => 'has_max_msg_targets',
   writer    => 'set_max_msg_targets',
   default   => sub { 4 },
 );
 
-has 'motd' => (
+has motd => (
   lazy      => 1,
-  isa       => ArrayRef,
   is        => 'ro',
+  isa       => ArrayObj,
+  coerce    => 1,
   predicate => 'has_motd',
   writer    => 'set_motd',
-  default   => sub { [ ] },
+  default   => sub { array },
 );
 
-has 'network_name' => (
+has network_name => (
   lazy      => 1,
   is        => 'ro',
   isa       => Str,
@@ -69,7 +69,7 @@ has 'network_name' => (
   default   => sub { 'NoNetworkDefined' },
 );
 
-has 'server_name' => (
+has server_name => (
   required  => 1,
   is        => 'ro',
   isa       => Str,

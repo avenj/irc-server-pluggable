@@ -22,6 +22,7 @@ sub irc_peer {
 
 with 'IRC::Server::Pluggable::Role::Metadata';
 with 'IRC::Server::Pluggable::Role::Routable';
+with 'IRC::Server::Pluggable::Role::SendQueue';
 
 sub BUILD {
   my ($self) = @_;

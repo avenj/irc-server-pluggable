@@ -49,6 +49,27 @@ method _send_peer_correct_self_prefix ($peer) {
   $self->config->server_name
 }
 
+method _send_event_buffer (Object $dest, Object $event) {
+  ## FIXME
+  ##  like ratbox send_linebuf,
+  ##  take a dest obj, check $dest->sendq_buf (need a Role for this
+  ##  for Users and Peers),
+  ##  issue a sendq exception if needed (see get_sendq),
+  ##  else append line to ->sendq_buf (update statistics..?)
+  ##  and call a ->_send_queued_events($dest) if $dest->sendq_buf > 0
+  ## FIXME saner to deal in queued events then ->send_to_routes
+  ##  use bytes::length of raw str for sendq purposes ?
+  ##  
+}
+
+method _send_queued_events (Object $dest) {
+  ## FIXME
+  ##  see ratbox send_queued ?
+  ##  need a User / Peer role for sendq bits
+  ##  probably also a timer to check?
+  ##    pool of weak refs to dest routes with pending sendq?
+}
+
 method _send_parse_identifiers (
   :$event,
   (PeerObj | Undef) :$peer  = undef,
@@ -58,7 +79,7 @@ method _send_parse_identifiers (
 ) {
   ## Look for $user or $peer objects in an Event.
   ## Translate depending on destination Peer type.
-  ## (speak TS6 to TS6 servers)
+  ## (eg. speak TS6 to TS6 servers, otherwise use names)
   ## FIXME this should probably be optimized ...
   ##   move all message construction bits out to their own methods,
   ##   provide flexible methods to retrieve dest routes,
@@ -135,8 +156,86 @@ method _send_parse_identifiers (
   ev(%as_hash)
 }
 
+
+method send_to_servers (
+  Ref :$event,
+
+  :$except = undef,
+  :$caps   = undef,
+  :$nocaps = undef,
+) {
+  ## ->send_to_servers(
+  ##   event => $event,
+  ## # optional:
+  ##    except => [ @objs ],
+  ##    caps   => [ @wanted_caps ],
+  ##    nocaps => [ @excluded_caps ],
+  ## )
+
+}
+
+## FIXME  sendq needs a timer loop
+
+
 ## FIXME deprecate eventsets? else we need support here
 
+method send_to_one (
+  Ref :$event,
+  (UserObj | PeerObj) :$target,
+) {
+
+  # if $target is ours, we can shove this on the object's send buf
+  # else we need the next-hop peer obj:
+  my $dest = $self->object_is_local($target) ?
+    $target : $self->peers->by_id( $target->route );
+
+  #  FIXME global & return if trying to send to self
+
+  $dest->sendq_buf->push( $event );
+}
+
+method send_to_one_prefix (
+  Ref :$event,
+  (UserObj | PeerObj) :$target,
+  (UserObj | PeerObj) :$source,
+) {
+
+  # FIXME like send_to_one but with ID translation
+  # FIXME global and return if trying to send to self
+
+  my $dest = $self->object_is_local($target) ?
+    $target : $self->peers->by_id( $target->route );
+
+  my $parsed_ev = $self->_send_id_translate(
+    event  => $event,
+    target => $target,
+    source => $source,
+  );
+
+  $dest->sendq_buf->push( $parsed_ev );
+}
+
+method send_to_one_numeric (
+  # FIXME
+) {
+  # FIXME
+}
+
+method send_to_anywhere (
+  # FIXME
+) {
+  # FIXME see ratbox send.c sendto_anywhere
+}
+
+
+
+
+
+
+## FIXME send_to_targets is wrong / needs reworked/removed ...
+##   - needs to be able to support messages without prefix
+##   - needs more consistent interface
+##   - see what else ratbox send.c does 
 method send_to_targets (Ref :$event, %opts) {
   ## Handle relaying to arbitrary targets.
   ## $event should have a translatable prefix

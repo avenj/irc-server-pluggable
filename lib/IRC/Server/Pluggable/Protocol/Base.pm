@@ -353,6 +353,36 @@ sub _dispatch {
 }
 
 
+method object_is_local (Object $obj) {
+  confess "Expected a User or Peer object but got $obj"
+    unless $obj->can('has_conn') && $obj->can('route');
+  $obj->has_conn ? $obj->route : ()
+}
+
+method user_is_local (UserObj $user) {
+  $user->has_conn ? $user->route : ()
+}
+
+method peer_is_local (PeerObj $peer) {
+  $peer->has_conn ? $peer->route : ()
+}
+
+
+method uid_or_full (UserObj $user, PeerObj $peer) {
+  if ($peer->type eq 'TS' && $peer->type_version == 6) {
+    return $user->uid if $user->has_uid
+  }
+  $user->full
+}
+
+method uid_or_nick (UserObj $user, PeerObj $peer) {
+  if ($peer->type eq 'TS' && $peer->type_version == 6) {
+    return $user->uid if $user->has_uid
+  }
+  $user->nick
+}
+
+
 
 sub irc_ev_peer_connected {
   my ($kernel, $self) = @_[KERNEL, OBJECT];
@@ -477,20 +507,6 @@ sub irc_ev_unknown_cmd {
   $self->protocol_dispatch( 'cmd_from_unknown_'.lc($cmd), $conn, $event );
 }
 
-
-method uid_or_full (UserObj $user, PeerObj $peer) {
-  if ($peer->type eq 'TS' && $peer->type_version == 6) {
-    return $user->uid if $user->has_uid
-  }
-  $user->full
-}
-
-method uid_or_nick (UserObj $user, PeerObj $peer) {
-  if ($peer->type eq 'TS' && $peer->type_version == 6) {
-    return $user->uid if $user->has_uid
-  }
-  $user->nick
-}
 
 
 no warnings 'void';

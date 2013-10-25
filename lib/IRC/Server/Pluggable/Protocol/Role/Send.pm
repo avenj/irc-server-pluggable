@@ -50,7 +50,7 @@ method _send_peer_correct_self_prefix ($peer) {
 }
 
 method _send_event_buffer (Object $dest, Object $event) {
-  ## FIXME
+  ## FIXME better name for this or kill it entirely?
   ##  like ratbox send_linebuf,
   ##  take a dest obj, check $dest->sendq_buf (need a Role for this
   ##  for Users and Peers),
@@ -60,9 +60,18 @@ method _send_event_buffer (Object $dest, Object $event) {
   ## FIXME saner to deal in queued events then ->send_to_routes
   ##  use bytes::length of raw str for sendq purposes ?
   ##  
+  ## ratbox:
+  ##   - checks if buffer length is greater than configured sendq
+  ##     (src/class.c get_sendq)
+  ##    - if yes and dest is a server, issue sendq exception
+  ##      and terminate link
+  ##    - else if a client, terminate link
+  ##    - if no, we're good to attach to sendq (and update msg stats?)
 }
 
 method _send_queued_events (Object $dest) {
+  return unless $dest->sendq_buf->has_any;
+  
   ## FIXME
   ##  see ratbox send_queued ?
   ##  need a User / Peer role for sendq bits
@@ -70,70 +79,48 @@ method _send_queued_events (Object $dest) {
   ##    pool of weak refs to dest routes with pending sendq?
 }
 
-method _send_parse_identifiers (
-  :$event,
-  (PeerObj | Undef) :$peer  = undef,
-  :$local = 0,
-  :$prefix_nick_only = undef,
-  :$params_nick_only = undef
+method _send_id_translate (
+  Ref :$event,
+  Object :$target
 ) {
-  ## Look for $user or $peer objects in an Event.
-  ## Translate depending on destination Peer type.
-  ## (eg. speak TS6 to TS6 servers, otherwise use names)
-  ## FIXME this should probably be optimized ...
-  ##   move all message construction bits out to their own methods,
-  ##   provide flexible methods to retrieve dest routes,
-  ##   provide simpler send methods?
-
-  ## FIXME these opts need to be documented somewheres
-  ## rework existing _local_peers iface/POD
-  ##  wrt prefix/params replacement opts?
-
-  unless ($peer) {
-    confess "Expected either a 'peer =>' obj or 'local => 1'"
-      unless $local;
-    ## FIXME is this correct?
-    $prefix_nick_only //= 0;
-  }
-  $prefix_nick_only //= 1;
-  $params_nick_only //= 1;
-
-  ## Automagic $self / IRC::User / IRC::Peer prefix translation:
-
   my %as_hash = %$event;
-
-  CASE_FROM: for ($as_hash{prefix} || $self) { 
+  CASE_FROM: for ($as_hash{prefix}) {
+    # Prefix only munged if we have one and it's blessed:
     last CASE_FROM unless blessed $_;
 
     if  ($_ == $self) {
-    ## Self talking to local or peer.
-      $as_hash{prefix} = $local ? 
-        $self->config->server_name
-        : $self->_send_peer_correct_self_prefix($peer);
-
+      ## Self talking to local or peer.
+      if (is_UserObj($target) && $self->object_is_local($target)) {
+        # Talking to local user.
+        $as_hash{prefix} = $self->config->server_name;
+      } else {
+        # Talking to remote user or to peer.
+        $as_hash{prefix} = $self->_send_peer_correct_self_prefix($target);
+      }
       last CASE_FROM
     }
 
     if (is_UserObj $_) {
-    ## User talking to local or peer.
+      ## User talking to local or peer.
+      ## FIXME
+
       if ($local) {
         $as_hash{prefix} = $prefix_nick_only ? $_->nick : $_->full
       } else {
-        $as_hash{prefix} = $prefix_nick_only ? 
-          $self->uid_or_nick($_, $peer) : $self->uid_or_full($_, $peer)
+        $as_hash{prefix} = $prefix_nick_only ? $self->uid_or_nick($_, $peer)
+          : $self->uid_or_full($_, $peer)
       }
-
       last CASE_FROM
     }
 
     if (is_PeerObj $_) {
-    ## Peer relaying to local or peer.
+      ## Peer relaying to local or peer.
+      ## FIXME
       if ($local) {
         $as_hash{prefix} = $_->name
       } else {
         $as_hash{prefix} = $peer->has_sid ? $_->sid : $_->name
       }
-
       last CASE_FROM
     }
 
@@ -197,7 +184,6 @@ method send_to_one (
 method send_to_one_prefix (
   Ref :$event,
   (UserObj | PeerObj) :$target,
-  (UserObj | PeerObj) :$source,
 ) {
 
   # FIXME like send_to_one but with ID translation
@@ -209,7 +195,6 @@ method send_to_one_prefix (
   my $parsed_ev = $self->_send_id_translate(
     event  => $event,
     target => $target,
-    source => $source,
   );
 
   $dest->sendq_buf->push( $parsed_ev );

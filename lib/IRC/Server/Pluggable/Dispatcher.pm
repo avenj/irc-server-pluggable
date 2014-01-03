@@ -289,7 +289,7 @@ sub ircsock_registered {
 
 
 no warnings 'void';
-q{
+print q{
  <nitric> the more you think about facebook actions in real life, the
   weirder facebook seems
  <nitric> irl, I DON'T want people writing on my wall at 1am
@@ -297,7 +297,7 @@ q{
  <Schroedingers_hat> HEY YOU HELP ME WITH MY GARDEN!
  <Schroedingers_hat> Who are you?
  <Schroedingers_hat> GIVE ME SOME CARROTS
-};
+} unless caller;
 
 
 =pod

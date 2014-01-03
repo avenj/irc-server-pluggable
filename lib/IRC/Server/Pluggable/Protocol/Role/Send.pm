@@ -162,8 +162,6 @@ method send_to_servers (
 }
 
 ## FIXME  sendq needs a timer loop
-
-
 ## FIXME deprecate eventsets? else we need support here
 
 method send_to_one (

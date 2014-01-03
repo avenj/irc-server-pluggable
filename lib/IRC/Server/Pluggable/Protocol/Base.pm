@@ -72,39 +72,34 @@ with 'MooX::Role::POE::Emitter';
 has autoloaded_plugins => (
   lazy    => 1,
   is      => 'ro',
-  isa     => TypedArray[ArrayRef],
+  isa     => TypedArray[ArrayObj],
   coerce  => 1,
   writer  => 'set_autoloaded_plugins',
-  builder => '_build_autoloaded_plugins',
+  builder => sub {
+    my $prefix = 'IRC::Server::Pluggable::';
+    array_of ArrayObj() => (
+      ## [ NAME, CLASS, CONSTRUCTOR OPTS ], . . .
+      ## .. if you're handling clients, you at least want Register:
+      [ 'Register', $prefix . 'Protocol::Plugin::Register' ],
+    )
+  },
 );
-
-method _build_autoloaded_plugins {
-  ## Build array-of-arrays specifiny
-  my $prefix = 'IRC::Server::Pluggable::';
-  array_of ArrayRef() => (
-    ## [ NAME, CLASS, CONSTRUCTOR OPTS ], . . .
-    ## If you're handling clients, you at least want Register:
-    [ 'Register', $prefix.'Protocol::Plugin::Register' ],
-  )
-}
-
 
 ## A Dispatcher instance to register with.
 ## http://eris.cobaltirc.org/bug/1/14
 has dispatcher => (
   lazy      => 1,
   is        => 'ro',
+  isa       => InstanceOf['IRC::Server::Pluggable::Dispatcher'],
   writer    => 'set_dispatcher',
   predicate => 'has_dispatcher',
+  builder   => sub {
+    prefixed_new Dispatcher =>
+     ()
+    # FIXME construct backend_opts from $self->config
+  },
   builder   => '_build_dispatcher',
-  isa       => InstanceOf['IRC::Server::Pluggable::Dispatcher'],
 );
-
-method _build_dispatcher {
-  prefixed_new( Dispatcher =>
-    ## FIXME construct backend_opts from $self->config
-  );
-}
 
 
 ## A IRC::Config object passed in.
@@ -123,10 +118,8 @@ has casemap => (
   isa       => CaseMap,
   writer    => 'set_casemap',
   predicate => 'has_casemap',
-  builder   => '_build_casemap',
+  builder   => sub { 'rfc1459' },
 );
-
-method _build_casemap {  'rfc1459'  }
 with 'IRC::Toolkit::Role::CaseMap';
 
 
@@ -163,7 +156,8 @@ has version_string => (
 );
 
 method _build_version_string {
-  'irc-server-pluggable-'. __PACKAGE__->VERSION
+  my $vers = __PACKAGE__->VERSION || 'git';
+  'irc-server-pluggable-' . $vers
 }
 
 
@@ -176,14 +170,13 @@ has channels => (
   is      => 'ro',
   isa     => InstanceOf['IRC::Server::Pluggable::IRC::Channels'],
   writer  => 'set_channels',
-  builder => '_build_channels',
+  builder => sub {
+    my ($self) = @_;
+    prefixed_new 'IRC::Channels' => (
+      casemap => $self->casemap,
+    )
+  }
 );
-
-method _build_channels {
-  prefixed_new( 'IRC::Channels' =>
-    casemap => $self->casemap,
-  );
-}
 
 
 ## IRC::Peers
@@ -193,12 +186,8 @@ has peers => (
   is      => 'ro',
   isa     => InstanceOf['IRC::Server::Pluggable::IRC::Peers'],
   writer  => 'set_peers',
-  builder => '_build_peers',
+  builder => sub { prefixed_new 'IRC::Peers' },
 );
-
-method _build_peers {
-  prefixed_new( 'IRC::Peers' )
-}
 
 
 ## IRC::Users
@@ -208,14 +197,14 @@ has users => (
   is      => 'ro',
   isa     => InstanceOf['IRC::Server::Pluggable::IRC::Users'],
   writer  => 'set_users',
-  builder => '_build_users',
+  builder => sub { 
+    my ($self) = @_;
+    prefixed_new 'IRC::Users' => (
+      casemap => $self->casemap
+    )
+  },
 );
 
-method _build_users {
-  prefixed_new( 'IRC::Users' =>
-    casemap => $self->casemap
-  )
-}
 
 has numeric => (
   ## Numeric parser (IRC::Numerics)
@@ -223,12 +212,8 @@ has numeric => (
   is      => 'ro',
   isa     => InstanceOf['IRC::Server::Pluggable::IRC::Numerics'],
   writer  => 'set_numeric',
-  builder => '_build_numeric',
+  builder => sub { prefixed_new 'IRC::Numerics' },
 );
-
-method _build_numeric {
-  prefixed_new( 'IRC::Numerics' )
-}
 
 
 with @base_roles;

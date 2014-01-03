@@ -1,4 +1,5 @@
 package IRC::Server::Pluggable;
+use feature 'state';
 use strictures 1;
 
 use Carp 'confess';
@@ -15,14 +16,22 @@ my $prefix_new_sub = sub {
 
 
 sub import {
-  my ($self, @modules) = @_;
-
+  my (undef, @modules) = @_;
   my $pkg = caller;
-
   my @failed;
 
   for my $module (@modules) {
-    $module = "$module -all" if $module eq 'Types';
+    if ($module eq 'Types') {
+      $module = "$module -all";
+      state $guard = do { require_module('Type::Registry') };
+      eval {; 
+        Type::Registry->for_class($pkg)->add_types(
+          __PACKAGE__ .'::Types'
+        )
+      };
+      warn $@ if $@;
+    }
+
     my $c =
       "package $pkg; use IRC::Server::Pluggable::$module;" ;
 
@@ -90,8 +99,7 @@ The above would be equivalent to:
 
 =head1 SEE ALSO
 
-
-L<IRC::Server::Pluggable::IRC::Filter> - IRCv3-ready IRC filter
+L<IRC::Server::Pluggable::IRC::Dispatcher>
 
 L<IRC::Server::Pluggable::IRC::Protocol>
 
@@ -101,9 +109,17 @@ L<IRC::Server::Pluggable::IRC::Users>
 
 L<IRC::Server::Pluggable::IRC::Peers>
 
+L<IRC::Toolkit>
+
 L<MooX::Role::POE::Emitter>
 
 L<MooX::Role::Pluggable>
+
+L<POE::Filter::IRCv3>
+
+L<POEx::IRC::Backend>
+
+L<POEx::IRC::Client::Lite>
 
 =head1 AUTHOR
 

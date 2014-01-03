@@ -1,11 +1,10 @@
 package IRC::Server::Pluggable::Types;
 use strictures 1;
 
-use Type::Library -base;
-
-use Type::Utils   -all;
-use Types::Standard -types;
-use Types::TypeTiny ();
+use Type::Library    -base;
+use Type::Utils      -all;
+use Types::Standard  -types;
+use Types::TypeTiny  ();
 
 
 declare CaseMap =>
@@ -87,6 +86,11 @@ declare InetProtocol =>
     }
   };
 
+
+# FIXME POD
+declare ChanObj =>
+  as InstanceOf['IRC::Server::Pluggable::IRC::Channel'];
+
 declare UserObj =>
   as InstanceOf['IRC::Server::Pluggable::IRC::User'];
 
@@ -94,7 +98,6 @@ declare PeerObj =>
   as InstanceOf['IRC::Server::Pluggable::IRC::Peer'];
 
 
-no warnings 'void';
 print
 q{ <Gilded> I've actually worked at an archeological dig for a while
  <Gilded> It was kind of, well, meh
@@ -111,7 +114,7 @@ IRC::Server::Pluggable::Types - Type::Tiny types for IRC servers
 
 =head1 SYNOPSIS
 
-  use IRC::Server::Pluggable::Types;
+  use IRC::Server::Pluggable 'Types';
 
   has 'nick' => (
     is  => 'ro',
@@ -124,6 +127,11 @@ IRC::Server::Pluggable::Types - Type::Tiny types for IRC servers
   );
 
 =head1 DESCRIPTION
+
+L<IRC::Server::Pluggable> types.
+
+Importing via L<IRC::Server::Pluggable>, as shown in the SYNOPSIS, will also
+attempt to register with L<Type::Registry>.
 
 =head3 InetProtocol
 

@@ -2,36 +2,25 @@ package IRC::Server::Pluggable::IRC::User;
 ## Base class for Users.
 ## Overridable by Protocols.
 
-use 5.12.1;
-use strictures 1;
-
-use Carp;
-use Moo;
+use Defaults::Modern;
 
 use IRC::Server::Pluggable qw/
   Types
 /;
 
-use Scalar::Util qw/
-  blessed
-  weaken
-/;
+use Scalar::Util 'weaken';
 
 use IRC::Toolkit::Modes;
 
 use Exporter 'import';
 our @EXPORT = 'irc_user';
+sub irc_user {  __PACKAGE__->new(@_) }
 
-use namespace::clean -except => 'import';
-
+use Moo; use MooX::late;
 use overload
   bool     => sub { 1 },
   '""'     => 'nick',
   fallback => 1;
-
-sub irc_user {
-  __PACKAGE__->new(@_)
-}
 
 
 with 'IRC::Server::Pluggable::Role::Metadata';
@@ -50,54 +39,45 @@ sub BUILD {
   }
 }
 
-has 'channels' => (
-  ## Array of channels (weak refs).
-  lazy => 1,
-  is   => 'ro',
-  isa  => ArrayRef,
+has channels => (
+  lazy      => 1,
+  is        => 'ro',
+  isa       => HashObj,
+  coerce    => 1,
   predicate => 'has_channels',
   writer    => 'set_channels',
   clearer   => 'clear_channels',
-  default   => sub { [] },
+  builder   => sub { hash },
 );
 
-sub add_channel {
-  my ($self, $channel) = @_;
-
-  confess "add_channel expects an IRC::Server::Pluggable::IRC::Channel"
-    unless blessed $channel
-    and $channel->isa('IRC::Server::Pluggable::IRC::Channel');
-
+method add_channel ( ChanObj $channel ) {
   my $name = $channel->name;
-
-  $self->channels->{$name} = $channel;
-
+  $self->channels->set($name => $channel);
   weaken($self->channels->{$name});
-
   $self
 }
 
-sub del_channel {
-  my ($self, $channel) = @_;
-  delete $self->channels->{$channel}
+method del_channel ( (ChanObj | Str) $channel ) {
+  # FIXME auto-normalize if not blessed? check this
+  $self->channels->delete("$channel")
 }
 
 
-has 'realname' => (
+has realname => (
   required => 1,
   is       => 'ro',
   isa      => Str,
   writer   => 'set_realname',
 );
 
-has 'server' => (
+has server => (
   required => 1,
   is       => 'ro',
   isa      => Str,
   writer   => 'set_server',
 );
 
-has 'ts' => (
+has ts => (
   is      => 'ro',
   isa     => Num,
   writer  => 'set_ts',
@@ -106,7 +86,7 @@ has 'ts' => (
 );
 
 
-has 'nick' => (
+has nick => (
   required => 1,
   is       => 'ro',
   isa      => Str,
@@ -115,93 +95,79 @@ has 'nick' => (
 );
 
 ## A TS6 user will have an ID / UID.
-has 'id' => (
+has id => (
   lazy      => 1,
   is        => 'ro',
-  isa       => TS_ID,
+  isa       => Str,
   writer    => 'set_id',
   predicate => 'has_id',
-  builder   => '_build_id',
+  builder   => sub {
+    # Default to nick() -- a non-TS ircd won't feed us an ID
+    my ($self) = @_; $self->nick
+  }
 );
-sub _build_id {
-  my ($self) = @_;
-  ## Default to nick() -- a non-TS ircd can just not give us an ID.
-  $self->nick
-}
 
-has 'uid' => (
+has uid => (
   ## TS6.txt: UID = sid() . id()
   lazy      => 1,
   is        => 'ro',
   isa       => TS_ID,
   writer    => 'set_uid',
   predicate => 'has_uid',
-  default   => sub {
+  builder   => sub {
     confess
       "uid() requested but none specified, is this a TS6 implementation?"
   },
 );
 
-has 'user' => (
+has user => (
   required => 1,
   is       => 'ro',
   isa      => Str,
   writer   => 'set_user',
-  trigger  =>  1,
+  trigger  => 1,
 );
 
-has 'host' => (
+has host => (
   required => 1,
   is       => 'ro',
   isa      => Str,
   writer   => 'set_host',
-  trigger  =>  1,
+  trigger  => 1,
 );
 
-has 'full' => (
-  ## To avoid doing string operations every time we need a user
-  ## prefix, build and preserve the full nick!user@host
-  ## The tradeoff, though, is that trigger for 'nick' 'user' and 'host'
-  ## attribs will fire at construction time (for each respective attrib).
-  ## The _reset_full trigger below will return unless has_full, so it
-  #  is a fairly acceptable sacrifice...
+has full => (
   lazy      => 1,
   is        => 'ro',
   isa       => Str,
   writer    => 'set_full',
   predicate => 'has_full',
-  builder   => '_build_full',
+  builder   => sub {
+    my ($self) = @_;
+    $self->nick .'!'. $self->user .'@'. $self->host
+  },
 );
 
-sub _build_full {
-  my ($self) = @_;
-  $self->nick .'!'. $self->user .'@'. $self->host
+method _trigger_nick {
+  $self->set_full( $self->_build_full ) if $self->has_full
 }
-
-## These all do the same thing, but Moo triggers appear to be
-## either a coderef or a boolean true value, with little room for
-## negotiation. Possible a subclass may want to override to do esoteric
-## things anyway:
-sub _trigger_user { $_[0]->_trigger_nick(@_[1 .. $#_]) }
-sub _trigger_host { $_[0]->_trigger_nick(@_[1 .. $#_]) }
-sub _trigger_nick {
-  my ($self) = @_;
-  $self->set_full( $self->_build_full )
-    if $self->has_full
+{ no warnings 'once'; 
+  *_trigger_user = *_trigger_nick;
+  *_trigger_host = *_trigger_nick;
 }
 
 ## Mode-related.
-has '_valid_modes' => (
+has _valid_modes => (
   ## See _build_valid_modes
   lazy      => 1,
   init_args => 'valid_modes',
-  isa       => HashRef,
+  isa       => HashObj,
+  coerce    => 1,
   is        => 'ro',
   predicate => '_has_valid_modes',
   writer    => '_set_valid_modes',
   builder   => '_build_valid_modes',
 );
-
 sub _build_valid_modes {
   ## Override to add valid user modes.
   ##  $mode => 0  # Mode takes no params.
@@ -227,7 +193,7 @@ sub mode_takes_params {
 }
 
 
-has '_modes' => (
+has _modes => (
   lazy    => 1,
   is      => 'ro',
   isa     => HashRef,
@@ -286,7 +252,7 @@ sub set_mode_from_array {
 }
 
 
-has '_flags' => (
+has _flags => (
   ## FIXME document reserved keys:
   ##  - SERVICE  Bool
   ##  - DEAF     Bool
@@ -328,7 +294,8 @@ sub is_flagged_as {
 
 
 sub BUILDARGS {
-  my ($self, %opts) = @_;
+  my $self = shift;
+  my %opts = @_ ? @_ > 1 ? @_ : %{ $_[0] } : ();
 
   ## If we were given an ID and SID, we can create UID
   if (defined $opts{id}) {
@@ -345,15 +312,14 @@ sub BUILDARGS {
 }
 
 
-no warnings 'void';
-q{
+print q{
   <Schroedingers_hat> i suppose I could analyse the gif and do a fourier 
    decomposition, then feed that into a linear model and see what 
    happens...
   <Schroedingers_hat> ^ The best part is that sentence was 
    about breasts.
-};
-
+} unless caller; 
+1;
 
 =pod
 

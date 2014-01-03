@@ -2,11 +2,10 @@ package IRC::Server::Pluggable::IRC::Channel;
 ## Base class for Channels.
 ## Types/subclasses are mapped in Protocol.
 
-use 5.12.1;
-use strictures 1;
+use Defaults::Modern;
 
-use Carp;
-use Moo;
+use Module::Runtime 'use_module';
+
 
 use IRC::Server::Pluggable qw/
   Types
@@ -15,23 +14,19 @@ use IRC::Server::Pluggable qw/
 
 use Exporter 'import';
 our @EXPORT = 'irc_channel';
-
-
-use namespace::clean -except => 'import';
-
-
-use overload
-  bool     => sub { 1 },
-  '""'     => 'name',
-  fallback => 1 ;
-
-  
 sub irc_channel {
   __PACKAGE__->new(@_)
 }
 
 
-has 'is_relayed' => (
+use Moo; use MooX::late;
+use overload
+  bool     => sub { 1 },
+  '""'     => 'name',
+  fallback => 1 ;
+
+
+has is_relayed => (
   lazy    => 1,
   is      => 'ro',
   isa     => Bool,
@@ -40,7 +35,7 @@ has 'is_relayed' => (
 );
 
 
-has '_list_classes' => (
+has _list_classes => (
   ## Map list keys to classes
   init_arg => 'list_classes',
   lazy    => 1,
@@ -50,7 +45,7 @@ has '_list_classes' => (
   builder => '_build_list_classes',
 );
 
-sub _build_list_classes {
+method _build_list_classes {
   my $base = "IRC::Server::Pluggable::IRC::Channel::List::";
   {
       bans    => $base . "Bans",
@@ -58,40 +53,34 @@ sub _build_list_classes {
   }
 }
 
-has 'lists' => (
+has lists => (
   ## Ban lists, etc
   lazy    => 1,
   is      => 'ro',
-  isa     => HashRef,
+  isa     => TypedHash[Object],
+  coerce  => 1,
   writer  => 'set_lists',
   builder => '_build_lists',
 );
 
-sub _build_lists {
+method _build_lists {
   ## Construct from _list_classes
-  my ($self) = @_;
-
-  my $listref = {};
-
+  my $lists = hash;
   for my $key (keys %{ $self->_list_classes }) {
     my $class = $self->_list_classes->{$key};
-
-    require $class;
-
-    $listref->{$key} = $class->new;
+    $lists->set($key => use_module($class)->new)
   }
-
-  $listref
+  $lists
 }
 
 
-has 'name' => (
+has name => (
   required => 1,
   is       => 'ro',
   isa      => Str,
 );
 
-has 'nicknames' => (
+has nicknames => (
   lazy    => 1,
   is      => 'ro',
   isa     => HashRef[ArrayRef],
@@ -99,7 +88,7 @@ has 'nicknames' => (
   default => sub { {} },
 );
 
-has '_modes' => (
+has _modes => (
   ##  Channel control modes
   ##  Status modes are handled via nicknames hash and chg_status()
   ##  List modes are handled via ->lists
@@ -111,7 +100,7 @@ has '_modes' => (
   default   => sub { {} },
 );
 
-has '_topic' => (
+has _topic => (
   ## Array of topic details
   ##  [ string, setter, TS ]
   lazy      => 1,
@@ -123,7 +112,7 @@ has '_topic' => (
   default   => sub { [ ] },
 );
 
-has 'ts' => (
+has ts => (
   is       => 'ro',
   isa      => Num,
   writer   => 'set_ts',
@@ -132,7 +121,7 @@ has 'ts' => (
 );
 
 
-has 'valid_modes' => (
+has valid_modes => (
   lazy      => 1,
   isa       => HashRef,
   is        => 'ro',

@@ -492,15 +492,12 @@ sub irc_ev_unknown_cmd {
   $self->protocol_dispatch( 'cmd_from_unknown_'.lc($cmd), $conn, $event );
 }
 
-
-
-no warnings 'void';
-q{
+print q{
 <Gilded> Arrh, gather around men, for I saw a user of the female variety
  on IRC once. 'Twas the year 2002, on a Magic the Gathering channel on ye
  olde QuakeNet. A fair wench did indeed join and then immediately part at
  the sight of all the unkempt neckbeards.
-};
+} unless caller; 1
 
 
 =pod

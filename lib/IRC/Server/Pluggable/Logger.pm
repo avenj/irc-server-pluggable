@@ -83,7 +83,7 @@ method _should_log ($level) {
       1 : ()
 }
 
-method log_to_level (Int $level, @data) {
+method log_to_level (Str $level, @data) {
   $self->output->_write(
     $level,
     [ caller(1) ],

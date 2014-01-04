@@ -27,7 +27,7 @@ chomp $contents;
 cmp_ok($contents, 'eq', 'Test string', 'Log contents look OK' );
 
 undef $contents;
-unlink $test_log_path if -f $test_log_path;
+unlink $test_log_path if -e $test_log_path;
 
 
 my $term_out = new_ok( 'IRC::Server::Pluggable::Logger::Output::Term' );

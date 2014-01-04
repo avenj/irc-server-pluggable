@@ -193,6 +193,7 @@ method channel_has_nickname (Str $nickname) {
 }
 
 sub chg_status {
+  # FIXME API sucks
   # ->chg_status( $nickname, $mode_to_add, $excluded_modes )
   #  (For example, +o excludes +h on some implementations.)
   #  Modes currently accepted as strings.
@@ -233,60 +234,48 @@ sub chg_modes {
 }
 
 # Users -- informational (bans, modes, ...)
-sub user_has_mode {
-  my ($self, $nickname, $modechr) = @_;
-
-  my @modes = @{ $self->nicknames->{$nickname} || return };
-
-  return unless grep {; $_ eq $modechr } @modes;
-
-  1
+method user_has_mode (
+  Str $nickname,
+  Str $modechr
+) {
+  my $modes = $self->nicknames->get($nickname) || return;
+  $modes->has_any(sub { $_ eq $modechr })
 }
 
-sub user_is_invited {
-  my ($self, $nick, $cmap) = @_;
-
-  return 1 if $self->lists->{invite}
-    and $self->lists->{invite}->keys_matching_ircstr( $nick, $cmap );
-
-  return
+method user_is_invited (
+  Str     $nickname,
+  CaseMap $casemap
+) {
+  my $invlist = $self->lists->get('invite') || return;
+  my $res = $invlist->keys_matching_ircstr($nickname => $casemap);
+  !! @$res
 }
 
-sub hostmask_is_banned {
-  my ($self, $hostmask, $cmap) = @_;
-
-  return 1 if $self->lists->{bans}
-    and $self->lists->{bans}->keys_matching_mask( $hostmask, $cmap );
-
-  return
+method hostmask_is_banned (
+  Str     $hostmask,
+  CaseMap $casemap
+) {
+  my $blist = $self->lists->get('bans') || return;
+  my $res = $blist->keys_matching_mask($hostmask => $casemap);
+  !! @$res
 }
 
-# Topic -- manipulation and informational
-sub set_topic {
-  my ($self, $topic, $setter_str, $ts) = @_;
-  confess "set_topic() called without a topic string"
-    unless defined $topic;
-  $self->_set_topic( [ $topic, $setter_str // '', $ts // time ] )
+method set_topic (
+  Str  $topic,
+  Str  $setter = '',
+  Num  $ts     = time
+) {
+  $self->_set_topic( array($topic, $setter, $ts) )
 }
 
-sub set_topic_ts {
-  my ($self, $ts) = @_;
-  $self->_topic->[2] = $ts // time
+method chg_topic_ts ( 
+  Num $ts = time
+) {
+  $self->_topic->set(2 => $ts)
 }
 
-sub topic_string {
-  my ($self) = @_;
-  $self->_topic->[0]
-}
-
-sub topic_setter {
-  my ($self) = @_;
-  $self->_topic->[1]
-}
-
-sub topic_ts {
-  my ($self) = @_;
-  $self->_topic->[2]
-}
+method topic_string { $self->_topic->get(0) }
+method topic_setter { $self->_topic->get(1) }
+method topic_ts     { $self->_topic->get(2) }
 
 1;

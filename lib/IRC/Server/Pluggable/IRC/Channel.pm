@@ -1,16 +1,14 @@
 package IRC::Server::Pluggable::IRC::Channel;
-## Base class for Channels.
-## Types/subclasses are mapped in Protocol.
+# Base class for Channels;
+# Types/subclasses are mapped in Protocol.
 
 use Defaults::Modern;
 
 use Module::Runtime 'use_module';
 
-
 use IRC::Server::Pluggable qw/
   Types
 /;
-
 
 use Exporter 'import';
 our @EXPORT = 'irc_channel';
@@ -36,25 +34,26 @@ has is_relayed => (
 
 
 has _list_classes => (
-  ## Map list keys to classes
+  # Map list keys to classes
   init_arg => 'list_classes',
   lazy    => 1,
   is      => 'ro',
-  isa     => HashRef,
+  isa     => HashObj,
+  coerce  => 1,
   writer  => '_set_list_classes',
   builder => '_build_list_classes',
 );
 
 method _build_list_classes {
   my $base = "IRC::Server::Pluggable::IRC::Channel::List::";
-  {
-      bans    => $base . "Bans",
-      invites => $base . "Invites",
-  }
+  hash(
+    bans    => $base . "Bans",
+    invites => $base . "Invites",
+  )
 }
 
 has lists => (
-  ## Ban lists, etc
+  # Ban lists, etc
   lazy    => 1,
   is      => 'ro',
   isa     => TypedHash[Object],
@@ -64,7 +63,7 @@ has lists => (
 );
 
 method _build_lists {
-  ## Construct from _list_classes
+  # Construct from _list_classes
   my $lists = hash;
   for my $key (keys %{ $self->_list_classes }) {
     my $class = $self->_list_classes->{$key};
@@ -89,27 +88,29 @@ has nicknames => (
 );
 
 has _modes => (
-  ##  Channel control modes
-  ##  Status modes are handled via nicknames hash and chg_status()
-  ##  List modes are handled via ->lists
+  #  Channel control modes
+  #  Status modes are handled via nicknames hash and chg_status()
+  #  List modes are handled via ->lists
   lazy      => 1,
   is        => 'ro',
-  isa       => HashRef,
+  isa       => HashObj,
+  coerce    => 1,
   writer    => '_set_modes',
   predicate => '_has_modes',
-  default   => sub { {} },
+  default   => sub { hash },
 );
 
 has _topic => (
-  ## Array of topic details
-  ##  [ string, setter, TS ]
+  # Array of topic details
+  #  [ string, setter, TS ]
   lazy      => 1,
   is        => 'ro',
-  isa       => ArrayRef,
+  isa       => ArrayObj,
+  coerce    => 1,
   writer    => '_set_topic',
   predicate => '_has_topic',
   clearer   => '_clear_topic',
-  default   => sub { [ ] },
+  default   => sub { array },
 );
 
 has ts => (
@@ -123,107 +124,79 @@ has ts => (
 
 has valid_modes => (
   lazy      => 1,
-  isa       => HashRef,
   is        => 'ro',
+  isa       => TypedHash[ArrayObj],
+  coerce    => 1,
   predicate => 'has_valid_modes',
   writer    => 'set_valid_modes',
   builder   => '_build_valid_modes',
 );
 
-sub _build_valid_modes {
-    ## ISUPPORT CHANMODES=1,2,3,4
-    ## Channel modes fit in four categories:
-    ##  'LIST'     -> Modes that manipulate list values
-    ##  'PARAM'    -> Modes that require a parameter
-    ##  'SETPARAM' -> Modes that only require a param when set
-    ##  'SINGLE'   -> Modes that take no parameters
-    {
-      LIST     => [ 'b' ],
-      PARAM    => [ 'k' ],
-      SETPARAM => [ 'l' ],
-      SINGLE   => [ split '', 'imnpst' ],
-    }
+method _build_valid_modes {
+  # ISUPPORT CHANMODES=1,2,3,4
+  # Channel modes fit in four categories:
+  #  'LIST'     -> Modes that manipulate list values
+  #  'PARAM'    -> Modes that require a parameter
+  #  'SETPARAM' -> Modes that only require a param when set
+  #  'SINGLE'   -> Modes that take no parameters
+  hash(
+    LIST     => array( 'b' ),
+    PARAM    => array( 'k' ),
+    SETPARAM => array( 'l' ),
+    SINGLE   => array( split '', 'imnpst' ),
+  )
 }
 
-sub add_valid_mode {
-  my ($self, $type, @modes) = @_;
+method add_valid_mode (Str $type, @modes) {
   confess "Expected a mode type and at least one mode character"
-    unless $type and @modes;
-
-  push @{ $self->valid_modes->{$type} }, @modes
+    unless @modes;
+  confess "Unknown mode type: '$type'"
+    unless $self->valid_modes->exists($type);
+  $self->valid_modes->get($type)->push(@modes)->all
 }
 
-sub mode_is_valid {
-  ## Ask the channel if this mode is valid.
-  ## (A modeless channel could always return false, f.ex)
-  my ($self, $mode) = @_;
-  confess "Expected a mode to be supplied" unless defined $mode;
-
+method mode_is_valid (Str $mode) {
   my @all;
   push @all, @{ $self->valid_modes->{$_} } for keys %{ $self->valid_modes };
-
   return unless grep {; $_ eq $mode } @all;
-  return 1
+  1
 }
 
 
 
-## IMPORTANT: These functions all currently expect a higher
-##  level layer to handle upper/lower case manipulation.
-##  May reconsider this later ...
-##  In the meantime IRC::Channels needs proxy methods
+# IMPORTANT: These functions all currently expect a higher
+#  level layer to handle upper/lower case manipulation.
+#  May reconsider this later ...
+#  In the meantime IRC::Channels needs proxy methods
 
-sub add_nickname {
-  my ($self, $nickname, $data) = @_;
-
-  ## Map a nickname to an array of status modes.
-  ## Note that User manip should be handled out of a Channels collection
-  ## and lowercasing should happen there.
-
-  confess "add_user called with no nickname specified"
-    unless defined $nickname;
-
-  if (defined $data && ref $data ne 'ARRAY') {
-    carp "add_user passed non-ARRAY params argument for $nickname";
-    return
-  }
-
-  $self->nicknames->{$nickname} = $data // []
+method add_nickname (
+  Str                   $nickname,
+  (ArrayObj | ArrayRef) $data = []
+) {
+  # Map a nickname to an array of status modes.
+  # Note that User manip should be handled out of a Channels collection
+  # and lowercasing should happen there.
+  $data = array(@$data) unless is_ArrayObj $data;
+  $self->nicknames->set($nickname => $data // array)
 }
 
-sub del_nickname {
-  my ($self, $nickname) = @_;
+method del_nickname (Str $nickname) { $self->nicknames->delete($nickname) }
 
-  delete $self->nicknames->{$nickname}
+method nicknames_as_array { $self->nicknames->keys }
+
+method channel_has_mode (Str $modechr) { 
+  $self->_modes->exists($modechr) 
 }
 
-sub nicknames_as_array {
-  my ($self) = @_;
-
-  [ keys %{ $self->nicknames } ]
-}
-
-sub channel_has_mode {
-  my ($self, $modechr) = @_;
-  confess "channel_has_mode expects a mode character"
-    unless defined $modechr;
-
-  $self->_modes->{$modechr}
-}
-
-sub channel_has_nickname {
-  my ($self, $nickname) = @_;
-  confess "channel_has_user expects a lowercased nickname"
-    unless defined $nickname;
-
-  $self->nicknames->{$nickname}
+method channel_has_nickname (Str $nickname) {
+  $self->nicknames->exists($nickname)
 }
 
 sub chg_status {
-  ## ->chg_status( $nickname, $mode_to_add, $excluded_modes )
-  ##  (For example, +o excludes +h on some implementations.)
-  ##  Modes currently accepted as strings.
-  ##  FIXME should probably accept arrayrefs or IRC::ModeChange also
+  # ->chg_status( $nickname, $mode_to_add, $excluded_modes )
+  #  (For example, +o excludes +h on some implementations.)
+  #  Modes currently accepted as strings.
+  #  FIXME should probably accept arrayrefs or IRC::ModeChange also
   my ($self, $nickname, $modestr, $exclude) = @_;
 
   confess "chg_status() expected at least nickname and mode string"
@@ -243,9 +216,9 @@ sub chg_status {
     @modeset = [ grep {; !$excluded{$_} } @modeset ];
   }
 
-  ## Return arrayref consisting of final modes.
-  ## These will have to be sorted upstream from here.
-  ## FIXME return IRC::ModeChange instead?
+  # Return arrayref consisting of final modes.
+  # These will have to be sorted upstream from here.
+  # FIXME return IRC::ModeChange instead?
   $self->nicknames->{$nickname} = [ @modeset ]
 }
 
@@ -253,13 +226,13 @@ sub chg_modes {
   my ($self, $channel, $mode_hash) = @_;
   confess "chg_modes() expected a channel name and a mode_to_hash() HASH"
     unless ref $mode_hash eq 'HASH';
-  ## FIXME
-  ## Modes may have certain side-effects in a Protocol,
-  ##  Role::Channels should probably bridge
-  ## Normalize here and modify ->modes, lists, chg_status
+  # FIXME
+  # Modes may have certain side-effects in a Protocol,
+  #  Role::Channels should probably bridge
+  # Normalize here and modify ->modes, lists, chg_status
 }
 
-## Users -- informational (bans, modes, ...)
+# Users -- informational (bans, modes, ...)
 sub user_has_mode {
   my ($self, $nickname, $modechr) = @_;
 
@@ -288,7 +261,7 @@ sub hostmask_is_banned {
   return
 }
 
-## Topic -- manipulation and informational
+# Topic -- manipulation and informational
 sub set_topic {
   my ($self, $topic, $setter_str, $ts) = @_;
   confess "set_topic() called without a topic string"

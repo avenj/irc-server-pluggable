@@ -1,6 +1,4 @@
 package IRC::Server::Pluggable::IRC::User;
-## Base class for Users.
-## Overridable by Protocols.
 
 use Defaults::Modern;
 
@@ -41,7 +39,7 @@ sub BUILD {
 
 has channels => (
   lazy      => 1,
-  is        => 'ro',
+  :is        => 'ro',
   isa       => HashObj,
   coerce    => 1,
   predicate => 'has_channels',
@@ -166,45 +164,31 @@ has _valid_modes => (
   is        => 'ro',
   predicate => '_has_valid_modes',
   writer    => '_set_valid_modes',
-  builder   => '_build_valid_modes',
+  builder   => sub {
+    ## Override to add valid user modes.
+    ##  $mode => 0  # Mode takes no params.
+    ##  $mode => 1  # Mode takes param when set.
+    ##  $mode => 2  # Mode always takes param.
+    ## This default set is entirely paramless:
+    hash( map {; $_ => 0 } split '', 'iaows' )
+  },
 );
-sub _build_valid_modes {
-  ## Override to add valid user modes.
-  ##  $mode => 0  # Mode takes no params.
-  ##  $mode => 1  # Mode takes param when set.
-  ##  $mode => 2  # Mode always takes param.
-  ## This default set is entirely paramless:
-  +{ 
-    map {; $_ => 0 } split '', 'iaows'
-  }
-}
 
-sub mode_is_valid {
-  my ($self, $mode) = @_;
-  confess "Expected a mode to be supplied" unless defined $mode;
-  return unless defined $self->_valid_modes->{$mode};
-  1
-}
-
-sub mode_takes_params {
-  my ($self, $mode) = @_;
-  return 0 unless defined $self->_valid_modes->{$mode};
-  $self->_valid_modes->{$mode}
-}
+method mode_is_valid (Str $mode)     { !! $self->_valid_modes->exists($mode) }
+method mode_takes_params (Str $mode) { $self->_valid_modes->get($mode) // () }
 
 
 has _modes => (
   lazy    => 1,
   is      => 'ro',
-  isa     => HashRef,
+  isa     => HashObj,
+  coerce  => 1,
   writer  => '_set_modes',
-  default => sub { {} },
+  builder => sub { hash },
 );
 
-sub set_mode_from_string {
-  my ($self, $modestr, @params) = @_;
-
-  my @list = keys %{ $self->_valid_modes };
+method set_mode_from_string (Str $modestr, @params) {
+  my @list = $self->_valid_modes->keys->all;
   my (@always, @whenset);
 
   MODECHAR: for my $mchr (@list) {
@@ -227,9 +211,9 @@ sub set_mode_from_string {
   $self->set_mode_from_array($array)
 }
 
-sub set_mode_from_array {
-  my ($self, $modearray) = @_;
-
+method set_mode_from_array (
+  (ArrayObj | ArrayRef) $modearray
+) {
   my @changed;
   MODESET: for my $mset (@$modearray) {
     my ($flag, $mode, $param) = @$mset;
@@ -248,7 +232,7 @@ sub set_mode_from_array {
 
   ## Returns array-of-arrays describing changes.
   ## (in the same format as Utils::mode_to_array)
-  \@changed
+  array @changed
 }
 
 
@@ -256,39 +240,29 @@ has _flags => (
   ## FIXME document reserved keys:
   ##  - SERVICE  Bool
   ##  - DEAF     Bool
-  lazy => 1,
-  is   => 'ro',
-  isa  => HashRef,
-  default => sub { {} },
+  lazy      => 1,
+  is        => 'ro',
+  isa       => HashObj,
+  builder   => sub { hash },
 );
 
-sub list_flags {
-  my ($self) = @_;
-  keys %{ $self->_flags }
+method list_flags { $self->_flags->keys->all }
+
+method add_flags (@flags) {
+  $self->_flags->set( map {; $_ => 1 } @flags );
+  $self
 }
 
-sub add_flags {
-  my ($self, @flags) = @_;
-  $self->_flags->{$_} = 1 for @flags;
-  1
+method del_flags (@flags) {
+  $self->_flags->delete(@flags);
+  $self
 }
 
-sub del_flags {
-  my ($self, @flags) = @_;
-  delete $self->_flags->{$_} for @flags;
-  1
-}
-
-sub is_flagged_as {
-  my ($self, @flags) = @_;
-
+method is_flagged_as (@flags) {
   my @resultset;
-
   for my $to_check (@flags) {
-    push(@resultset, $to_check)
-      if $self->_flags->{$to_check}
+    push(@resultset, $to_check) if $self->_flags->exists($to_check)
   }
-
   @resultset
 }
 
@@ -297,7 +271,7 @@ sub BUILDARGS {
   my $self = shift;
   my %opts = @_ ? @_ > 1 ? @_ : %{ $_[0] } : ();
 
-  ## If we were given an ID and SID, we can create UID
+  ## If we were given an ID and SID, we can create our TS6 UID:
   if (defined $opts{id}) {
     confess "'id =>' specified but no 'sid' or 'uid' given"
       unless defined $opts{sid} or defined $opts{uid};
@@ -308,7 +282,7 @@ sub BUILDARGS {
     }
   }
 
-  +{%opts}
+  \%opts
 }
 
 
